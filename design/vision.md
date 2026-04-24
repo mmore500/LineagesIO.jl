@@ -74,7 +74,6 @@ The package will be organized as a single umbrella package with bundled submodul
 Planned structure:
 
 * `LineagesIO`
-
   * `Formats.LineageGraphML`
   * `Formats.tskit`
   * `Formats.Newick`
@@ -82,7 +81,7 @@ Planned structure:
   * `Formats.NeXML`
   * `Formats.PhyloXML`
   * `Formats.NHX`
-  * additional Phase 2 submodules as adopted
+  * additional submodules as adopted
 
 This bundled-submodule design is intentionally chosen instead of the one-package-per-format pattern. 
 The rationale is that the domain object model, format conversion logic, validation policy, tree collection abstractions, and format capability matrices are shared across formats. 
@@ -113,6 +112,8 @@ For this project, we consider a lineage graph to be in one following classes of 
  - Phylogenetic network (most definitions)
 - Unrooted tree
 - (TBD) Gene flow networks?
+
+Implementations of these in Julia (using Julia `abstract` and other mechanisms as needed to develop rich semantic abstraction, polymorphism, and hierarchy) will be wrapped to 
 
 ## Canonical data model requirements
 
@@ -167,11 +168,16 @@ The PRD treats these as first-class product requirements, but they are not to be
 
 ### Decision on `loadstreaming`
 
-The Phase 1 generator interface will **not** be named `loadstreaming` unless the implementation is later redesigned to satisfy FileIO’s decoded-stream model. Under current requirements, the package should instead define package-native lazy accessors such as:
+The Phase 1 generator interface will **not** be named `loadstreaming` unless the implementation is later redesigned to satisfy FileIO’s decoded-stream model. 
 
-* a lazy tree iterator over a file or stream
-* lazy `AbstractTrees` views over single trees and tree collections
-* lazy `AbstractGraph` views over single trees and tree collections
+### Lazy accessors
+
+Under current requirements, the package should instead define package-native lazy accessors such as:
+
+* a lazy generic (using native Julia mechanisms for abstraction: parameters and/or user provided accessor functions) iterator over a file or stream
+* lazy `LineageGraph{T,...}` view over single trees; should provide native capacity to provide or support via thin wrapping:
+    * lazy `AbstractTrees` views over single trees and tree collections
+    * lazy `AbstractGraph` views over single trees, graphs and/or tree/graph collections (expected to conform to at least one of the canonical graph classes)
 
 This is the cleanest interpretation of FileIO’s docs. FileIO’s own terminology reserves `loadstreaming` for something stream-like that can be read from, rather than a semantic iterator over already-decoded tree objects. ([Julia.io][1])
 
@@ -179,16 +185,14 @@ This is the cleanest interpretation of FileIO’s docs. FileIO’s own terminolo
 
 Phase 1 will include parameterized functions returning lazy or generator-like access objects for:
 
-* an `AbstractTrees` interface over a single tree
+* an `LineageGraph{T,...}` interface over a single lineage graph; should provide native capacity to provide or support via thin wrapping:
+    * an `AbstractTrees` interface over a single lineage graph (tree type)
+    * an `AbstractGraph` interface over a single lineage graph 
+* an `LineageGraph{T,...}` interface over collections of trees in a file
 * an `AbstractTrees` interface over collections of trees in a file
-* an `AbstractGraph` interface over a single tree
 * an `AbstractGraph` interface over collections of trees in a file
 
 These objects should preserve file provenance and optional metadata where feasible.
-
-### Future true streaming
-
-A true FileIO `loadstreaming` implementation is deferred to a later phase and will only be added if the package introduces a decoded stream abstraction whose semantics match FileIO’s documented expectations, including `read` and `close`. ([Julia.io][1])
 
 ## Format taxonomy and phased scope
 
@@ -196,21 +200,22 @@ A true FileIO `loadstreaming` implementation is deferred to a later phase and wi
 
 Phase 1 will support:
 
+* `format"LineageGraphML"`
 * `format"Newick"`
-* `format"PhyloGraphML"`
 
 For Newick, the package will support multiple user-facing extensions, including the user-specified `.tre`, `.tree`, `.trees`, `.newick`, and `.nwk`, with support for additional Newick-family aliases as implementation experience warrants.
 
-For GraphML, the package will not claim all generic GraphML resources as phylogenetic. GraphML itself is a general-purpose graph markup language with an extension mechanism, and GraphIO already documents GraphML support for Julia graph persistence. Accordingly, this package will treat phylogeny-oriented GraphML support as a **profiled subtype**, represented internally by a distinct FileIO format tag such as `format"PhyloGraphML"`, not by generic `format"GraphML"`. Detection should require either explicit format override or evidence of a package-defined phylogenetic profile. ([GraphML][7])
+For GraphML, the package will not claim all generic GraphML resources as phylogenetic. GraphML itself is a general-purpose graph markup language with an extension mechanism, and GraphIO already documents GraphML support for Julia graph persistence. Accordingly, this package will treat phylogeny-oriented GraphML support as a **profiled subtype**, represented internally by a distinct FileIO format tag such as `format"LineageGraphML"`, not by generic `format"GraphML"`. Detection should require either explicit format override or evidence of a package-defined phylogenetic profile. ([GraphML][7])
 
 ### Phase 2 formats
 
 Phase 2 will support:
 
-* `format"Nexus"` for `.nex`, `.nexus`, and likely `.nxs`
-* ten additional distinct phylogenetic or phylogeny-adjacent formats/profiles discovered in the landscape review
+* `format"Nexus"` for `.nex`, `.nexus`, and likely `.nxs`; reference implementation in Python (DendroPy) is available in the workspace ("codebases-and-documentation").
+* `format"tskit"` for `.ts`, `.tskit`; reference implementation in Python (tskit) are available.
+* Other formats/profiles TBD ("codebases-and-documentation")
 
-The revised Phase 2 candidate set is:
+Potential others:
 
 1. `format"NeXML"`
 2. `format"PhyloXML"`
@@ -227,12 +232,10 @@ These are not all equivalent in scope. Some are strict tree formats, some are ri
 
 The practical implication is that Phase 2 should define a support matrix, not just a flat format list. Each candidate format must be labeled as one of:
 
-* tree
-* tree collection container
-* annotated tree
-* phylogenetic network
-* tree-adjacent placement or ontology format
-* experimental or profile-specific JSON/XML mapping
+* lineage graph subtype
+* lineage graph subtype collection container
+* annotated lineage graph
+* (TBD) vertex-relative or label-relative placement of arbitary side-channel information including both text as well as graphical forms. 
 
 ## Format-specific design requirements
 
@@ -265,6 +268,7 @@ Because NEXUS is a container-like syntax rather than just a bare tree encoding, 
 ### GraphML phylogenetic profile
 
 The package will support GraphML only under a phylogeny-specific profile.
+It will adopt this general format as its "native" format (pseudo-native, in the sense of fully-supported and default serialization/deserialization format assuming it allows full expression and round-tripping of its abstractions, but not let its own abstractions or data model be driven by how or even whether it is expressed in GraphML)
 
 Requirements:
 
