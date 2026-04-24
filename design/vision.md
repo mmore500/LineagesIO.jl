@@ -107,32 +107,28 @@ The reference concept we use here is that of the *lineage graph* (see: `STYLE-vo
 For this project, we consider a lineage graph to be in one following classes of graph (though implementation may not support the full range in Phase 1, design should, and architecture should or at least should be extensible enough to)
 
 
-- directed acyclic graph (DAG)
- - rooted tree
+- Directed acyclic graph (DAG)
+ - Rooted tree
  - Ancestral recombination graph (ARG); see `codebases-and-documentation/tskit` for reference implementation. Read the files in the archive, documents first, then python code, line-by-line.
- - phylogenetic network (most definitions)
+ - Phylogenetic network (most definitions)
+- Unrooted tree
+- (TBD) Gene flow networks?
 
 ## Canonical data model requirements
 
 The package must define a canonical structure representation that can support at minimum:
 
-* any single lineage graph, which may belong to any of the following classes of abstractions (semantically may be organized mathematically and hierarchically if appropriate and agreed upon):
-    - rooted tree
-    - unrooted tree
-    - ancestral recombination graph
-    - directed acylic graph
-    - phylogenetic network
-    - gene flow network
+* Any single lineage graph, which may belong to any of the above classes of abstractions.
   **Note:** Not all of these may need full implementation in Phase 1, but the architecture and infrastructure design and implementation should be designed to support these; if this would add too much complexity, can be deferred following discussion.
-* collections of these lineage graphs from one file
-* vertex labels
-* edge lengths
-* edge-level and vertex-level annotations
-* graph or tree-level annotations and metadata
-* file-level metadata and provenance
-* partial preservation of format-specific constructs that do not have a perfect common denominator
+* Collections of these lineage graphs from one file
+* Vertex labels
+* Edge lengths
+* Edge-level and vertex-level annotations
+* Graph or tree-level annotations and metadata
+* File-level metadata and provenance
+* Partial preservation of format-specific constructs that do not have a perfect common denominator
 
-The canonical model must distinguish a **single lineage graph** from a **lineage graph collection**, because both Newick-family and NEXUS-family workflows commonly contain multiple lineage tree graphs in a single logical resource. This requirement is also consistent with common phylogenetic tooling outside Julia, where parsers often distinguish “read one tree” from “parse all trees in a file.” ([Biopython][6])
+The canonical model must distinguish a **single lineage graph** from a **lineage graph collection**, because both Newick-family and NEXUS-family workflows commonly contain multiple lineage tree graphs in a single logical resource. This requirement is also consistent with common phylogenetic tooling outside Julia, where parsers often distinguish “read one tree” from “parse all trees in a file.” 
 
 The canonical model must also support loss accounting. When converting between formats, the package must be able to report whether information was preserved, downgraded, or dropped.
 
@@ -387,7 +383,8 @@ That summary comes directly from FileIO’s registration and implementation docs
 
 Phase 1 deliverables:
 
-* Canonical lineage graph and lineage graph-collection model
+* Canonical lineage graph and lineage graph-collection model:
+    - Encapsulated into its own source tree and package layout, "LineageGraphs.jl"
 * Bundled submodule architecture
 * Newick support with multiple extensions
 * Phylogeny-profiled GraphML support under a non-generic internal format tag
