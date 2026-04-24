@@ -1,0 +1,7 @@
+name = "LineagesIO"
+uuid = "bdba7728-14e2-45e7-a2f0-1ba665f6f151"
+authors = ["Jeet Sukumaran <jeetsukumaran@gmail.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10.10"
