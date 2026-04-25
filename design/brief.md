@@ -132,13 +132,82 @@ well-defined responsibility and a stable interface boundary.
 
 ## Builder protocol
 
-The builder protocol is the central interface through which LineagesIO.jl
-communicates parsed structure to user code. Users implement `add_child` at
-whichever level of the protocol matches their graph type.
+`add_child` is LineagesIO.jl's central exported generic function and the primary
+public interface through which parsed structure is communicated to user code.
+Everything in the library's parsing pipeline converges on calls to `add_child`.
+Users supply the implementation; the library calls it.
 
-### Tree-level dispatch (single-parent case)
+### Invocation styles
 
-Users whose graph type is a rooted tree implement two methods:
+Two invocation styles are supported and may coexist within the same project. They
+share identical call signatures; only the provisioning mechanism differs.
+
+**Style 1 — Method extension (multiple dispatch)**
+
+Users extend `LineagesIO.add_child` for their concrete node type and pass the
+type as a positional argument to `load`. The library dispatches all builder calls
+through normal Julia multiple dispatch, specializing fully on `NodeT` at compile
+time.
+
+This follows the Tables.jl sink pattern used by CSV.jl (`CSV.read(src, DataFrame)`)
+and similar ecosystem interfaces. Making the node type explicit at the call site
+eliminates any ambiguity about which methods to dispatch to and allows the compiler
+to specialize the entire parse on `NodeT` without runtime lookup.
+
+```julia
+# User extends LineagesIO.add_child for MyNode:
+function LineagesIO.add_child(
+    parent     :: Nothing,
+    label      :: AbstractString,
+    edgelength :: Union{Float64, Nothing},
+    data       :: D,
+) where {D}
+    return MyNode(label, edgelength, data.bootstrap)   # root; data carries format metadata
+end
+
+function LineagesIO.add_child(
+    parent     :: MyNode,
+    label      :: AbstractString,
+    edgelength :: Union{Float64, Nothing},
+    data       :: D,
+) where {D}
+    return add_child_to_tree!(parent, label, edgelength, data.bootstrap)
+end
+
+# Node type passed as positional argument — no kwarg needed:
+result = load("file.nwk", MyNode)
+```
+
+The three calling patterns for `load` are therefore:
+
+| Call | Returns |
+|---|---|
+| `load("file.nwk")` | Tables.jl node table (no builder) |
+| `load("file.nwk", MyNode)` | `MyNode` tree via dispatch extension |
+| `load("file.nwk"; builder = fn)` | builder's `NodeT` via callback |
+
+An explicit `builder` kwarg always takes precedence over extended methods.
+
+**Style 2 — Builder callback (keyword argument)**
+
+Users pass an `add_child`-compatible function as the `builder` keyword argument to
+`load`. The library calls this function directly. An explicit `builder` kwarg
+always takes precedence over any extended `LineagesIO.add_child` methods in scope.
+
+```julia
+result = load("file.nwk"; builder = (parent, label, edgelength, data) -> ...)
+```
+
+This style is preferred for ad-hoc or scripting contexts, for cases where a user
+wants multiple different builder strategies for the same node type, or when
+disambiguation between several extended methods is impractical.
+
+### Dispatch levels
+
+The protocol defines two levels, corresponding to the two structural families of
+phylogenetic files.
+
+**Tree level — single-parent case:**
 
 ```julia
 add_child(
@@ -146,22 +215,21 @@ add_child(
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
     data       :: D,
-) :: NodeT   # called once; returns the root handle
+) :: NodeT   # root creation; called exactly once per tree
 
 add_child(
     parent     :: NodeT,
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
     data       :: D,
-) :: NodeT   # called once per non-root node
+) :: NodeT   # non-root node
 ```
 
-`parent = nothing` signals root creation. The returned `NodeT` is the only
-handle the caller holds on the tree.
+`parent = nothing` signals root creation. The returned `NodeT` is the library's
+only handle on the tree; all subsequent calls receive it or a descendant as
+`parent`.
 
-### Network-level dispatch (multi-parent case)
-
-Users whose graph type supports reticulate or hybrid nodes implement:
+**Network level — multi-parent case:**
 
 ```julia
 add_child(
@@ -172,36 +240,66 @@ add_child(
 ) :: NodeT
 ```
 
-`parents` and `edgelengths` are parallel vectors: `edgelengths[i]` is the
-length of the edge from `parents[i]` to the new node. An empty `parents`
-vector signals root creation, consistent with the tree-level protocol.
+`parents` and `edgelengths` are parallel vectors: `edgelengths[i]` is the length
+of the edge from `parents[i]` to the new node. An empty `parents` vector signals
+root creation, consistent with the tree-level protocol. This overload handles
+reticulate and hybrid nodes whose genealogy requires multiple incoming edges.
 
-The library dispatches to the tree-level methods when `length(parents) ≤ 1` and
-the user has defined them; otherwise it calls the network-level method.
+### Protocol determination
 
-### Semantics (both levels)
+The library determines which dispatch level will be used **once, before any
+`add_child` call is made**. Per-call dispatch based on `length(parents)` at call
+time is explicitly rejected: it creates two unacceptable failure modes — a
+tree-protocol user whose methods are bypassed mid-parse when a hybrid node appears,
+and a network-protocol user whose vector overload is never reached when a file
+happens to contain only single-parent nodes.
 
-* `label` is the node label as it appears in the source file (possibly empty).
-* `edgelength` / `edgelengths` is `nothing` when the format or file does not
-  supply a value for that edge.
-* `data` carries format-supplied metadata (see **Metadata architecture**).
-* The returned `NodeT` is passed as a parent in subsequent `add_child` calls
-  for that node's children.
+The determination proceeds in two steps:
+
+**A — Format declaration (primary source).** Every format parser declares the
+structural complexity it can produce. Formats capable of encoding hybrid or
+reticulate nodes (extended Newick, NEXUS network blocks, `format"LineageNetwork"`)
+declare network protocol. Formats that encode only rooted trees (plain Newick,
+`format"LineageGraphML"`) declare tree protocol. This declaration is made before
+parsing begins and is authoritative.
+
+**B — Builder validation (gate before first call).** Once the format has declared
+its protocol tier, the library validates that the user's builder is compatible
+before starting the parse. If the format declares network protocol and the user's
+builder does not define the vector-parent overload, the library raises an
+informative error at load time — not mid-parse, not on the first hybrid node
+encountered. If the format declares tree protocol, the library calls only
+tree-level methods even if network-level methods are also defined.
+
+This design guarantees: at the moment `load` begins emitting `add_child` calls,
+the user knows exactly which method signature will be called throughout the entire
+parse. There are no surprises mid-tree.
+
+### Semantics
+
+* `label` is the raw node label from the source file, possibly empty.
+* `edgelength` / `edgelengths` is `nothing` when the source does not supply a
+  value for that edge.
+* `data :: D` is the format-specific metadata `NamedTuple` (see **Metadata
+  architecture**). The user's method is parameterized on `D`; `D` is
+  format-supplied and may differ across formats.
+* The returned `NodeT` is passed as `parent` in all subsequent `add_child` calls
+  for that node's children. It is the library's only stored handle; the user must
+  retain any subtree reference they need.
 
 ### Parse order
 
-Parsers call `add_child` in a top-down (pre-order) traversal after completing
-internal format parsing. For inside-out formats such as Newick the parser
-maintains internal state during tokenization and begins builder calls only after
-the full subtree structure is known. At every `add_child` call, all ancestor
-nodes already exist.
+Parsers call `add_child` in top-down (pre-order) traversal after completing
+internal format parsing. For inside-out formats such as plain Newick, the parser
+completes tokenization and builds full internal state before emitting any
+`add_child` calls. At every `add_child` call, all ancestor nodes have already
+been created and their handles are in scope.
 
 ### Multi-tree files
 
-For file formats that contain multiple trees (NEXUS, multi-Newick), the parser
-invokes the full `add_child` sequence once per tree, returning a separate root
-handle for each. The lazy iteration layer exposes these as an iterator over root
-handles.
+For formats containing multiple trees (NEXUS, multi-Newick), the full `add_child`
+sequence is invoked once per tree, yielding a separate root handle for each. The
+lazy iteration layer exposes these as an iterator over root handles.
 
 ## Metadata architecture
 
@@ -309,7 +407,8 @@ Ambiguous formats must require explicit override.
 
 All APIs must support:
 
-* user-supplied builder functions parameterized on `NodeT`, `EdgeLenT`, `D`
+* user-supplied builders — either extended `LineagesIO.add_child` methods or
+  explicit `builder` callback functions — parameterized on `NodeT`, `EdgeLenT`, `D`
 * parameterized return types driven by builder return type
 * configurable parsing modes per format
 
@@ -358,8 +457,10 @@ Registration itself is out of scope.
 
 The package is successful when:
 
+* `load("file.nwk", MyNode)` works via FileIO and returns the user's graph type
+  via dispatch extension
 * `load("file.nwk"; builder = my_builder)` works via FileIO and returns the
-  user's graph type
+  user's graph type via callback
 * `load("file.nwk")` returns a Tables.jl-compliant node table usable with zero
   builder code
 * explicit format override works
