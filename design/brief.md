@@ -228,3 +228,14 @@ Where "reading" means line-by-line, without summarization or assuming,
 
     - fileio.jl 
     - DendroPy
+    
+
+[1]: https://juliaio.github.io/FileIO.jl/stable/implementing/ "Implementing loaders/savers · FileIO"
+[2]: https://juliaio.github.io/FileIO.jl/stable/registering/ "Registering a new format · FileIO"
+[3]: https://juliaio.github.io/FileIO.jl/stable/?utm_source=chatgpt.com "Home · FileIO - GitHub Pages"
+[4]: https://juliaio.github.io/FileIO.jl/stable/reference/ "Reference · FileIO"
+[5]: https://juliagraphs.org/Graphs.jl/dev/?utm_source=chatgpt.com "Graphs.jl · Graphs.jl - JuliaGraphs"
+[6]: https://biopython.org/docs/dev/Tutorial/chapter_phylo.html?utm_source=chatgpt.com "Phylogenetics with Bio.Phylo — Biopython 1.88.dev0 documentation"
+[7]: https://graphml.graphdrawing.org/specification.html?utm_source=chatgpt.com "GraphML Specification"
+[8]: https://phylipweb.github.io/phylip/newicktree.html?utm_source=chatgpt.com "The Newick tree format - GitHub Pages"
+[9]: https://plewis.github.io/nexus/?utm_source=chatgpt.com "The NEXUS file format - Paul O. Lewis Lab Home"
