@@ -26,6 +26,29 @@ not stop at the current document boundary.
 For the decision log and ratification history, see
 `.workflow-docs/log.20260418T2301--vocabulary.md`.
 
+## Reader-facing prose versus API names
+
+Controlled vocabulary distinguishes reader-facing prose from exact API names.
+Use conventional spaced English terms in explanatory prose when that improves
+clarity for readers outside the project. Use compact project spellings only
+when referring to code identifiers, keyword arguments, symbols, struct fields,
+or deliberate project terms.
+
+Examples:
+
+- Write "root node" in prose; write `rootnode` only for the exact positional
+  argument name or code identifier.
+- Write "edge length" in prose; write `edgelength` only for the exact accessor
+  keyword, callable name, or code identifier.
+- Write "node value" in prose; write `nodevalue` only for the exact accessor
+  keyword, callable name, or code identifier.
+- Introduce "lineage graph" with a short gloss in user-facing material before
+  relying on it as a project term.
+- Do not wrap ordinary prose terms in code font. Code font marks exact syntax.
+- Code examples in this repository are project-owned code and must follow the
+  canonical identifier forms. Use noncanonical identifiers only when showing a
+  real third-party library API or user-supplied external data structure.
+
 ## Entries
 
 ### `axis_polarity`
@@ -265,11 +288,11 @@ argument, type name, or symbol.
 
 ### `edgelength`
 
-**Part of speech:** noun / accessor name
+**Part of speech:** accessor name; prose form is "edge length"
 
 **Definition (as measure):** The scalar quantity associated with a directed
 edge. Represents evolutionary distance, time span, or any analogous
-non-negative quantity. Written as one word without underscore.
+non-negative quantity. In reader-facing prose, write "edge length".
 
 **Definition (as accessor):** The callable `edgelength(src, dst)`,
 which returns either:
@@ -277,11 +300,11 @@ which returns either:
 - a named tuple `(; value::Float64, units::Symbol)` with an explicit unit
   for conversion.
 
-When `edgelength` is not supplied, layout defaults to
+When the `edgelength` accessor is not supplied, layout defaults to
 `lineageunits = :nodeheights` (leaf-aligned clade graph plot).
 
-**Proscribed alternates:** `branch_length`, `edge_length` (underscored),
-`weight`, `len`, `w`.
+**Proscribed alternates (as project-owned identifiers):**
+`branch_length`, `edge_length` (underscored), `weight`, `len`, `w`.
 
 ---
 
@@ -320,7 +343,7 @@ Follows the `Graphs.jl` ecosystem convention.
 
 **Definition (tree-level):** The maximum `branchingtime` of any node in the
 tree, equivalently the `branchingtime` of the deepest leaf. For an ultrametric
-tree, equals the `coalescenceage` of the `rootnode`.
+tree, equals the `coalescenceage` of the root node.
 
 **Definition (per-node):** The path distance (number of edges, ignoring
 `edgelength` values) from a given node to its farthest descendant leaf. Used
@@ -460,7 +483,7 @@ node, and what `axis_polarity` `LineageAxis` infers:
   `edgelength` accessor is supplied; `:backward` polarity.
 - `:nodelevels` — integer level from rootnode; equal inter-level spacing;
   no accessor required; `:forward` polarity.
-- `:nodecoords` — user-supplied data coordinates; requires `nodecoords`
+- `:nodecoordinates` — user-supplied data coordinates; requires `nodecoordinates`
   accessor; polarity is user-defined.
 - `:nodepos` — user-supplied pixel coordinates; requires `nodepos` accessor;
   polarity is user-defined.
@@ -528,7 +551,7 @@ In any given plot, the process coordinate is determined by the active
 `lineageunits` value: `branchingtime` values for `lineageunits = :branchingtime`
 or `:edgelengths`, `coalescenceage` values for `lineageunits = :coalescenceage`,
 path distances (edge counts) for `:nodelevels` / `:nodedepths` / `:nodeheights`,
-or user-supplied coordinates for `:nodecoords` / `:nodepos`.
+or user-supplied coordinates for `:nodecoordinates` / `:nodepos`.
 
 This is a documentation and design term that unifies all `lineageunits` values
 under a single concept. It does not appear as a code identifier (there is no
@@ -546,15 +569,17 @@ process-coordinate values; `display_polarity` describes their screen direction.
 
 ### `rootnode`
 
-**Part of speech:** noun (role); positional argument name
+**Part of speech:** positional argument name; prose form is "root node"
 
 **Definition:** The unique node with no parent; the starting point of tree
 traversal. Passed as the first positional argument to `lineageplot`,
-`rectangular_layout`, `circular_layout`, and related functions. Written as one
-word without underscore.
+`rectangular_layout`, `circular_layout`, and related functions. In
+reader-facing prose, write "root node". Use `rootnode` only when referring to
+the exact API argument or identifier.
 
-**Proscribed alternates:** `root`, `rootvertex`, `root_node`, `root_vertex`,
-`seed`, `seed_node`, `source`, `origin`.
+**Proscribed alternates (as project-owned identifiers):**
+`root`, `rootvertex`, `root_node`, `root_vertex`, `seed`, `seed_node`,
+`source`, `origin`.
 
 ---
 
@@ -593,12 +618,13 @@ layout types. It does not appear as a code identifier.
 
 **Part of speech:** noun (structural concept)
 
-**Definition:** Any element of the graph: the `rootnode`, any internal
+**Definition:** Any element of the graph: the root node, any internal
 node, or any `leaf`. The generic term for a graph element. `nodes` is
 the plural. In compound role-specific names, use the role term directly
-(`leaf`, `rootnode`, `internal node` in prose) rather than repeating `node`
+(`leaf`, "root node", `internal node` in prose) rather than repeating `node`
 where the role already implies it.
-We, of course, accept the use of `vertex` (and lexemic variants when used in a graph theoretic mathematical context or third-party API's.
+The use of `vertex` and related forms is acceptable in graph-theoretic
+mathematical context or when quoting a third-party API.
 
 **Proscribed alternates (as a generic term):** `vertex`, `vertices`. The words
 `vertex` / `vertices` must not appear as generic synonyms for `node` in any
@@ -621,12 +647,13 @@ underscore (multi-word field name).
 
 ### `nodevalue`
 
-**Part of speech:** noun (accessor name)
+**Part of speech:** accessor name; prose form is "node value"
 
 **Definition:** The callable `nodevalue(node) -> Any` returning arbitrary
 per-node data: bootstrap support, posterior probability, taxon name, age, or
-any domain value. Used by label and color-mapping layers. Written as one word
-without underscore.
+any domain value. Used by label and color-mapping layers. In reader-facing
+prose, write "node value". Use `nodevalue` only when referring to the exact
+accessor keyword or callable name.
 
 **Proscribed alternates:** `vertexvalue`, `vertex_value`, `node_value`
 (underscored), `get_node_data`.
@@ -856,7 +883,7 @@ required artifact set.
 | `:nodedepths` | none | Cumulative path distance (edge count) from `rootnode` (all edge weights = 1) | Root = 0, increases toward leaves | `:forward` |
 | `:nodeheights` | none | Per-node height (path distance to farthest leaf); all leaves at x = 0; clade graph (unweighted) analogue of `:coalescenceage` | Leaf = 0, increases toward root | `:backward` |
 | `:nodelevels` | none | Integer level = edge count from `rootnode`; equal spacing between levels; clade graph (unweighted) analogue of `:branchingtime` | Root = 0, increases toward leaves | `:forward` |
-| `:nodecoords` | `nodecoords` | User-supplied `(x, y)` in data coordinates | User-defined | User-defined |
+| `:nodecoordinates` | `nodecoordinates` | User-supplied `(x, y)` in data coordinates | User-defined | User-defined |
 | `:nodepos` | `nodepos` | User-supplied `(x, y)` in pixel coordinates | User-defined | User-defined |
 
 **Default `lineageunits`:** `:edgelengths` if an `edgelength` accessor is
@@ -894,7 +921,8 @@ Multi-word field names on structs retain underscores: `node_positions`,
 The table below records this project's canonical identifier forms for each
 domain concept, governed jointly by STYLE-julia.md §2.4 (identifier form rules)
 and this document (lexeme choices). All proscribed forms in the right column
-must not appear in any identifier, field name, keyword, type name, or symbol.
+must not appear in project-owned identifiers, field names, keywords, type
+names, or symbols, including code examples.
 
 | Concept | Canonical form | Type-param form | Proscribed short forms |
 |---|---|---|---|
@@ -907,4 +935,4 @@ must not appear in any identifier, field name, keyword, type name, or symbol.
 | Children collection (local var) | `child_collection` | — | `ch`, `children` (collision with `AbstractTrees.children`) |
 | Node identity type parameter | — | `NodeT` | `V`, `N`, `T` |
 | Collection of all nodes | `all_nodes` | — | `all_vertices`, `vs` |
-| Node data accessor | `nodecoords` / `nodepos` | `NC` / `NP` | `vertexcoords`, `vertexpos`, `vc`, `vp` |
+| Node data accessor | `nodecoordinates` / `nodepos` | `NC` / `NP` | `vertexcoords`, `vertexpos`, `vc`, `vp` |
