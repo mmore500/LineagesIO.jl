@@ -157,13 +157,14 @@ to specialize the entire parse on `NodeT` without runtime lookup.
 ```julia
 # User extends LineagesIO.add_child for MyNode:
 function LineagesIO.add_child(
-    parent     :: Nothing,
+    :: Nothing,                           # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{Float64, Nothing},
+    :: Union{Float64, Nothing},           # edgelength — no incoming edge for entry-point
+    :: Nothing,                           # edgedata  — no parent edge for entry-point
     nodedata   :: R,
 ) where {R}
-    return MyNode(node_idx, label, edgelength, nodedata.bootstrap)   # entry-point node
+    return MyNode(node_idx, label, nodedata.bootstrap)   # entry-point node
 end
 
 function LineagesIO.add_child(
@@ -171,8 +172,9 @@ function LineagesIO.add_child(
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{Float64, Nothing},
+    :: RE,                                # edgedata row — use fields as needed, e.g. edgedata.gamma
     nodedata   :: R,
-) where {R}
+) where {R, RE}
     return add_node_to_graph!(parent, node_idx, label, edgelength, nodedata.bootstrap)
 end
 
@@ -184,9 +186,9 @@ The three calling patterns for `load` are therefore:
 
 | Call | Returns |
 |---|---|
-| `load("file.nwk")` | `LoadResult` with node/edge tables only (no builder) |
-| `load("file.nwk", MyNode)` | `LoadResult{MyNode}` via dispatch extension |
-| `load("file.nwk"; builder = fn)` | `LoadResult{NodeT}` via callback |
+| `load("file.nwk")` | `ParsedGraphStore` with node/edge tables only (no builder) |
+| `load("file.nwk", MyNode)` | `ParsedGraphStore{MyNode}` via dispatch extension |
+| `load("file.nwk"; builder = fn)` | `ParsedGraphStore{NodeT}` via callback |
 
 An explicit `builder` kwarg always takes precedence over extended methods.
 
@@ -197,7 +199,7 @@ Users pass an `add_child`-compatible function as the `builder` keyword argument 
 always takes precedence over any extended `LineagesIO.add_child` methods in scope.
 
 ```julia
-result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, nodedata) -> ...)
+result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, edgedata, nodedata) -> ...)
 ```
 
 This style is preferred for ad-hoc or scripting contexts, for cases where a user
@@ -212,18 +214,21 @@ phylogenetic files.
 **Network level — general case (baseline):**
 
 ```julia
-# R = row type of node_table, fixed by discovery pass; parameterize with where {R}
+# R  = row type of node_table, fixed by discovery pass; parameterize with where {R, RE}
+# RE = row type of edge_table, fixed by discovery pass (one row per parent edge)
 add_child(
     parents     :: AbstractVector{NodeT},
     node_idx    :: Int,
     label       :: AbstractString,
     edgelengths :: AbstractVector{Union{EdgeLenT, Nothing}},
+    edgedata    :: AbstractVector{RE},
     nodedata    :: R,
 ) :: NodeT
 ```
 
-`parents` and `edgelengths` are parallel vectors: `edgelengths[i]` is the length
-of the edge from `parents[i]` to the new node. An empty `parents` vector signals
+`parents`, `edgelengths`, and `edgedata` are parallel vectors: `edgelengths[i]`
+and `edgedata[i]` describe the edge from `parents[i]` to the new node. An empty
+`parents` vector (with correspondingly empty `edgelengths` and `edgedata`) signals
 entry-point node creation (the traversal origin). This overload is the baseline:
 it handles directed and undirected graphs, rooted and unrooted, including
 reticulate and hybrid nodes with multiple incoming edges.
@@ -231,12 +236,14 @@ reticulate and hybrid nodes with multiple incoming edges.
 **Single-parent level — restricted case:**
 
 ```julia
-# R = row type of node_table, fixed by discovery pass; parameterize with where {R}
+# R  = row type of node_table, fixed by discovery pass; parameterize with where {R}
+# RE = row type of edge_table; parameterize with where {R, RE}
 add_child(
     parent     :: Nothing,
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
+    edgedata   :: Nothing,                 # no parent edge for entry-point node
     nodedata   :: R,
 ) :: NodeT   # entry-point node creation; called exactly once per graph
 
@@ -245,14 +252,15 @@ add_child(
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
+    edgedata   :: RE,                      # one row for the single parent edge
     nodedata   :: R,
 ) :: NodeT   # subsequent node
 ```
 
-`parent = nothing` signals entry-point node creation. The returned `NodeT` is the
-library's only handle on the graph; all subsequent calls receive it or a descendant
-as `parent`. This overload applies when every node has at most one parent — the
-restricted case that includes all rooted trees.
+`parent = nothing` (with `edgedata = nothing`) signals entry-point node creation.
+The returned `NodeT` is the library's only handle on the graph; all subsequent
+calls receive it or a descendant as `parent`. This overload applies when every
+node has at most one parent — the restricted case that includes all rooted trees.
 
 ### Protocol determination
 
@@ -290,9 +298,19 @@ parse. There are no surprises mid-parse.
   during parsing. It is the primary key of the node table and the foreign key used
   in the edge table (`src_node_idx`, `dst_node_idx`). The library assigns it; the
   user stores it on their `NodeT` to enable joins against the tables.
-* `label` is the raw node label from the source file, possibly empty.
+* `label` is the raw node label from the source file, possibly empty. If the
+  source supplies no label or a non-unique label the library generates
+  `"node_$node_idx"`, which is guaranteed unique within a graph.
 * `edgelength` / `edgelengths` is `nothing` when the source does not supply a
   value for that edge.
+* `edgedata :: RE` (single-parent level) or `edgedata :: AbstractVector{RE}`
+  (network level) carries the edge table row(s) for the incoming edge(s) to this
+  node. `RE` is the row type of `edge_table` — a `NamedTuple` type fixed by the
+  discovery pass, parallel to how `R` is fixed for nodes. Fields include
+  `edgelength`, format-specific columns (`gamma`, `support`, etc.), all as
+  `Union{T, Nothing}` when optional. For the entry-point node there is no
+  incoming edge; the library passes `edgedata = nothing` (single-parent) or an
+  empty vector (network level).
 * `nodedata :: R` is a single row of the node table for this node (see **Metadata
   architecture**). `R` is the row type of `node_table` — a `NamedTuple` type
   established by the discovery pass before any `add_child` calls are made. Fields
@@ -375,7 +393,7 @@ format version, source program). For `format"TskitTrees"`, the file level carrie
 the entire population, individual, site, and migration tables from the tskit
 `TreeSequence` model.
 
-Carried in the `collection_table` and `source_table` of `LoadResult`
+Carried in the `collection_table` and `source_table` of `ParsedGraphStore`
 (see **Return types**).
 
 LineagesIO.jl takes `Tables.jl` as a dependency (lightweight pure-interface package).
@@ -387,7 +405,7 @@ It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
 ### GraphParseResult
 
 `GraphParseResult{NodeT}` is the single-graph result struct yielded by the lazy
-graph iterator and collected in `LoadResult.graphs`. It carries the complete parse
+graph iterator and collected in `ParsedGraphStore.graphs`. It carries the complete parse
 output for one graph together with the index coordinates needed to locate it within
 a multi-source, multi-collection load.
 
@@ -408,14 +426,14 @@ struct GraphParseResult{NodeT}
 end
 ```
 
-### LoadResult
+### ParsedGraphStore
 
-`LoadResult{NodeT}` is always returned by `load` — callers cannot assume a source
+`ParsedGraphStore{NodeT}` is always returned by `load` — callers cannot assume a source
 contains only one graph. The nesting structure (source → collection → graph) is
 expressed as index coordinates on each record, not as nested containers.
 
 ```julia
-struct LoadResult{NodeT}
+struct ParsedGraphStore{NodeT}
     source_table     :: <Tables.jl compliant>    # one row per source file
     collection_table :: <Tables.jl compliant>    # one row per collection within sources
     graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
@@ -433,9 +451,9 @@ without the node/edge table payloads.
 
 | Function | Behaviour |
 |---|---|
-| `load(src, NodeT)` | `LoadResult{NodeT}` via dispatch extension |
-| `load(src; builder = fn)` | `LoadResult{NodeT}` via callback |
-| `load(src)` | `LoadResult` with node/edge tables only (no builder) |
+| `load(src, NodeT)` | `ParsedGraphStore{NodeT}` via dispatch extension |
+| `load(src; builder = fn)` | `ParsedGraphStore{NodeT}` via callback |
+| `load(src)` | `ParsedGraphStore` with node/edge tables only (no builder) |
 | `loadfirst(src, ...)` | First `GraphParseResult`; no error on multiple |
 | `loadone(src, ...)` | Single `GraphParseResult`; errors if count ≠ 1 |
 | `load([f1, f2], ...)` | Multi-source; `source_idx` distinguishes origins |
@@ -458,7 +476,7 @@ It must support:
 The package must provide:
 
 * lazy iterators over multi-graph sources, yielding `GraphParseResult{NodeT}` values
-* `LoadResult.graphs` as the primary lazy iteration surface
+* `ParsedGraphStore.graphs` as the primary lazy iteration surface
 * multi-source loading via `load([f1, f2, ...], ...)`
 
 ## Format support
@@ -553,14 +571,14 @@ Registration itself is out of scope.
 
 The package is successful when:
 
-* `load("file.nwk", MyNode)` returns `LoadResult{MyNode}` via dispatch extension
-* `load("file.nwk"; builder = fn)` returns `LoadResult{NodeT}` via callback
-* `load("file.nwk")` returns `LoadResult` with node/edge tables usable with zero
+* `load("file.nwk", MyNode)` returns `ParsedGraphStore{MyNode}` via dispatch extension
+* `load("file.nwk"; builder = fn)` returns `ParsedGraphStore{NodeT}` via callback
+* `load("file.nwk")` returns `ParsedGraphStore` with node/edge tables usable with zero
   builder code
 * `loadone` and `loadfirst` convenience wrappers return `GraphParseResult` correctly
 * multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
 * explicit format override works
-* lazy iteration over `LoadResult.graphs` is available for all multi-graph sources
+* lazy iteration over `ParsedGraphStore.graphs` is available for all multi-graph sources
 * builder output is type-stable; `GraphParseResult{NodeT}` is fully parameterized
 * `node_idx` in `add_child` enables lossless joins between graph structure and
   node/edge tables
@@ -568,6 +586,24 @@ The package is successful when:
   general `add_child(parents::AbstractVector{NodeT}, ...)` protocol
 * loaded graphs are immediately consumable by LineagesMakie via its accessor
   protocol without additional transformation
+
+## Companion design documents
+
+**`design/brief--community-support-objectives.md`** is a **mandatory companion
+to this document** and must be read alongside it. It specifies:
+
+* the parse stack and type structure of every focal ecosystem package
+  (PhyloNetworks.jl, Phylo.jl, and Phase 2 additions) derived from line-by-line
+  reading of upstream source
+* the extension architecture (`PhyloNetworksExt`, `PhyloExt`, and future
+  extensions), including concrete `add_child` stubs and the `finalize_graph!`
+  hook contract
+* open design questions and their resolutions as they are decided
+
+All implementers, reviewers, and downstream tranche authors must read both
+documents. Neither document is complete without the other.
+
+---
 
 ## Fundamental mandates
 
@@ -577,6 +613,9 @@ Where "reading" means line-by-line, without summarization or assuming:
   compliance with — **GOVERNANCE DOCUMENTS** (`STYLE-*.md` files) are
   **MANDATED** and must be incorporated into every stage of the process, from
   design to final product.
+
+* Reading of **`design/brief--community-support-objectives.md`** is
+  **MANDATED** alongside this document. See **Companion design documents** above.
 
 * Reading of **KEY TECHNOLOGICAL CONTEXT** is mandated for the project, and
   downstream/community reading of all of the following is required:
