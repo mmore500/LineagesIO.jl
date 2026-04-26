@@ -156,7 +156,7 @@ docstring on the generic function describing the protocol contract, both
 dispatch levels, all parameter semantics, the relationship to `finalize_graph!`,
 and a minimal usage example showing method extension. Per `STYLE-julia.md §1.13`,
 all arguments must be annotated; per `§1.13.2`, return type annotations are
-mandatory. Per `STYLE-vocabulary.md`, use `node` not `vertex`, `edgelength` not
+mandatory. Per `STYLE-vocabulary.md`, use `node` not `vertex`, `edgewidth` not
 `branch_length`, `src`/`dst` not `fromnode`/`tonode` in any documentation prose
 that references identifiers. Run the test suite and verify it still passes.
 

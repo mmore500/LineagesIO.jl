@@ -82,7 +82,7 @@ including error states and edge cases.
 
 ### Builder protocol — callback style
 
-4. A user can pass `builder = (parent, node_idx, label, edgelength; edgedata=nothing,
+4. A user can pass `builder = (parent, node_idx, label, edgeweight; edgedata=nothing,
    nodedata=nothing) -> ...` as a keyword argument to `load` and receive a
    `LineageGraphStore{NodeT}` parameterized on the callback's return type.
 
