@@ -608,7 +608,6 @@ Where "reading" means line-by-line, without summarization or assuming:
   - `AbstractTrees.jl` — traversal traits and iteration interface
 
   **Additional context (user-facing ecosystem):**
-  - `PalmTree.jl` — layout/visualization reference
   - `Phylogenies.jl` — minimal Julia core type reference
 
 [1]: https://juliaio.github.io/FileIO.jl/stable/implementing/
