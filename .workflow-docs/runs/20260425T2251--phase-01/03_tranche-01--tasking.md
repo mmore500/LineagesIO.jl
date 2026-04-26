@@ -34,7 +34,7 @@ delegated work derived from these tasks.
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms;
   compound-word rules; canonical identifier table. Key constraints for this
   tranche: use `node` not `vertex`/`vertices`; `edge` not `branch`; `leaf`/`leaves`
-  not `tip`/`terminal`; `rootnode` not `root`/`root_node`; `edgelength` not
+  not `tip`/`terminal`; `rootnode` not `root`/`root_node`; `edgeweight` not
   `branch_length`/`edge_length`; `src`/`dst` not `fromnode`/`tonode`
 - `STYLE-workflow-docs.md` — workflow document structure; revalidation rule;
   pass-forward obligations

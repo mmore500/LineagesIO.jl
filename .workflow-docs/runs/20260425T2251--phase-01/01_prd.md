@@ -131,7 +131,7 @@ including error states and edge cases.
     `edgedata.gamma` for single-parent level); the orchestration always passes a real value.
 
 16. The edge table in each `LineageGraphAsset` always contains one row per directed edge,
-    with columns `src_node_idx`, `dst_node_idx`, `edgelength`, and any
+    with columns `src_node_idx`, `dst_node_idx`, `edgeweight`, and any
     format-specific promoted columns.
 
 ### Node index and label
