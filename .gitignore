@@ -4,6 +4,7 @@
 # =====================================
 
 .vscode/*
+.codex/*
 
 # =====================================
 # Quarto: output directories and formats

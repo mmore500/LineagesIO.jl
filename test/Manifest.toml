@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "47c97a0f04b2d100baa75924bcea821b21cd81d6"
+project_hash = "08cc72d54c80594943f618f2e70bba162384a1af"
 
 [[deps.Aqua]]
 deps = ["Compat", "Pkg", "Test"]
@@ -120,6 +120,11 @@ version = "1.11.3+1"
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
+
+[[deps.LineagesIO]]
+path = ".."
+uuid = "bdba7728-14e2-45e7-a2f0-1ba665f6f151"
+version = "0.1.0"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
