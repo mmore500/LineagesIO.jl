@@ -49,7 +49,7 @@ Line	Verbatim
 165	:: Nothing, # parent — dispatch-only; entry-point has no parent
 166	node_idx :: Int,
 167	label :: AbstractString,
-168	:: Union{EdgeUnitT, Nothing}, # edgelength — no incoming edge for entry-point
+168	:: Union{EdgeUnitT, Nothing}, # edgeweight — no incoming edge for entry-point
 169	:: Nothing, # edgedata — no parent edge for entry-point
 170	nodedata :: NodeRowT,
 171	) where {EdgeUnitT, NodeRowT}
@@ -59,20 +59,20 @@ Line	Verbatim
 176	parent :: MyNode,
 177	node_idx :: Int,
 178	label :: AbstractString,
-179	edgelength :: Union{EdgeUnitT, Nothing},
+179	edgeweight :: Union{EdgeUnitT, Nothing},
 180	:: EdgeRowT, # edgedata row — use fields as needed, e.g. edgedata.gamma
 181	nodedata :: NodeRowT,
 182	) where {EdgeUnitT, NodeRowT, EdgeRowT}
 Style 2 callback lambda example
 Line	Verbatim
-207	result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, edgedata, nodedata) -> ...)
+207	result = load("file.nwk"; builder = (parent, node_idx, label, edgeweight, edgedata, nodedata) -> ...)
 Canonical protocol — network level
 Line	Verbatim
 226	function add_child(
 227	:: AbstractVector{NodeT}, # parents
 228	:: Int, # node_idx
 229	:: AbstractString, # label
-230	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgelengths
+230	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgeweights
 231	:: AbstractVector{EdgeRowT}, # edgedata
 232	:: NodeRowT, # nodedata
 233	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
@@ -82,7 +82,7 @@ Line	Verbatim
 251	:: Nothing, # parent — entry-point; no parent edge
 252	:: Int, # node_idx
 253	:: AbstractString, # label
-254	:: Union{EdgeUnitT, Nothing}, # edgelength — no incoming edge for entry-point
+254	:: Union{EdgeUnitT, Nothing}, # edgeweight — no incoming edge for entry-point
 255	:: Nothing, # edgedata — no parent edge for entry-point
 256	:: NodeRowT, # nodedata
 257	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end # entry-point; called exactly once per graph
@@ -92,7 +92,7 @@ Line	Verbatim
 260	:: NodeT, # parent
 261	:: Int, # node_idx
 262	:: AbstractString, # label
-263	:: Union{EdgeUnitT, Nothing}, # edgelength
+263	:: Union{EdgeUnitT, Nothing}, # edgeweight
 264	:: EdgeRowT, # edgedata — one row for the single parent edge
 265	:: NodeRowT, # nodedata
 266	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end # subsequent node
@@ -103,7 +103,7 @@ Line	Verbatim
 427	parents :: AbstractVector{PhyloNetworksNodeHandle},
 428	node_idx :: Int,
 429	label :: AbstractString,
-430	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgelengths — empty for entry-point
+430	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgeweights — empty for entry-point
 431	:: AbstractVector, # edgedata — empty for entry-point
 432	:: NodeRowT, # nodedata — no metadata store on HybridNetwork/Node
 433	) where {EdgeUnitT, NodeRowT}
@@ -113,7 +113,7 @@ Line	Verbatim
 446	parents :: AbstractVector{PhyloNetworksNodeHandle},
 447	node_idx :: Int,
 448	label :: AbstractString,
-449	edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}},
+449	edgeweights :: AbstractVector{Union{EdgeUnitT, Nothing}},
 450	edgedata :: AbstractVector{EdgeRowT},
 451	nodedata :: NodeRowT,
 452	) where {EdgeUnitT, NodeRowT, EdgeRowT}
@@ -126,7 +126,7 @@ Line	Verbatim
 499	:: Nothing, # parent — dispatch-only; entry-point has no parent
 500	node_idx :: Int,
 501	label :: AbstractString,
-502	:: Union{EdgeUnitT, Nothing}, # edgelength — no incoming edge for entry-point
+502	:: Union{EdgeUnitT, Nothing}, # edgeweight — no incoming edge for entry-point
 503	:: Nothing, # edgedata — no parent edge for entry-point
 504	nodedata :: NodeRowT,
 505	) where {EdgeUnitT, NodeRowT}
@@ -136,14 +136,14 @@ Line	Verbatim
 519	parent :: PhyloNodeRef,
 520	node_idx :: Int,
 521	label :: AbstractString,
-522	edgelength :: Union{EdgeUnitT, Nothing},
+522	edgeweight :: Union{EdgeUnitT, Nothing},
 523	:: EdgeRowT, # edgedata — Phylo RecursiveBranch has no generic metadata dict
 524	nodedata :: NodeRowT,
 525	) where {EdgeUnitT, NodeRowT, EdgeRowT}
 .workflow-docs/runs/20260425T2251--phase-01/01_prd.md
 User story — callback style
 Line	Verbatim
-85	4. A user can pass \builder = (parent, node_idx, label, edgelength, edgedata,`
+85	4. A user can pass \builder = (parent, node_idx, label, edgeweight, edgedata,`
 86	nodedata) -> ...\ as a keyword argument to `load` and receive a`
 Canonical signature block (§add_child protocol module)
 Line	Verbatim
@@ -151,7 +151,7 @@ Line	Verbatim
 545	:: AbstractVector{NodeT}, # parents
 546	:: Int, # node_idx
 547	:: AbstractString, # label
-548	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgelengths
+548	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgeweights
 549	:: AbstractVector{EdgeRowT}, # edgedata
 550	:: NodeRowT, # nodedata
 551	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
@@ -159,7 +159,7 @@ Line	Verbatim
 555	:: Nothing, # parent
 556	:: Int, # node_idx
 557	:: AbstractString, # label
-558	:: Union{EdgeUnitT, Nothing}, # edgelength
+558	:: Union{EdgeUnitT, Nothing}, # edgeweight
 559	:: Nothing, # edgedata
 560	:: NodeRowT, # nodedata
 561	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end
@@ -167,7 +167,7 @@ Line	Verbatim
 565	:: NodeT, # parent
 566	:: Int, # node_idx
 567	:: AbstractString, # label
-568	:: Union{EdgeUnitT, Nothing}, # edgelength
+568	:: Union{EdgeUnitT, Nothing}, # edgeweight
 569	:: EdgeRowT, # edgedata
 570	:: NodeRowT, # nodedata
 571	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
@@ -185,7 +185,7 @@ Line	Verbatim
 157	:: AbstractVector{NodeT}, # parents
 158	:: Int, # node_idx
 159	:: AbstractString, # label
-160	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgelengths
+160	:: AbstractVector{Union{EdgeUnitT, Nothing}}, # edgeweights
 161	:: AbstractVector{EdgeRowT}, # edgedata
 162	:: NodeRowT, # nodedata
 163	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
@@ -193,7 +193,7 @@ Line	Verbatim
 167	:: Nothing, # parent
 168	:: Int, # node_idx
 169	:: AbstractString, # label
-170	:: Union{EdgeUnitT, Nothing}, # edgelength
+170	:: Union{EdgeUnitT, Nothing}, # edgeweight
 171	:: Nothing, # edgedata
 172	:: NodeRowT, # nodedata
 173	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end
@@ -201,7 +201,7 @@ Line	Verbatim
 177	:: NodeT, # parent
 178	:: Int, # node_idx
 179	:: AbstractString, # label
-180	:: Union{EdgeUnitT, Nothing}, # edgelength
+180	:: Union{EdgeUnitT, Nothing}, # edgeweight
 181	:: EdgeRowT, # edgedata
 182	:: NodeRowT, # nodedata
 183	) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
@@ -246,4 +246,4 @@ Line	Verbatim
 Summary
 No source code files yet exist — src/LineagesIO.jl and test/runtests.jl are empty stubs. The entire impact surface is documentation. The signature appears in full verbatim blocks in 4 files (design/brief.md, design/brief--community-support-objectives.md, 01_prd.md, 02_tranches.md) and is referenced prescriptively in all 8 tranche tasking files except tranche-02.
 
-The callback lambda form (parent, node_idx, label, edgelength, edgedata, nodedata) appears explicitly at design/brief.md:207 and 01_prd.md:85–86. Those are the two lines that would expose the positional order most directly to users.
+The callback lambda form (parent, node_idx, label, edgeweight, edgedata, nodedata) appears explicitly at design/brief.md:207 and 01_prd.md:85–86. Those are the two lines that would expose the positional order most directly to users.

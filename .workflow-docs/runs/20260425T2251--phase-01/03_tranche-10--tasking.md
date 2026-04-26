@@ -186,7 +186,7 @@ resulting `LineageGraphAsset`: (a) `Tables.istable(asset.node_table)` returns `t
 `Tables.schema(asset.node_table)` returns a schema with the expected column
 names and types (field-level verification against fixture ground truth); (d)
 `Tables.schema(asset.edge_table)` returns a schema including `src_node_idx`,
-`dst_node_idx`, and `edgelength` columns; (e) iterating rows of
+`dst_node_idx`, and `edgeweight` columns; (e) iterating rows of
 `asset.node_table` yields rows with the correct field values for each node;
 (f) `@inferred` on column access produces no type instability. Add
 `include("test_tables_compliance.jl")` to `test/runtests.jl`.

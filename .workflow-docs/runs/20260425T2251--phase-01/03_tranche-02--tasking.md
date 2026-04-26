@@ -28,7 +28,7 @@ delegated work derived from these tasks.
 - `STYLE-verification.md` — field-level value verification; weak-proxy
   prohibition
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
-  constraints: `node` not `vertex`; `edge` not `branch`; `edgelength` not
+  constraints: `node` not `vertex`; `edge` not `branch`; `edgeweight` not
   `branch_length`/`edge_length`; `src_node_idx`/`dst_node_idx` as canonical
   edge endpoint column names
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
@@ -155,7 +155,7 @@ types.
 produces a row where `row.gamma === nothing`.
 (f) Empty annotation collection: `build_schema` on an empty collection returns
 a type containing only `src_node_idx :: Int`, `dst_node_idx :: Int`, and
-`edgelength :: Union{Float64, Nothing}` at minimum (the fixed edge columns
+`edgeweight :: Union{Float64, Nothing}` at minimum (the fixed edge columns
 guaranteed by the design).
 (g) Tables.jl compliance: `Tables.istable([build_row(schema, dict)])` returns
 `true` for a produced row wrapped in a single-element vector.

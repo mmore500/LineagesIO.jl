@@ -31,7 +31,7 @@ delegated work derived from these tasks.
   bootstrap values against fixtures — not just that parsing succeeds
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node` not `vertex`; `edge` not `branch`; `leaf`/`leaves` not
-  `tip`/`terminal`; `edgelength` not `branch_length`
+  `tip`/`terminal`; `edgeweight` not `branch_length`
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation
 - `CONTRIBUTING.md` — contribution process and expectations
@@ -144,7 +144,7 @@ brief.md §Level 1 — Node metadata` and `§Level 2 — Edge metadata`: scan th
 entire source (all trees in a multi-tree file) before calling any `add_child`.
 Collect every annotation key name present across all nodes (e.g., bootstrap
 values stored as internal node annotations) and all edges (always include
-`edgelength :: Union{Float64, Nothing}`). Use `build_schema` from
+`edgeweight :: Union{Float64, Nothing}`). Use `build_schema` from
 `src/discovery.jl` to produce `NodeRow` (node row type) and `EdgeRow` (edge row type).
 The protocol declaration (`:single_parent`) must be communicated to the
 orchestration layer before the discovery pass begins. Read the three upstream

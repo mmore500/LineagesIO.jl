@@ -203,7 +203,7 @@ including error states and edge cases.
 
 34. Hybrid nodes (with multiple parent edges) are correctly threaded through
     `add_child(parents::AbstractVector{NodeT}, ...)` with `parents`,
-    `edgelengths`, and `edgedata` as parallel vectors.
+    `edgeweights`, and `edgedata` as parallel vectors.
 
 35. Gamma values are available in `edgedata[i].gamma` at the `add_child` call
     site; no two-phase workaround is required.
@@ -280,7 +280,7 @@ including error states and edge cases.
     `PhyloNodeRef`.
 
 56. Non-entry-point `add_child` calls use `createnode!` + `createbranch!`;
-    `edgelength` is converted from `nothing` to `missing` for Phylo's
+    `edgeweight` is converted from `nothing` to `missing` for Phylo's
     `Union{Float64, Missing}` branch length field.
 
 57. `node_idx` is stored in Phylo's node data dict (`"node_idx" => node_idx`)
@@ -292,7 +292,7 @@ including error states and edge cases.
 ### LineagesMakie interoperability
 
 59. Loaded graphs (regardless of `NodeT`) are immediately consumable by
-    LineagesMakie via its accessor protocol (`children`, `edgelength`,
+    LineagesMakie via its accessor protocol (`children`, `edgeweight`,
     `branchingtime`, `coalescenceage`, `nodevalue`, `nodecoordinates`, `nodepos`)
     once the user supplies the necessary accessors for their `NodeT`. LineagesIO
     itself does not need to supply these accessors.
@@ -373,7 +373,7 @@ Two dispatch levels:
 - **Network level** (general case): handles rooted and unrooted graphs, directed
   and undirected, including reticulate and hybrid nodes with multiple incoming
   edges. Signature: `add_child(parents::AbstractVector{NodeT}, node_idx::Int,
-  label::AbstractString, edgelengths::AbstractVector{Union{EdgeUnitT, Nothing}};
+  label::AbstractString, edgeweights::AbstractVector{Union{EdgeUnitT, Nothing}};
   edgedata=nothing, nodedata=nothing) :: NodeT`.
 - **Single-parent level** (restricted case): applies when every node has at most
   one parent. Entry-point overload: `add_child(parent::Nothing, ...) :: NodeT`.
@@ -430,7 +430,7 @@ Tables are Tables.jl-compliant. DataFrames.jl is not a dependency.
 | Table | Granularity | Key columns |
 |---|---|---|
 | Node table | One row per node | `node_idx` (primary key) |
-| Edge table | One row per directed edge | `src_node_idx`, `dst_node_idx`, `edgelength` |
+| Edge table | One row per directed edge | `src_node_idx`, `dst_node_idx`, `edgeweight` |
 | Graph table | One row per graph | Index coordinates + label summary |
 | Collection table | One row per collection within a source | `source_idx`, `collection_idx`, `label`, `graph_count` |
 | Source table | One row per source file | `source_idx`, `source_path` |
@@ -545,7 +545,7 @@ function add_child(
     :: AbstractVector{NodeT},
     :: Int,                                        # node_idx
     :: AbstractString,                             # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
     kwargs...,                                     # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -554,7 +554,7 @@ function add_child(
     :: Nothing,
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -563,7 +563,7 @@ function add_child(
     :: NodeT,
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -803,7 +803,7 @@ PRD.
 | Connections | `edge` (in code) | `branch`, `arc`, `link` |
 | Terminal nodes | `leaf`, `leaves` | `tip`, `terminal` |
 | Entry-point node (identifier) | `rootnode` | `root`, `root_node`, `rootvertex` |
-| Edge weight (identifier) | `edgelength` | `branch_length`, `edge_length`, `weight`, `len` |
+| Edge weight (identifier) | `edgeweight` | `branch_length`, `edge_length`, `weight`, `len` |
 | Edge source argument | `src` | `fromnode`, `fromvertex`, `from_node` |
 | Edge destination argument | `dst` | `tonode`, `tovertex`, `to_node` |
 | Branching structure | `clade graph` | `topology` (unqualified) |
@@ -842,7 +842,7 @@ Companion package (local workspace):
 
 | Source | Relevance |
 |---|---|
-| `../../LineagesMakie.jl/` | Accessor protocol (`children`, `edgelength`, `branchingtime`, etc.); loaded graphs must be immediately consumable |
+| `../../LineagesMakie.jl/` | Accessor protocol (`children`, `edgeweight`, `branchingtime`, etc.); loaded graphs must be immediately consumable |
 
 ---
 

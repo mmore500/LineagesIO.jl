@@ -33,7 +33,7 @@ delegated work derived from these tasks.
   not just that parsing succeeds
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node` not `vertex`; `edge` not `branch`; `leaf`/`leaves` not
-  `tip`/`terminal`; `edgelength` not `branch_length`; `rootnode` not `root`;
+  `tip`/`terminal`; `edgeweight` not `branch_length`; `rootnode` not `root`;
   `gamma` is the canonical name for hybrid edge inheritance proportion
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation

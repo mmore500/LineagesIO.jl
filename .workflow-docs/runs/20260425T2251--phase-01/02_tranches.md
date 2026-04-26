@@ -155,7 +155,7 @@ function add_child(
     :: AbstractVector{NodeT},
     :: Int,                                        # node_idx
     :: AbstractString,                             # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
     kwargs...,                                     # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -164,7 +164,7 @@ function add_child(
     :: Nothing,
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -173,7 +173,7 @@ function add_child(
     :: NodeT,
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 ```
@@ -383,7 +383,7 @@ and `01_prd.md §Discovery pass`):**
 - The node row type `NodeRow` and the edge row type `EdgeRow` are fixed `NamedTuple` types
   built from these schemas; they are stable for the entire load of a source.
 - The edge schema always includes at minimum: `src_node_idx :: Int`,
-  `dst_node_idx :: Int`, `edgelength :: Union{Float64, Nothing}`.
+  `dst_node_idx :: Int`, `edgeweight :: Union{Float64, Nothing}`.
 
 **What `src/discovery.jl` must provide:**
 
@@ -445,7 +445,7 @@ All tests pass. Aqua and JET pass.
   then `row.gamma === nothing`.
 - [ ] Given an empty annotation dict collection, when `build_schema` runs, then
   the produced schema contains `src_node_idx :: Int`, `dst_node_idx :: Int`,
-  and `edgelength :: Union{Float64, Nothing}` at minimum.
+  and `edgeweight :: Union{Float64, Nothing}` at minimum.
 - [ ] Given `Tables.istable([build_row(schema, dict)])`, when called, then
   `true` is returned.
 - [ ] Given `@inferred` applied to `build_row`, then no dynamic-dispatch warning
@@ -725,9 +725,9 @@ file). Use the shared schema builder from `src/discovery.jl`:
 
 - Collect all node annotation key names (e.g., `bootstrap`, NHX keys)
 - Build node row type `NodeRow`
-- Collect all edge annotation key names; always include `edgelength`
+- Collect all edge annotation key names; always include `edgeweight`
 - Build edge row type `EdgeRow` with at minimum `src_node_idx`, `dst_node_idx`,
-  `edgelength :: Union{Float64, Nothing}`
+  `edgeweight :: Union{Float64, Nothing}`
 
 **Parsing:**
 
@@ -784,7 +784,7 @@ field-level values, not merely that parsing succeeds:
 
 1. Invoke the Newick parser directly through the orchestration layer against
    `test/fixtures/newick/simple.nwk`; confirm `LineageGraphAsset` fields match fixture.
-2. Inspect `edge_table` on the result; confirm `edgelength` values match fixture.
+2. Inspect `edge_table` on the result; confirm `edgeweight` values match fixture.
 
 *(FileIO adapter not yet present; test through the parser's internal API.)*
 
@@ -799,7 +799,7 @@ All tests pass. Aqua and JET pass.
 ### Acceptance criteria
 
 - [ ] Given a Newick file with edge lengths, when parsed, then each `add_child`
-  call receives the correct `edgelength` value matching the fixture file.
+  call receives the correct `edgeweight` value matching the fixture file.
 - [ ] Given a Newick file with internal node labels, when parsed, then internal
   labels appear in the node table rows with correct values.
 - [ ] Given a multi-tree Newick file with 3 trees, when parsed, then exactly 3
@@ -1092,7 +1092,7 @@ orchestration layer before the discovery pass begins.
 **Discovery pass:**
 
 Scan the entire source using `src/discovery.jl`. Always include in the edge
-schema: `edgelength :: Union{Float64, Nothing}`, `gamma :: Union{Float64,
+schema: `edgeweight :: Union{Float64, Nothing}`, `gamma :: Union{Float64,
 Nothing}`, `support :: Union{Float64, Nothing}`. Gamma values are extracted
 from the third colon field (`:length:support:gamma`) during the discovery scan
 so they are available in `EdgeRow` before any `add_child` calls.
@@ -1106,8 +1106,8 @@ Extended Newick with `#H1`-style hybrid markers. After the discovery pass:
   subsequent occurrences add parent edges to that same handle using the
   `parents` vector
 - For each hybrid node with `n` parent edges, call
-  `add_child(parents, node_idx, label, edgelengths, edgedata, nodedata)` with
-  `parents`, `edgelengths`, `edgedata` as parallel vectors of length `n`
+  `add_child(parents, node_idx, label, edgeweights, edgedata, nodedata)` with
+  `parents`, `edgeweights`, `edgedata` as parallel vectors of length `n`
 - `edgedata[i].gamma` must contain the gamma value for the edge from `parents[i]`
   to the hybrid node, available directly at the `add_child` call site — no
   two-phase pass is required or permitted
@@ -1447,7 +1447,7 @@ For hybrid nodes (`length(parents) > 1`): one `Edge` per parent. Assign
 `e.gamma` from `edgedata[i].gamma` directly in a single pass — no two-phase
 gamma assignment is used or needed. For tree nodes (`length(parents) == 1`):
 single edge with `gamma = 1.0`. Missing sentinels: edge length `-1.0` when
-`edgelength` is `nothing`; bootstrap `-1.0` when `nodedata.bootstrap` is
+`edgeweight` is `nothing`; bootstrap `-1.0` when `nodedata.bootstrap` is
 `nothing` or absent.
 
 **`finalize_graph!` override:**
@@ -1646,7 +1646,7 @@ stores all `nodedata` fields via `Dict(pairs(nodedata))`. Returns
 
 Creates child node via `createnode!`; calls `createbranch!` from
 `parent.nodename` to child `nodename` with
-`length = isnothing(edgelength) ? missing : edgelength`; stores `node_idx` and
+`length = isnothing(edgeweight) ? missing : edgeweight`; stores `node_idx` and
 all `nodedata` fields in node data dict via `setnodedata!`. Returns
 `PhyloNodeRef(tree, nodename)`.
 
@@ -1762,7 +1762,7 @@ All items below must be read **line by line**. Pass all mandates forward.
 **Upstream primary sources (mandatory):**
 
 - `AbstractTrees.jl/` — verify LineagesMakie interoperability: loaded graphs
-  with user-supplied `children` and `edgelength` accessors must be immediately
+  with user-supplied `children` and `edgeweight` accessors must be immediately
   consumable
 - All previously read upstream sources: re-read as needed to verify
   implementation matches contracts
@@ -1835,7 +1835,7 @@ For `node_table` and `edge_table` in every `LineageGraphAsset` variant, confirm:
 **LineagesMakie interoperability verification (user story 59):**
 
 Demonstrate that a loaded `LineageGraphAsset` (with a user-defined `NodeT` that
-implements `children` and `edgelength` accessors) is immediately consumable by
+implements `children` and `edgeweight` accessors) is immediately consumable by
 LineagesMakie's accessor protocol without additional transformation. This does
 not require LineagesMakie as a dependency — a documentation example or test
 using a minimal accessor-compliant node type is sufficient. Verify by consulting
@@ -1890,7 +1890,7 @@ All pass with zero failures, zero Aqua issues, zero JET issues.
 - [ ] Given `Tables.istable(asset.node_table)` and
   `Tables.istable(asset.edge_table)` for any loaded `LineageGraphAsset`, then both
   return `true`.
-- [ ] Given a user-defined `NodeT` with `children` and `edgelength` accessors,
+- [ ] Given a user-defined `NodeT` with `children` and `edgeweight` accessors,
   when `asset.graph_rootnode` is used with LineagesMakie's accessor protocol,
   then no additional transformation is required.
 - [ ] Given `README.md`, when read, then it contains a working `load` example.

@@ -32,7 +32,7 @@ delegated work derived from these tasks.
   labels — not just that loading returns something
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node` not `vertex`; `edge` not `branch`; `leaf`/`leaves` not
-  `tip`/`terminal`; `edgelength` not `branch_length`; `rootnode` not `root`
+  `tip`/`terminal`; `edgeweight` not `branch_length`; `rootnode` not `root`
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation
 - `CONTRIBUTING.md` — contribution process and expectations
@@ -131,7 +131,7 @@ test suite still passes.
 **Type**: WRITE
 **Output**: `ext/PhyloExt.jl` exists; `PhyloNodeRef` wraps a `RootedTree`
 and a node name (or handle type as used by Phylo); the entry-point
-`add_child(parent :: Nothing, node_idx, label, edgelength; edgedata=nothing, nodedata=nothing) :: PhyloNodeRef` creates a new
+`add_child(parent :: Nothing, node_idx, label, edgeweight; edgedata=nothing, nodedata=nothing) :: PhyloNodeRef` creates a new
 `RootedTree`, adds the root node, and returns a `PhyloNodeRef`; the struct
 is not exported
 **Depends on**: Task 1
@@ -143,7 +143,7 @@ the correct node handle type before defining the struct; do not guess). Per
 `design/brief--community-support-objectives.md §PhyloNodeRef`: the tree
 field is the shared container that must be passed between `add_child` calls;
 the node field is the per-call handle for the parent reference. Implement
-`LineagesIO.add_child(parent :: Nothing, node_idx, label, edgelength; edgedata=nothing, nodedata=nothing)
+`LineagesIO.add_child(parent :: Nothing, node_idx, label, edgeweight; edgedata=nothing, nodedata=nothing)
 :: PhyloNodeRef` — this is the entry-point overload (root node); it must
 construct a new `RootedTree`, add the root node with the given label, and
 return a `PhyloNodeRef` wrapping both. Read the Phylo upstream source to
@@ -158,15 +158,15 @@ annotations. Per `STYLE-julia.md §5`, no bare `using Phylo`.
 **Type**: WRITE
 **Output**: The non-entry-point `add_child(parent :: PhyloNodeRef, ...) ::
 PhyloNodeRef` is implemented in `PhyloExt.jl`; it adds a child node and
-edge via the Phylo API; edge lengths from `edgedata.edgelength` are applied
+edge via the Phylo API; edge lengths from `edgedata.edgeweight` are applied
 when present
 **Depends on**: Task 2
 
 Implement `LineagesIO.add_child(parent :: PhyloNodeRef, node_idx, label,
-edgelength; edgedata=nothing, nodedata=nothing) :: PhyloNodeRef` in `ext/PhyloExt.jl`. Add a child node
+edgeweight; edgedata=nothing, nodedata=nothing) :: PhyloNodeRef` in `ext/PhyloExt.jl`. Add a child node
 to `parent.tree` with the given label using the Phylo API. Add the
 corresponding edge (branch) from parent to child; when
-`edgedata.edgelength !== nothing`, set the edge length on the branch.  Read
+`edgedata.edgeweight !== nothing`, set the edge length on the branch.  Read
 the Phylo upstream source for the correct API calls for `createnode!`,
 `addbranch!`, and setting branch lengths before implementing. Return a new
 `PhyloNodeRef` wrapping the same tree and the new child node reference. Any

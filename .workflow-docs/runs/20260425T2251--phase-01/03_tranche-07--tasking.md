@@ -31,7 +31,7 @@ delegated work derived from these tasks.
   phylogeny-profile attributes against fixtures — not just that parsing succeeds
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node` not `vertex`; `edge` not `branch`; `leaf`/`leaves` not
-  `tip`/`terminal`; `edgelength` not `branch_length`; `rootnode` not `root`
+  `tip`/`terminal`; `edgeweight` not `branch_length`; `rootnode` not `root`
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation
 - `CONTRIBUTING.md` — contribution process and expectations
@@ -144,7 +144,7 @@ Implement the discovery pass: parse the XML structure once to identify all
 `<node>` elements, all `<edge>` elements, and all phylogeny-profile attribute
 keys present across any node or edge. Use `build_schema` from `src/discovery.jl`
 with appropriate `type_overrides` for well-known typed attributes (e.g.,
-`edgelength :: Union{Float64, Nothing}`). Declare `:single_parent` protocol to
+`edgeweight :: Union{Float64, Nothing}`). Declare `:single_parent` protocol to
 the orchestration layer before the discovery pass begins. Use only Julia
 standard library XML parsing (e.g., `EzXML.jl` if already a dependency, or
 the standard-library approach) — do not introduce new dependencies without
@@ -171,7 +171,7 @@ GraphML, the parser completes its structural analysis before emitting any
 `add_child` calls — do not interleave XML reading with `add_child` emission.
 Reconstruct the parent-child traversal order from the GraphML `<edge>`
 elements. Extract phylogeny-profile attributes from each `<node>` element and
-pass them in `nodedata` at each `add_child` call site. Extract `edgelength`
+pass them in `nodedata` at each `add_child` call site. Extract `edgeweight`
 from each `<edge>` element and pass it in `edgedata`. Track source location
 (line and element path) during parsing and include the source file path and
 location in all error messages. For malformed GraphML or non-phylogeny `.xml`

@@ -151,7 +151,7 @@ returns a different object). Only after `finalize_graph!` returns, assemble the
 `node_table`, `edge_table`, `graph_rootnode`, and `source_path` must all be
 populated correctly per `01_prd.md §Return types`. The node table must carry one
 row per node with `node_idx` as its primary key; the edge table must carry one
-row per directed edge with `src_node_idx`, `dst_node_idx`, and `edgelength`
+row per directed edge with `src_node_idx`, `dst_node_idx`, and `edgeweight`
 columns at minimum. The assembly logic must be type-stable: the type of
 `LineageGraphAsset{NodeT}` including all table type parameters must be fully
 determined at compile time.

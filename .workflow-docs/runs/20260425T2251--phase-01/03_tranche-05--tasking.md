@@ -34,7 +34,7 @@ delegated work derived from these tasks.
   that loading returns something
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node` not `vertex`; `edge` not `branch`; `leaf`/`leaves` not
-  `tip`/`terminal`; `edgelength` not `branch_length`; `rootnode` not `root`
+  `tip`/`terminal`; `edgeweight` not `branch_length`; `rootnode` not `root`
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation
 - `CONTRIBUTING.md` — contribution process and expectations

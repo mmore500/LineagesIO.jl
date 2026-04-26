@@ -149,7 +149,7 @@ and `node :: Node` — the network reference is needed because `add_child` calls
 for subsequent nodes must add to the same `HybridNetwork` object. Per
 `design/brief--community-support-objectives.md §PhyloNetworksNodeHandle`: the
 network field is the shared container; the node field is the per-call handle.
-Implement `LineagesIO.add_child(parent :: Nothing, node_idx, label, edgelengths; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — this is the entry-point overload
+Implement `LineagesIO.add_child(parent :: Nothing, node_idx, label, edgeweights; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — this is the entry-point overload
 (root node); it must construct a new `HybridNetwork`, add the root node via
 the PhyloNetworks API, and return a `PhyloNetworksNodeHandle` wrapping both.
 Read the PhyloNetworks upstream source to confirm the correct API calls for
@@ -170,12 +170,12 @@ protocol path
 **Depends on**: Task 2
 
 Implement `LineagesIO.add_child(parent :: PhyloNetworksNodeHandle, node_idx,
-label, edgelength; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — the single-parent
+label, edgeweight; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — the single-parent
 non-entry-point overload; adds a child node and edge via the PhyloNetworks
 API using the network from `parent.network`; returns a new
 `PhyloNetworksNodeHandle` wrapping the same network and the new child node.
 Implement `LineagesIO.add_child(parents :: AbstractVector{PhyloNetworksNodeHandle},
-node_idx, label, edgelengths; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — the network
+node_idx, label, edgeweights; edgedata=nothing, nodedata=nothing) :: PhyloNetworksNodeHandle` — the network
 tier overload for hybrid nodes with multiple parents; adds a hybrid node to the
 network. Per `design/brief.md §Per-edge gamma at call time`: when
 `edgedata.gamma !== nothing`, pass the gamma value to the PhyloNetworks edge
