@@ -602,13 +602,13 @@ disambiguation.
 
 - `PhyloNetworksExt`: Newick (single-parent + network protocol), via
   `format"Newick"` and `format"LineageNetwork"`
+- `PhyloNetworksExt`: Gamma two-phase assignment (or per-edge metadata protocol decision)
 - `PhyloExt`: Newick (single-parent protocol only), via `format"Newick"`
 - `finalize_graph!` hook implementation
 - Integration tests for round-trip: file → `HybridNetwork` / `RootedTree`
-- Gamma two-phase assignment (or per-edge metadata protocol decision)
-- `TreeSet` support for Phylo multi-tree NEXUS files
 
 ### Phase 2
 
 - NEXUS support for both extensions
+- `TreeSet` support for Phylo multi-tree NEXUS files
 - Additional focal packages (to be added to §2 table as identified)
