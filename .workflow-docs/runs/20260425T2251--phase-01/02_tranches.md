@@ -147,35 +147,40 @@ and `01_prd.md §add_child protocol module`. Argument names, types, and ordering
 must match the PRD exactly:
 
 ```julia
+# NodeT     = node handle type; dispatch target for user extensions
+# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
+# R         = row type of node_table, fixed by discovery pass
+# RE        = row type of edge_table, fixed by discovery pass
+
 # Network level — general case (baseline)
-add_child(
-    parents     :: AbstractVector{NodeT},
-    node_idx    :: Int,
-    label       :: AbstractString,
-    edgelengths :: AbstractVector,
-    edgedata    :: AbstractVector{RE},
-    nodedata    :: R,
-) :: NodeT where {R, RE}
+function add_child(
+    :: AbstractVector{NodeT},                      # parents
+    :: Int,                                         # node_idx
+    :: AbstractString,                              # label
+    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
+    :: AbstractVector{RE},                          # edgedata
+    :: R,                                           # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
 
 # Single-parent level — entry-point node
-add_child(
-    parent     :: Nothing,
-    node_idx   :: Int,
-    label      :: AbstractString,
-    edgelength :: Union{<:Real, Nothing},
-    edgedata   :: Nothing,
-    nodedata   :: R,
-) :: NodeT where {R}
+function add_child(
+    :: Nothing,                      # parent
+    :: Int,                           # node_idx
+    :: AbstractString,                # label
+    :: Union{EdgeUnitT, Nothing},     # edgelength
+    :: Nothing,                       # edgedata
+    :: R,                             # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, R} end
 
 # Single-parent level — subsequent nodes
-add_child(
-    parent     :: NodeT,
-    node_idx   :: Int,
-    label      :: AbstractString,
-    edgelength :: Union{<:Real, Nothing},
-    edgedata   :: RE,
-    nodedata   :: R,
-) :: NodeT where {R, RE}
+function add_child(
+    :: NodeT,                         # parent
+    :: Int,                           # node_idx
+    :: AbstractString,                # label
+    :: Union{EdgeUnitT, Nothing},     # edgelength
+    :: RE,                            # edgedata
+    :: R,                             # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
 ```
 
 Write a complete docstring on `add_child` describing the protocol contract,

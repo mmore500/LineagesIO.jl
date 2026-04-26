@@ -427,10 +427,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    :: AbstractVector,    # edgelengths — empty for entry-point
-    :: AbstractVector,    # edgedata    — empty for entry-point
-    :: R,                 # nodedata    — no metadata store on HybridNetwork/Node
-) where {R}
+    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths — empty for entry-point
+    :: AbstractVector,                              # edgedata    — empty for entry-point
+    :: R,                                           # nodedata    — no metadata store on HybridNetwork/Node
+) where {EdgeUnitT, R}
     @assert isempty(parents)
     net = HybridNetwork()
     root = Node(node_idx, false)
@@ -446,10 +446,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    edgelengths :: AbstractVector,
+    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}},
     edgedata    :: AbstractVector{RE},
     nodedata    :: R,
-) where {R, RE}
+) where {EdgeUnitT, R, RE}
     @assert !isempty(parents)
     net = parents[1].net
     is_hybrid = length(parents) > 1
@@ -499,10 +499,10 @@ function LineagesIO.add_child(
     :: Nothing,                   # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{Float64, Nothing},   # edgelength — no incoming edge for entry-point
-    :: Nothing,                   # edgedata   — no parent edge for entry-point
+    :: Union{EdgeUnitT, Nothing},  # edgelength — no incoming edge for entry-point
+    :: Nothing,                    # edgedata   — no parent edge for entry-point
     nodedata   :: R,
-) where {R}
+) where {EdgeUnitT, R}
     tree = RootedTree(; name = "tree_$node_idx")
     nodename = isempty(label) ? "node_$node_idx" : label
     # Store node_idx in node data for round-trip join to LineageGraphStore node_table
@@ -519,10 +519,10 @@ function LineagesIO.add_child(
     parent     :: PhyloNodeRef,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{Float64, Nothing},
+    edgelength :: Union{EdgeUnitT, Nothing},
     :: RE,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
     nodedata   :: R,
-) where {R, RE}
+) where {EdgeUnitT, R, RE}
     tree = parent.tree
     nodename = isempty(label) ? "node_$node_idx" : label
     data = Dict{String,Any}(pairs(nodedata))
