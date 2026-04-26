@@ -27,9 +27,9 @@ All `add_child` signatures in this document use the full protocol defined in
 `brief.md`, including:
 
 * the `node_idx :: Int` sequential join key
-* the `edgedata` argument (`:: Nothing` / `:: RE` for single-parent protocol;
-  `:: AbstractVector{RE}` for network protocol)
-* the `nodedata :: R` argument built by the discovery pass
+* the `edgedata` argument (`:: Nothing` / `:: EdgeRow` for single-parent protocol;
+  `:: AbstractVector{EdgeRow}` for network protocol)
+* the `nodedata :: NodeRow` argument built by the discovery pass
 
 All `LineageGraphStore` and `LineageGraphAsset` return types used here are as
 defined in `brief.md §Return types`. Any change to the primary protocol in
@@ -148,10 +148,10 @@ end
 #### Integration requirements for LineagesIO extension
 
 **Protocol level**: General (network) — hybrid nodes require
-`add_child(parents::AbstractVector{NodeT}, ...)`.
+`add_child(parents::AbstractVector{NodeHandle}, ...)`.
 
 **Wrapper type needed**: `HybridNetwork` is the graph container; `Node` is the
-node handle. The `add_child` protocol returns `NodeT` per call, but
+node handle. The `add_child` protocol returns `NodeHandle` per call, but
 `HybridNetwork` holds all nodes and must persist across calls. The extension
 must bundle both:
 
@@ -296,7 +296,7 @@ Node metadata is accessed via `getnodedata(tree, nodename) → Dict{String,Any}`
 
 Note: Phylo stores all NHX/metacomment keys in `Dict{String,Any}` — these are
 the raw keys from the file, not promoted to typed fields. This matches
-LineagesIO's `nodedata::R` row where the row type `R` is built from the
+LineagesIO's `nodedata::NodeRow` row where the row type `NodeRow` is built from the
 discovery pass.
 
 #### Integration requirements for LineagesIO extension
@@ -332,7 +332,7 @@ validates lazily.
 | `nodedata.*` | `setnodedata!(tree, child_name, Dict(pairs(nodedata)))` | all promoted fields as node data dict |
 | `node_idx` | Stored in node data: `"node_idx" => node_idx` | enables joins to LineagesIO node table |
 
-Note: Phylo stores node metadata as `Dict{String,Any}`. LineagesIO's `nodedata::R`
+Note: Phylo stores node metadata as `Dict{String,Any}`. LineagesIO's `nodedata::NodeRow`
 (a `NamedTuple`) converts cleanly via `Dict(pairs(nodedata))`. Field names from
 the discovery-pass-promoted columns become the keys in Phylo's node data dict.
 
@@ -427,10 +427,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths — empty for entry-point
+    :: AbstractVector{Union{EdgeUnit, Nothing}},  # edgelengths — empty for entry-point
     :: AbstractVector,                              # edgedata    — empty for entry-point
-    :: R,                                           # nodedata    — no metadata store on HybridNetwork/Node
-) where {EdgeUnitT, R}
+    :: NodeRow,                                           # nodedata    — no metadata store on HybridNetwork/Node
+) where {EdgeUnit, NodeRow}
     @assert isempty(parents)
     net = HybridNetwork()
     root = Node(node_idx, false)
@@ -446,10 +446,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}},
-    edgedata    :: AbstractVector{RE},
-    nodedata    :: R,
-) where {EdgeUnitT, R, RE}
+    edgelengths :: AbstractVector{Union{EdgeUnit, Nothing}},
+    edgedata    :: AbstractVector{EdgeRow},
+    nodedata    :: NodeRow,
+) where {EdgeUnit, NodeRow, EdgeRow}
     @assert !isempty(parents)
     net = parents[1].net
     is_hybrid = length(parents) > 1
@@ -499,10 +499,10 @@ function LineagesIO.add_child(
     :: Nothing,                   # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing},  # edgelength — no incoming edge for entry-point
+    :: Union{EdgeUnit, Nothing},  # edgelength — no incoming edge for entry-point
     :: Nothing,                    # edgedata   — no parent edge for entry-point
-    nodedata   :: R,
-) where {EdgeUnitT, R}
+    nodedata   :: NodeRow,
+) where {EdgeUnit, NodeRow}
     tree = RootedTree(; name = "tree_$node_idx")
     nodename = isempty(label) ? "node_$node_idx" : label
     # Store node_idx in node data for round-trip join to LineageGraphStore node_table
@@ -519,10 +519,10 @@ function LineagesIO.add_child(
     parent     :: PhyloNodeRef,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnitT, Nothing},
-    :: RE,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
-    nodedata   :: R,
-) where {EdgeUnitT, R, RE}
+    edgelength :: Union{EdgeUnit, Nothing},
+    :: EdgeRow,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
+    nodedata   :: NodeRow,
+) where {EdgeUnit, NodeRow, EdgeRow}
     tree = parent.tree
     nodename = isempty(label) ? "node_$node_idx" : label
     data = Dict{String,Any}(pairs(nodedata))
@@ -571,11 +571,11 @@ validates lazily). See stubs above.
 **Decision:** Extend all `add_child` signatures with `edgedata` — the complex
 case is the baseline; simpler cases are specialisations of it.
 
-The network-level signature receives `edgedata :: AbstractVector{RE}` parallel
-to `parents`. The single-parent-level signatures receive `edgedata :: RE` (one
+The network-level signature receives `edgedata :: AbstractVector{EdgeRow}` parallel
+to `parents`. The single-parent-level signatures receive `edgedata :: EdgeRow` (one
 edge row) for non-entry-point nodes and `edgedata :: Nothing` for the
-entry-point node. `RE` is the row type of the edge table, built by the
-discovery pass — the same mechanism used for `nodedata :: R`.
+entry-point node. `EdgeRow` is the row type of the edge table, built by the
+discovery pass — the same mechanism used for `nodedata :: NodeRow`.
 
 This eliminates the two-phase gamma workaround entirely: `PhyloNetworksExt`
 reads `edgedata[i].gamma` directly in the `add_child` call and sets `e.gamma`

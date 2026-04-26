@@ -145,7 +145,7 @@ Within `src/orchestration.jl`, after the format parser signals that the last
 `add_child` for a graph has been made, call `finalize_graph!(entry_point_handle)`
 and capture its return value (the same handle, or a replacement if the extension
 returns a different object). Only after `finalize_graph!` returns, assemble the
-`LineageGraphAsset{NodeT}` using the accumulated rows and the returned handle as
+`LineageGraphAsset{NodeHandle}` using the accumulated rows and the returned handle as
 `graph_rootnode`. The `LineageGraphAsset` fields `index`, `source_idx`,
 `collection_idx`, `collection_graph_idx`, `collection_label`, `graph_label`,
 `node_table`, `edge_table`, `graph_rootnode`, and `source_path` must all be
@@ -153,7 +153,7 @@ populated correctly per `01_prd.md §Return types`. The node table must carry on
 row per node with `node_idx` as its primary key; the edge table must carry one
 row per directed edge with `src_node_idx`, `dst_node_idx`, and `edgelength`
 columns at minimum. The assembly logic must be type-stable: the type of
-`LineageGraphAsset{NodeT}` including all table type parameters must be fully
+`LineageGraphAsset{NodeHandle}` including all table type parameters must be fully
 determined at compile time.
 
 ---

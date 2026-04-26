@@ -133,7 +133,7 @@ tests. Do not modify them after the parser tests are written.
 **Output**: `src/parsers/LineageGraphML.jl` exists and is included from
 `src/LineagesIO.jl`; it declares `:single_parent` protocol before any parsing;
 it performs a discovery pass over the entire XML source before emitting any
-`add_child` calls; it produces `R` and `RE` types via `src/discovery.jl`
+`add_child` calls; it produces `NodeRow` and `EdgeRow` types via `src/discovery.jl`
 including all phylogeny-profile attribute keys found in the document
 **Depends on**: Tranches 1, 2, 3, 4, 5, 6 complete and green
 
@@ -164,7 +164,7 @@ source file name and location; the parser reads the tree structure from GraphML
 order
 **Depends on**: Task 2
 
-After the discovery pass completes and `R`/`RE` types are fixed, parse the
+After the discovery pass completes and `NodeRow`/`EdgeRow` types are fixed, parse the
 XML and emit `add_child` calls via the orchestration layer. Per
 `design/brief.md §Parse order`, for inside-out or structured formats like
 GraphML, the parser completes its structural analysis before emitting any

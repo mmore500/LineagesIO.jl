@@ -83,7 +83,7 @@ Before writing a single line of code:
    internal API the FileIO adapter must call. If the adapter cannot reach the
    orchestration layer through the Newick parser without exposing internal
    symbols, escalate before proceeding.
-4. Verify that `LineageGraphStore{NodeT}` field types and `LineageGraphAsset{NodeT}` field
+4. Verify that `LineageGraphStore{NodeHandle}` field types and `LineageGraphAsset{NodeHandle}` field
    types match what the view layer will assemble — confirm `LineageGraphStore.graphs`
    is a lazy non-materializing iterator type and that its type is fully
    determined at compile time.

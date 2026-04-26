@@ -83,7 +83,7 @@ Before writing a single line of code:
 2. Confirm `julia --project=test test/runtests.jl` passes with Aqua and JET
    clean. If it does not, stop and escalate before proceeding.
 3. Verify that the orchestration layer's `:network` tier path in
-   `src/orchestration.jl` accepts `parents :: AbstractVector{NodeT}` at each
+   `src/orchestration.jl` accepts `parents :: AbstractVector{NodeHandle}` at each
    `add_child` call site. If the network tier path is absent or incomplete,
    escalate before proceeding.
 4. Verify that the FileIO adapter in `src/fileio.jl` can accept a second
@@ -141,7 +141,7 @@ parser tests. Do not modify them after the parser tests are written.
 **Output**: `src/parsers/LineageNetwork.jl` exists and is included from
 `src/LineagesIO.jl`; it declares `:network` protocol before any parsing; it
 performs a discovery pass identifying all unique hybrid tokens and all
-annotation keys; it produces `R` and `RE` types via `src/discovery.jl` with
+annotation keys; it produces `NodeRow` and `EdgeRow` types via `src/discovery.jl` with
 `gamma :: Union{Float64, Nothing}` as a forced override on edge schema
 **Depends on**: Tranches 1, 2, 3, 4, 5 complete and green
 
@@ -155,7 +155,7 @@ the source; the discovery pass establishes that `add_child` will be called once
 for each unique hybrid node but the parser will encounter its token twice.
 Collect all annotation keys; pass `type_overrides = (; gamma = Union{Float64,
 Nothing})` to `build_schema` for the edge schema so `gamma` is always present
-in `RE` regardless of observed values. Declare `:network` protocol to the
+in `EdgeRow` regardless of observed values. Declare `:network` protocol to the
 orchestration layer before the discovery pass begins. Read the PhyloNetworks
 upstream source for how `#H1` tokens are recognized and how second occurrences
 are identified.
@@ -172,7 +172,7 @@ node trigger `add_child` calls with the correct `parents` vector; gamma values
 are present in `edgedata.gamma` at each `add_child` call site for hybrid edges
 **Depends on**: Task 2
 
-After the discovery pass completes and `R`/`RE` types are fixed, parse the
+After the discovery pass completes and `NodeRow`/`EdgeRow` types are fixed, parse the
 source and emit `add_child` calls via the orchestration layer. Per
 `design/brief.md §Hybrid node deduplication semantics`: when the parser
 encounters a hybrid token (`#H1`) for the first time, it stores the handle

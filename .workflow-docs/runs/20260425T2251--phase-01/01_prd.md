@@ -41,9 +41,9 @@ LineagesIO.jl phase 1 is complete when all of the following are true:
 2. Format submodules exist for `format"Newick"`, `format"LineageNetwork"`, and
    `format"LineageGraphML"`, each declaring their protocol tier before parsing
    begins.
-3. The discovery pass runs before any `add_child` calls and produces stable `R`
-   (node row) and `RE` (edge row) NamedTuple types for the entire source load.
-4. `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are defined, correctly
+3. The discovery pass runs before any `add_child` calls and produces stable `NodeRow`
+   (node row) and `EdgeRow` (edge row) NamedTuple types for the entire source load.
+4. `LineageGraphStore{NodeHandle}` and `LineageGraphAsset{NodeHandle}` are defined, correctly
    parameterized, and type-stable.
 5. `load`, `loadfirst`, `loadone`, and multi-source `load([...], ...)` work for
    all phase 1 formats.
@@ -76,7 +76,7 @@ including error states and edge cases.
    load a `format"LineageNetwork"` file to receive a `LineageGraphStore{MyNode}` with
    hybrid nodes correctly threaded through the builder.
 
-3. The compiler specializes the entire parse pipeline on `NodeT` at compile time;
+3. The compiler specializes the entire parse pipeline on `NodeHandle` at compile time;
    no runtime dispatch or type inference failure occurs in the `add_child`
    invocation path.
 
@@ -84,7 +84,7 @@ including error states and edge cases.
 
 4. A user can pass `builder = (parent, node_idx, label, edgelength, edgedata,
    nodedata) -> ...` as a keyword argument to `load` and receive a
-   `LineageGraphStore{NodeT}` parameterized on the callback's return type.
+   `LineageGraphStore{NodeHandle}` parameterized on the callback's return type.
 
 5. When both extended methods and a `builder` callback are present, the `builder`
    callback takes precedence.
@@ -116,16 +116,16 @@ including error states and edge cases.
 11. For keys absent on some nodes (or some edges), the column type is
     `Union{T, Nothing}` and absent rows carry `nothing`.
 
-12. The node row type `R` is a fixed `NamedTuple` type established after the
+12. The node row type `NodeRow` is a fixed `NamedTuple` type established after the
     discovery pass; it is stable for the entire load of a source.
 
-13. The edge row type `RE` is a fixed `NamedTuple` type established after the
+13. The edge row type `EdgeRow` is a fixed `NamedTuple` type established after the
     discovery pass; it is stable for the entire load of a source.
 
-14. `nodedata :: R` passed to each `add_child` call gives the user typed access to
+14. `nodedata :: NodeRow` passed to each `add_child` call gives the user typed access to
     node annotations (e.g., `nodedata.bootstrap`).
 
-15. `edgedata :: RE` (single-parent level) or `edgedata :: AbstractVector{RE}`
+15. `edgedata :: EdgeRow` (single-parent level) or `edgedata :: AbstractVector{EdgeRow}`
     (network level) passed to each `add_child` call gives the user typed access
     to edge annotations (e.g., `edgedata[i].gamma` for network-level hybrid
     edges).
@@ -146,20 +146,20 @@ including error states and edge cases.
 
 ### Return types
 
-19. `load` always returns `LineageGraphStore{NodeT}`; callers cannot assume a source
+19. `load` always returns `LineageGraphStore{NodeHandle}`; callers cannot assume a source
     contains only one graph.
 
 20. `LineageGraphStore` has fields: `source_table`, `collection_table`, `graph_table`,
-    `graphs` (lazy iterator of `LineageGraphAsset{NodeT}`).
+    `graphs` (lazy iterator of `LineageGraphAsset{NodeHandle}`).
 
 21. `LineageGraphAsset` has fields: `index`, `source_idx`, `collection_idx`,
     `collection_graph_idx`, `collection_label`, `graph_label`, `node_table`,
     `edge_table`, `graph_rootnode`, `source_path`.
 
-22. `graph_rootnode :: NodeT` is the handle returned by the first `add_child`
+22. `graph_rootnode :: NodeHandle` is the handle returned by the first `add_child`
     call (the entry-point node).
 
-23. `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are fully type-stable; all type
+23. `LineageGraphStore{NodeHandle}` and `LineageGraphAsset{NodeHandle}` are fully type-stable; all type
     parameters are resolved at compile time.
 
 ### Convenience wrappers
@@ -175,7 +175,7 @@ including error states and edge cases.
 
 ### Lazy iteration
 
-27. `LineageGraphStore.graphs` is a lazy iterator yielding `LineageGraphAsset{NodeT}` values;
+27. `LineageGraphStore.graphs` is a lazy iterator yielding `LineageGraphAsset{NodeHandle}` values;
     multi-graph sources are not fully materialized unless explicitly collected.
 
 ### Newick format
@@ -202,7 +202,7 @@ including error states and edge cases.
     begins.
 
 34. Hybrid nodes (with multiple parent edges) are correctly threaded through
-    `add_child(parents::AbstractVector{NodeT}, ...)` with `parents`,
+    `add_child(parents::AbstractVector{NodeHandle}, ...)` with `parents`,
     `edgelengths`, and `edgedata` as parallel vectors.
 
 35. Gamma values are available in `edgedata[i].gamma` at the `add_child` call
@@ -251,7 +251,7 @@ including error states and edge cases.
     extension is automatically activated.
 
 48. `PhyloNetworksNodeHandle` bundles a `HybridNetwork` and a `Node`; it is the
-    `NodeT` for PhyloNetworks round-trips.
+    `NodeHandle` for PhyloNetworks round-trips.
 
 49. The entry-point `add_child` call creates the `HybridNetwork`, creates the
     root `Node`, and returns a `PhyloNetworksNodeHandle`.
@@ -273,7 +273,7 @@ including error states and edge cases.
     automatically activated.
 
 54. `PhyloNodeRef` bundles a `RootedTree` and a node name string; it is the
-    `NodeT` for Phylo round-trips.
+    `NodeHandle` for Phylo round-trips.
 
 55. The entry-point `add_child` call creates the `RootedTree`, creates the root
     node via `createnode!`, stores `node_idx` in node data, and returns a
@@ -291,10 +291,10 @@ including error states and edge cases.
 
 ### LineagesMakie interoperability
 
-59. Loaded graphs (regardless of `NodeT`) are immediately consumable by
+59. Loaded graphs (regardless of `NodeHandle`) are immediately consumable by
     LineagesMakie via its accessor protocol (`children`, `edgelength`,
     `branchingtime`, `coalescenceage`, `nodevalue`, `nodecoordinates`, `nodepos`)
-    once the user supplies the necessary accessors for their `NodeT`. LineagesIO
+    once the user supplies the necessary accessors for their `NodeHandle`. LineagesIO
     itself does not need to supply these accessors.
 
 ### Error handling
@@ -372,17 +372,17 @@ Two dispatch levels:
 
 - **Network level** (general case): handles rooted and unrooted graphs, directed
   and undirected, including reticulate and hybrid nodes with multiple incoming
-  edges. Signature: `add_child(parents::AbstractVector{NodeT}, node_idx::Int,
-  label::AbstractString, edgelengths::AbstractVector{Union{EdgeUnitT, Nothing}},
-  edgedata::AbstractVector{RE}, nodedata::R) :: NodeT`.
+  edges. Signature: `add_child(parents::AbstractVector{NodeHandle}, node_idx::Int,
+  label::AbstractString, edgelengths::AbstractVector{Union{EdgeUnit, Nothing}},
+  edgedata::AbstractVector{EdgeRow}, nodedata::NodeRow) :: NodeHandle`.
 - **Single-parent level** (restricted case): applies when every node has at most
-  one parent. Entry-point overload: `add_child(parent::Nothing, ...) :: NodeT`.
-  Non-entry-point overload: `add_child(parent::NodeT, ...) :: NodeT`.
+  one parent. Entry-point overload: `add_child(parent::Nothing, ...) :: NodeHandle`.
+  Non-entry-point overload: `add_child(parent::NodeHandle, ...) :: NodeHandle`.
 
 Protocol tier is determined once, before any `add_child` call, by the format
 declaration. Builder validation is enforced before the parse begins.
 
-`finalize_graph!(handle::NodeT)` is called after the last `add_child` call for
+`finalize_graph!(handle::NodeHandle)` is called after the last `add_child` call for
 each graph. The default is a no-op. Extensions override for post-build cleanup.
 
 ### Parsing layer
@@ -407,7 +407,7 @@ Phase 1 formats:
 
 A pre-scanning phase owned by each parser submodule. Runs before any `add_child`
 calls. Collects every annotation key name present across all nodes and all edges
-in the full source. Builds fixed `R` (node NamedTuple row type) and `RE` (edge
+in the full source. Builds fixed `NodeRow` (node NamedTuple row type) and `EdgeRow` (edge
 NamedTuple row type) schemas. For optional fields, column type is
 `Union{T, Nothing}`. Schema is stable for the entire load of a source.
 
@@ -419,7 +419,7 @@ The routing layer that:
 - validates builder compatibility before the first `add_child` call
 - manages the `node_idx` counter (1-based, sequential, unique within a graph)
 - calls `finalize_graph!` after each graph's `add_child` sequence
-- assembles `LineageGraphAsset{NodeT}` after finalization
+- assembles `LineageGraphAsset{NodeHandle}` after finalization
 
 ### Metadata architecture
 
@@ -437,12 +437,12 @@ Tables are Tables.jl-compliant. DataFrames.jl is not a dependency.
 
 ### Return types
 
-- **`LineageGraphAsset{NodeT}`** — single-graph result struct with index coordinates,
-  node and edge tables, and `graph_rootnode :: NodeT`. Parameterized and
+- **`LineageGraphAsset{NodeHandle}`** — single-graph result struct with index coordinates,
+  node and edge tables, and `graph_rootnode :: NodeHandle`. Parameterized and
   type-stable.
-- **`LineageGraphStore{NodeT}`** — top-level load result with `source_table`,
+- **`LineageGraphStore{NodeHandle}`** — top-level load result with `source_table`,
   `collection_table`, `graph_table`, and `graphs` (lazy iterator of
-  `LineageGraphAsset{NodeT}`).
+  `LineageGraphAsset{NodeHandle}`).
 
 ### FileIO adapter layer
 
@@ -500,8 +500,8 @@ proceeds.
    override for their node handle type.
 
 4. **Per-edge metadata in `add_child` signatures**: All `add_child` overloads
-   carry `edgedata`. Network level: `edgedata :: AbstractVector{RE}`. Single-
-   parent non-entry-point: `edgedata :: RE`. Single-parent entry-point:
+   carry `edgedata`. Network level: `edgedata :: AbstractVector{EdgeRow}`. Single-
+   parent non-entry-point: `edgedata :: EdgeRow`. Single-parent entry-point:
    `edgedata :: Nothing`. This eliminates any two-phase gamma workaround for
    `PhyloNetworksExt`.
 
@@ -535,43 +535,43 @@ function and the `finalize_graph!` hook.
 **Interface**:
 
 ```julia
-# NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
-# R         = row type of node_table, fixed by discovery pass
-# RE        = row type of edge_table, fixed by discovery pass
+# NodeHandle     = node handle type; dispatch target for user extensions
+# EdgeUnit = edge length element type (unconstrained; Nothing for absent lengths)
+# NodeRow         = row type of node_table, fixed by discovery pass
+# EdgeRow        = row type of edge_table, fixed by discovery pass
 
 # Network level — general case (baseline)
 function add_child(
-    :: AbstractVector{NodeT},                      # parents
+    :: AbstractVector{NodeHandle},                      # parents
     :: Int,                                         # node_idx
     :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
-    :: AbstractVector{RE},                          # edgedata
-    :: R,                                           # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
+    :: AbstractVector{Union{EdgeUnit, Nothing}},  # edgelengths
+    :: AbstractVector{EdgeRow},                          # edgedata
+    :: NodeRow,                                           # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end
 
 # Single-parent level — entry-point node
 function add_child(
     :: Nothing,                      # parent
     :: Int,                           # node_idx
     :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
+    :: Union{EdgeUnit, Nothing},     # edgelength
     :: Nothing,                       # edgedata
-    :: R,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R} end
+    :: NodeRow,                             # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow} end
 
 # Single-parent level — subsequent nodes
 function add_child(
-    :: NodeT,                         # parent
+    :: NodeHandle,                         # parent
     :: Int,                           # node_idx
     :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: RE,                            # edgedata
-    :: R,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
+    :: Union{EdgeUnit, Nothing},     # edgelength
+    :: EdgeRow,                            # edgedata
+    :: NodeRow,                             # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end
 
 # Post-build finalization hook
-function finalize_graph!(:: NodeT) :: NodeT where {NodeT} end  # no-op default
+function finalize_graph!(:: NodeHandle) :: NodeHandle where {NodeHandle} end  # no-op default
 ```
 
 **Tested**: Yes. Unit tests for: dispatch level detection logic; builder
@@ -623,8 +623,8 @@ format override required for ambiguous extensions.
 ### Discovery pass
 
 **Responsibility**: Pre-scan source before any `add_child` calls. Collect all
-node and edge annotation key names. Build fixed NamedTuple row types `R` and
-`RE`. Promote optional fields to `Union{T, Nothing}`.
+node and edge annotation key names. Build fixed NamedTuple row types `NodeRow` and
+`EdgeRow`. Promote optional fields to `Union{T, Nothing}`.
 
 **Interface**: Internal to each parser submodule.
 
@@ -647,14 +647,14 @@ kwarg precedence; `node_idx` sequencing; `finalize_graph!` invocation timing.
 
 ---
 
-### `LineageGraphAsset{NodeT}`
+### `LineageGraphAsset{NodeHandle}`
 
 **Responsibility**: Single-graph result struct.
 
 **Interface**: Public exported type.
 
 ```julia
-struct LineageGraphAsset{NodeT}
+struct LineageGraphAsset{NodeHandle}
     index                :: Int
     source_idx           :: Int
     collection_idx       :: Int
@@ -663,7 +663,7 @@ struct LineageGraphAsset{NodeT}
     graph_label          :: Union{String, Nothing}
     node_table           :: <Tables.jl compliant>
     edge_table           :: <Tables.jl compliant>
-    graph_rootnode       :: NodeT
+    graph_rootnode       :: NodeHandle
     source_path          :: Union{String, Nothing}
 end
 ```
@@ -673,18 +673,18 @@ compliance tests for node and edge tables.
 
 ---
 
-### `LineageGraphStore{NodeT}`
+### `LineageGraphStore{NodeHandle}`
 
 **Responsibility**: Top-level load result.
 
 **Interface**: Public exported type.
 
 ```julia
-struct LineageGraphStore{NodeT}
+struct LineageGraphStore{NodeHandle}
     source_table     :: <Tables.jl compliant>
     collection_table :: <Tables.jl compliant>
     graph_table      :: <Tables.jl compliant>
-    graphs           :: <lazy iterator of LineageGraphAsset{NodeT}>
+    graphs           :: <lazy iterator of LineageGraphAsset{NodeHandle}>
 end
 ```
 
@@ -712,7 +712,7 @@ error on ambiguous format without explicit override.
 **Responsibility**: Export no-op default; define the protocol contract for
 post-build finalization.
 
-**Interface**: `finalize_graph!(handle :: NodeT) :: NodeT`
+**Interface**: `finalize_graph!(handle :: NodeHandle) :: NodeHandle`
 
 **Tested**: Yes. Test that the no-op default does not error. Integration tests
 (via `PhyloNetworksExt`) that the hook is called after each graph's `add_child`
@@ -802,7 +802,7 @@ PRD.
 
 | Concept | Correct form | Proscribed forms |
 |---|---|---|
-| Graph elements (generic) | `node`, `NodeT` | `vertex`, `vertices`, `n`, `v`, `V` |
+| Graph elements (generic) | `node`, `NodeHandle` | `vertex`, `vertices`, `n`, `v`, `V` |
 | Connections | `edge` (in code) | `branch`, `arc`, `link` |
 | Terminal nodes | `leaf`, `leaves` | `tip`, `terminal` |
 | Entry-point node (identifier) | `rootnode` | `root`, `root_node`, `rootvertex` |

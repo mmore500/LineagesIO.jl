@@ -70,7 +70,7 @@ description derived from this tranche.
 - `design/brief.md` (v2.0, 2026-04-25) — primary design authority; builder
   protocol signatures and dispatch levels; metadata architecture; return type
   field specifications; `finalize_graph!` hook contract; module design section
-  for `add_child` protocol module, `LineageGraphAsset{NodeT}`, `LineageGraphStore{NodeT}`
+  for `add_child` protocol module, `LineageGraphAsset{NodeHandle}`, `LineageGraphStore{NodeHandle}`
 - `design/brief--community-support-objectives.md` (v1.0, 2026-04-25) —
   extension architecture; `PhyloNetworksNodeHandle` and `PhyloNodeRef` stubs;
   finalization hook contract; resolved design questions
@@ -131,7 +131,7 @@ code in the module declaration file (per `STYLE-julia.md §8`). All implementati
 lives in included files:
 
 - `src/protocol.jl` — `add_child` generic function and `finalize_graph!` hook
-- `src/types.jl` — `LineageGraphAsset{NodeT}` and `LineageGraphStore{NodeT}` structs
+- `src/types.jl` — `LineageGraphAsset{NodeHandle}` and `LineageGraphStore{NodeHandle}` structs
 
 Subsequent tranches will add further `include` calls.
 
@@ -147,40 +147,40 @@ and `01_prd.md §add_child protocol module`. Argument names, types, and ordering
 must match the PRD exactly:
 
 ```julia
-# NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
-# R         = row type of node_table, fixed by discovery pass
-# RE        = row type of edge_table, fixed by discovery pass
+# NodeHandle     = node handle type; dispatch target for user extensions
+# EdgeUnit = edge length element type (unconstrained; Nothing for absent lengths)
+# NodeRow         = row type of node_table, fixed by discovery pass
+# EdgeRow        = row type of edge_table, fixed by discovery pass
 
 # Network level — general case (baseline)
 function add_child(
-    :: AbstractVector{NodeT},                      # parents
+    :: AbstractVector{NodeHandle},                      # parents
     :: Int,                                         # node_idx
     :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
-    :: AbstractVector{RE},                          # edgedata
-    :: R,                                           # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
+    :: AbstractVector{Union{EdgeUnit, Nothing}},  # edgelengths
+    :: AbstractVector{EdgeRow},                          # edgedata
+    :: NodeRow,                                           # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end
 
 # Single-parent level — entry-point node
 function add_child(
     :: Nothing,                      # parent
     :: Int,                           # node_idx
     :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
+    :: Union{EdgeUnit, Nothing},     # edgelength
     :: Nothing,                       # edgedata
-    :: R,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R} end
+    :: NodeRow,                             # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow} end
 
 # Single-parent level — subsequent nodes
 function add_child(
-    :: NodeT,                         # parent
+    :: NodeHandle,                         # parent
     :: Int,                           # node_idx
     :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: RE,                            # edgedata
-    :: R,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, R, RE} end
+    :: Union{EdgeUnit, Nothing},     # edgelength
+    :: EdgeRow,                            # edgedata
+    :: NodeRow,                             # nodedata
+) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end
 ```
 
 Write a complete docstring on `add_child` describing the protocol contract,
@@ -192,7 +192,7 @@ relationship, and include a minimal usage example.
 Define and export `finalize_graph!` in `src/protocol.jl` with a no-op default:
 
 ```julia
-finalize_graph!(handle :: NodeT) :: NodeT where {NodeT} = handle
+finalize_graph!(handle :: NodeHandle) :: NodeHandle where {NodeHandle} = handle
 ```
 
 The default must return `handle` unchanged. This is the public protocol function;
@@ -201,14 +201,14 @@ docstring describing the contract: called once per graph after the last
 `add_child`, before `LineageGraphAsset` assembly; default is no-op; extensions override
 for post-build cleanup.
 
-**5. `LineageGraphAsset{NodeT}` struct**
+**5. `LineageGraphAsset{NodeHandle}` struct**
 
-Define and export `LineageGraphAsset{NodeT}` in `src/types.jl` as an immutable struct
+Define and export `LineageGraphAsset{NodeHandle}` in `src/types.jl` as an immutable struct
 with exactly the fields and types specified in `01_prd.md §Return types` and
 `design/brief.md §LineageGraphAsset`:
 
 ```julia
-struct LineageGraphAsset{NodeT}
+struct LineageGraphAsset{NodeHandle}
     index                :: Int
     source_idx           :: Int
     collection_idx       :: Int
@@ -217,7 +217,7 @@ struct LineageGraphAsset{NodeT}
     graph_label          :: Union{String, Nothing}
     node_table           :: <Tables.jl compliant — concretely typed via type param>
     edge_table           :: <Tables.jl compliant — concretely typed via type param>
-    graph_rootnode       :: NodeT
+    graph_rootnode       :: NodeHandle
     source_path          :: Union{String, Nothing}
 end
 ```
@@ -231,17 +231,17 @@ confirm the chosen representation satisfies the interface.
 
 Write a complete docstring.
 
-**6. `LineageGraphStore{NodeT}` struct**
+**6. `LineageGraphStore{NodeHandle}` struct**
 
-Define and export `LineageGraphStore{NodeT}` in `src/types.jl` with exactly the fields
+Define and export `LineageGraphStore{NodeHandle}` in `src/types.jl` with exactly the fields
 specified in `01_prd.md §Return types`:
 
 ```julia
-struct LineageGraphStore{NodeT}
+struct LineageGraphStore{NodeHandle}
     source_table     :: <Tables.jl compliant — concretely typed>
     collection_table :: <Tables.jl compliant — concretely typed>
     graph_table      :: <Tables.jl compliant — concretely typed>
-    graphs           :: <lazy iterator of LineageGraphAsset{NodeT} — concretely typed>
+    graphs           :: <lazy iterator of LineageGraphAsset{NodeHandle} — concretely typed>
 end
 ```
 
@@ -312,12 +312,12 @@ All tests pass. `Aqua.test_all(LineagesIO)` reports no issues.
 
 - User story 1: user can define and dispatch `add_child` via method extension
 - User story 2: user can define the network-level `add_child` overload
-- User story 3: compiler specializes pipeline on `NodeT` at compile time
-- User story 19: `load` always returns `LineageGraphStore{NodeT}` (struct defined)
+- User story 3: compiler specializes pipeline on `NodeHandle` at compile time
+- User story 19: `load` always returns `LineageGraphStore{NodeHandle}` (struct defined)
 - User story 20: `LineageGraphStore` fields correctly named and typed
 - User story 21: `LineageGraphAsset` fields correctly named and typed
-- User story 22: `graph_rootnode :: NodeT` is the entry-point handle
-- User story 23: `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are fully type-stable
+- User story 22: `graph_rootnode :: NodeHandle` is the entry-point handle
+- User story 23: `LineageGraphStore{NodeHandle}` and `LineageGraphAsset{NodeHandle}` are fully type-stable
 - User story 44: `finalize_graph!` exported with no-op default
 - User story 45: `finalize_graph!` contract established (called once per graph)
 - User story 46: extensions can override `finalize_graph!` for their handle type
@@ -385,7 +385,7 @@ and `01_prd.md §Discovery pass`):**
 - Every discovered key becomes a typed column — no overflow dictionaries anywhere.
 - Column types are inferred from observed values; optional keys (absent on some
   records) produce `Union{T, Nothing}` columns; absent rows carry `nothing`.
-- The node row type `R` and the edge row type `RE` are fixed `NamedTuple` types
+- The node row type `NodeRow` and the edge row type `EdgeRow` are fixed `NamedTuple` types
   built from these schemas; they are stable for the entire load of a source.
 - The edge schema always includes at minimum: `src_node_idx :: Int`,
   `dst_node_idx :: Int`, `edgelength :: Union{Float64, Nothing}`.
@@ -464,10 +464,10 @@ All tests pass. Aqua and JET pass.
 - User story 9: discovery pass collects every annotation key from the source
 - User story 10: every key promoted to typed column; no overflow dicts
 - User story 11: optional keys produce `Union{T, Nothing}` columns
-- User story 12: node row type `R` is a fixed `NamedTuple` type
-- User story 13: edge row type `RE` is a fixed `NamedTuple` type
-- User story 14: `nodedata :: R` gives typed access to node annotations
-- User story 15: `edgedata :: RE` gives typed access to edge annotations
+- User story 12: node row type `NodeRow` is a fixed `NamedTuple` type
+- User story 13: edge row type `EdgeRow` is a fixed `NamedTuple` type
+- User story 14: `nodedata :: NodeRow` gives typed access to node annotations
+- User story 15: `edgedata :: EdgeRow` gives typed access to edge annotations
 - User story 16: edge table always contains fixed columns plus format columns
 
 ---
@@ -534,8 +534,8 @@ Receives a protocol tier declaration from the format parser before any
 `add_child` call. Two tiers, as specified in `design/brief.md §Protocol
 determination`:
 
-- `:network` — general case; calls `add_child(parents::AbstractVector{NodeT}, ...)`
-- `:single_parent` — restricted case; calls `add_child(parent::Nothing/NodeT, ...)`
+- `:network` — general case; calls `add_child(parents::AbstractVector{NodeHandle}, ...)`
+- `:single_parent` — restricted case; calls `add_child(parent::Nothing/NodeHandle, ...)`
 
 The tier is determined once, before any `add_child` call is made, and is fixed
 for the duration of the load. Per-call dispatch based on `length(parents)` at
@@ -580,7 +580,7 @@ extension overrides are dispatched through standard Julia multiple dispatch.
 
 **`LineageGraphAsset` assembly:**
 
-After `finalize_graph!` returns, assemble the `LineageGraphAsset{NodeT}` from the
+After `finalize_graph!` returns, assemble the `LineageGraphAsset{NodeHandle}` from the
 collected node table rows, edge table rows, index coordinates, labels, and the
 `graph_rootnode` handle returned by the first `add_child` call.
 
@@ -631,7 +631,7 @@ All tests pass. Aqua and JET pass.
 - [ ] Given a complete single-graph parse, when the last `add_child` returns,
   then `finalize_graph!` is called exactly once before `LineageGraphAsset` is assembled.
 - [ ] Given an extension that overrides `finalize_graph!` for `MyHandle`, when
-  a graph with `NodeT = MyHandle` is loaded, then the extension override is
+  a graph with `NodeHandle = MyHandle` is loaded, then the extension override is
   invoked.
 - [ ] Given Aqua and JET are run, then no issues are reported.
 
@@ -639,7 +639,7 @@ All tests pass. Aqua and JET pass.
 
 - User story 1: builder dispatched via standard Julia multiple dispatch
 - User story 2: network-level `add_child` invoked for `:network` format tier
-- User story 3: compiler specializes pipeline on `NodeT` at compile time
+- User story 3: compiler specializes pipeline on `NodeHandle` at compile time
 - User story 4: `builder` callback invoked when provided
 - User story 5: `builder` kwarg takes precedence over extended methods
 - User story 6: protocol tier determined once before any `add_child` call
@@ -729,9 +729,9 @@ Before any `add_child` calls, scan the entire source (all trees in a multi-tree
 file). Use the shared schema builder from `src/discovery.jl`:
 
 - Collect all node annotation key names (e.g., `bootstrap`, NHX keys)
-- Build node row type `R`
+- Build node row type `NodeRow`
 - Collect all edge annotation key names; always include `edgelength`
-- Build edge row type `RE` with at minimum `src_node_idx`, `dst_node_idx`,
+- Build edge row type `EdgeRow` with at minimum `src_node_idx`, `dst_node_idx`,
   `edgelength :: Union{Float64, Nothing}`
 
 **Parsing:**
@@ -891,7 +891,7 @@ matches the code. Confirm Aqua and JET pass before starting.
 ### What to build
 
 This tranche delivers the first complete end-to-end path: a Newick file on disk
-→ `LineageGraphStore{NodeT}`. Tranches 6 and 7 extend the adapter to additional formats
+→ `LineageGraphStore{NodeHandle}`. Tranches 6 and 7 extend the adapter to additional formats
 without changing its core structure. Design the adapter's dispatch architecture
 to be extension-friendly from the start.
 
@@ -908,7 +908,7 @@ Supported for this tranche (Newick only):
 - Format auto-detection: `.nwk`, `.newick`, `.tre` → `format"Newick"`
 - Explicit format override: `load(File{format"Newick"}("file.txt"), MyNode)`
 - Stream-based I/O: `load(Stream{format"Newick"}(io), MyNode)`
-- No-`NodeT` call: `load("file.nwk")` returns `LineageGraphStore` with tables only,
+- No-`NodeHandle` call: `load("file.nwk")` returns `LineageGraphStore` with tables only,
   no builder invoked
 - Error on ambiguous format (unmapped extension, no explicit override):
   `ArgumentError` requesting explicit override
@@ -954,7 +954,7 @@ All tests must verify field-level values:
 - `loadone`: `ArgumentError` for multi-tree (more than one graph)
 - `loadone`: `ArgumentError` for empty source (zero graphs)
 - Multi-source: two files, `source_idx` values are 1 and 2 respectively
-- Lazy iteration: `LineageGraphStore.graphs` iteration yields `LineageGraphAsset{NodeT}` values
+- Lazy iteration: `LineageGraphStore.graphs` iteration yields `LineageGraphAsset{NodeHandle}` values
 
 ### How to verify
 
@@ -1003,13 +1003,13 @@ All tests pass. Aqua and JET pass.
 - [ ] Given `load([f1, f2], MyNode)`, when called, then `LineageGraphAsset` values
   from `f1` have `source_idx == 1` and those from `f2` have `source_idx == 2`.
 - [ ] Given `LineageGraphStore.graphs` iteration, when consumed lazily, then each
-  element is a `LineageGraphAsset{NodeT}` and the full collection is not materialized
+  element is a `LineageGraphAsset{NodeHandle}` and the full collection is not materialized
   until `collect` is called.
 - [ ] Given Aqua and JET are run, then no issues are reported.
 
 ### User stories addressed
 
-- User story 19: `load` always returns `LineageGraphStore{NodeT}`
+- User story 19: `load` always returns `LineageGraphStore{NodeHandle}`
 - User story 24: `loadfirst` returns first `LineageGraphAsset`; no error on multiple
 - User story 25: `loadone` returns single `LineageGraphAsset`; errors if count ≠ 1
 - User story 26: `load([...], ...)` with `source_idx` distinguishing origins
@@ -1100,7 +1100,7 @@ Scan the entire source using `src/discovery.jl`. Always include in the edge
 schema: `edgelength :: Union{Float64, Nothing}`, `gamma :: Union{Float64,
 Nothing}`, `support :: Union{Float64, Nothing}`. Gamma values are extracted
 from the third colon field (`:length:support:gamma`) during the discovery scan
-so they are available in `RE` before any `add_child` calls.
+so they are available in `EdgeRow` before any `add_child` calls.
 
 **Parsing:**
 
@@ -1253,7 +1253,7 @@ begins.
 **Discovery pass:**
 
 Scan `<key>` element declarations and all `<data>` elements on nodes and edges.
-Build `R` and `RE` from the promoted attribute schema via `src/discovery.jl`.
+Build `NodeRow` and `EdgeRow` from the promoted attribute schema via `src/discovery.jl`.
 
 **Parsing:**
 
@@ -1839,7 +1839,7 @@ For `node_table` and `edge_table` in every `LineageGraphAsset` variant, confirm:
 
 **LineagesMakie interoperability verification (user story 59):**
 
-Demonstrate that a loaded `LineageGraphAsset` (with a user-defined `NodeT` that
+Demonstrate that a loaded `LineageGraphAsset` (with a user-defined `NodeHandle` that
 implements `children` and `edgelength` accessors) is immediately consumable by
 LineagesMakie's accessor protocol without additional transformation. This does
 not require LineagesMakie as a dependency — a documentation example or test
@@ -1895,7 +1895,7 @@ All pass with zero failures, zero Aqua issues, zero JET issues.
 - [ ] Given `Tables.istable(asset.node_table)` and
   `Tables.istable(asset.edge_table)` for any loaded `LineageGraphAsset`, then both
   return `true`.
-- [ ] Given a user-defined `NodeT` with `children` and `edgelength` accessors,
+- [ ] Given a user-defined `NodeHandle` with `children` and `edgelength` accessors,
   when `asset.graph_rootnode` is used with LineagesMakie's accessor protocol,
   then no additional transformation is required.
 - [ ] Given `README.md`, when read, then it contains a working `load` example.

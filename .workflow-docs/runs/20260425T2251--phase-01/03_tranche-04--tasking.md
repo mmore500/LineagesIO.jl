@@ -133,7 +133,7 @@ Do not modify them after the parser tests are written.
 **Output**: `src/parsers/Newick.jl` exists and is included from
 `src/LineagesIO.jl`; it declares `:single_parent` protocol before any parsing;
 it performs a discovery pass over the full source before emitting any
-`add_child` calls; it produces `R` and `RE` types via `src/discovery.jl`
+`add_child` calls; it produces `NodeRow` and `EdgeRow` types via `src/discovery.jl`
 **Depends on**: Tranches 1, 2, 3 complete and green
 
 Add `src/parsers/Newick.jl` and add `include("parsers/Newick.jl")` to
@@ -145,7 +145,7 @@ entire source (all trees in a multi-tree file) before calling any `add_child`.
 Collect every annotation key name present across all nodes (e.g., bootstrap
 values stored as internal node annotations) and all edges (always include
 `edgelength :: Union{Float64, Nothing}`). Use `build_schema` from
-`src/discovery.jl` to produce `R` (node row type) and `RE` (edge row type).
+`src/discovery.jl` to produce `NodeRow` (node row type) and `EdgeRow` (edge row type).
 The protocol declaration (`:single_parent`) must be communicated to the
 orchestration layer before the discovery pass begins. Read the three upstream
 Newick parser references before implementing any tokenization or traversal
@@ -164,7 +164,7 @@ pre-order (top-down) traversal; parse errors include source file name and
 location
 **Depends on**: Task 2
 
-After the discovery pass completes and `R`/`RE` types are fixed, parse the
+After the discovery pass completes and `NodeRow`/`EdgeRow` types are fixed, parse the
 source and emit `add_child` calls via the orchestration layer. Traversal must be
 pre-order (top-down): for each node, call `add_child` for the node before
 calling it for any of its children. Per `design/brief.md §Parse order`, for
