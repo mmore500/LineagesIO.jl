@@ -2,7 +2,7 @@
 date-created: 2026-04-25T00:00:00
 status: approved
 supersedes: .workflow-docs/logs/log.20260424--superceded-brief.md
-design-refs:
+design-authority:
   - design/brief.md
   - design/brief--community-support-objectives.md
 ---
@@ -23,6 +23,10 @@ design-refs:
 > results, expose Tables.jl-compliant node and edge tables at all four metadata
 > levels, support lazy iteration over multi-graph sources, and provide first-class
 > package-extension integration for PhyloNetworks.jl and Phylo.jl.
+>
+> The `design-authority` documents are considered GOVERNING documents and provide key concepts, abstractions, constraints, conditions, and strategies. 
+> These should be read line-by-line before proceeding any further, and downstream documents
+> should also include and transmit this mandate.
 
 ---
 
@@ -39,17 +43,6 @@ Julia has no single package that:
    package happens to produce), using idiomatic Julia generics.
 4. Handles multi-graph sources (NEXUS tree blocks, multi-Newick files, tskit
    `TreeSequence`) as a first-class collection, not as a surprise edge case.
-
-### Architectural problem
-
-The v1 brief was anchored on rooted trees. That framing produced mislabeled
-return types (`graph` named as though it were a single root node), a
-three-layer metadata model that omitted edge-level and collection-level
-annotations, missing edge tables that network graphs require for multi-parent
-edge metadata, a per-call dispatch strategy that collapses predictably under
-hybrid nodes, and no sequential node index for joins. These are not surface bugs
-— they are misaligned ownership boundaries that require a full redesign of the
-builder protocol contract.
 
 ---
 
@@ -168,30 +161,6 @@ When this work is complete:
 - **Non-negotiable protections:** The package must remain a valid FileIO
   backend. It must not define any concrete domain graph type. It must not
   claim ownership of generic GraphML. It must be type-stable throughout.
-
----
-
-## Current-state architecture
-
-The v1 design brief (archived) had:
-
-- `load` returning a single graph handle named `root` — tree-biased, wrong for
-  networks and multi-graph sources
-- Three metadata layers (node, graph, collection) with no edge table
-- `data :: D` as a bespoke per-format NamedTuple — no discovery pass, no
-  unified column promotion
-- Per-call dispatch on `length(parents)` — collapses under hybrid nodes
-- No sequential `node_idx` — no join key between graph structure and tables
-- No `GraphStore` / `GraphAsset` distinction — collection semantics absent
-
-### Failure modes
-
-- Users with single-parent builders hit runtime dispatch failures on the first
-  hybrid node encountered mid-parse.
-- Users cannot join their graph structure to node metadata because there is no
-  shared key.
-- Edge metadata (gamma, support) has no home for multi-parent edges.
-- Collection-level metadata (TRANSLATE table, MCMC chain length) has no carrier.
 
 ---
 
