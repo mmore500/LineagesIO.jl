@@ -491,12 +491,12 @@ The package must provide:
 * `format"Newick"` — standard parenthetical tree notation
 * `format"LineageGraphML"` — GraphML with a ratified phylogeny-specific
   attribute scheme
+* `format"LineageNetwork"` — extended Newick with hybrid/reticulate node
+  notation as used by PhyloNetworks
 
 ### Phase 2
 
 * `format"Nexus"` — NEXUS tree blocks with TRANSLATE tables
-* `format"LineageNetwork"` — extended Newick with hybrid/reticulate node
-  notation as used by PhyloNetworks
 * `format"TskitTrees"` — tskit native HDF5 binary genealogical table format
   (distinct from and not collapsible with tree-format Newick/Nexus exports)
 * Additional formats as specified
@@ -559,6 +559,7 @@ Registration itself is out of scope.
 
 * FileIO integration
 * Newick support
+* LineageNetwork (hybrid/reticulate extended Newick via PhyloNetworks semantics)
 * builder protocol implementation
 * Tables.jl node table companion return
 * lazy iterators
@@ -566,7 +567,6 @@ Registration itself is out of scope.
 ### Phase 2
 
 * NEXUS support
-* LineageNetwork (hybrid/reticulate extended Newick via PhyloNetworks semantics)
 * TskitTrees (HDF5 genealogical table format)
 * richer metadata preservation
 * conversion matrix
