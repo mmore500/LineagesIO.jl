@@ -8,7 +8,7 @@ using Test: @testset
         Aqua.test_all(LineagesIO)
     end
     @testset "Code linting (JET.jl)" begin
-        JET.test_package(LineagesIO; target_defined_modules = true)
+        JET.test_package(LineagesIO; target_modules = (LineagesIO,))
     end
     include("test_protocol.jl")
     include("test_types.jl")
