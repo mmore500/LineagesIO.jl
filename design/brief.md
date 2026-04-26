@@ -331,7 +331,7 @@ been created and their handles are in scope.
 
 For formats containing multiple graphs (NEXUS, multi-Newick, tskit `TreeSequence`),
 the full `add_child` sequence is invoked once per graph. The lazy iteration layer
-exposes these as an iterator of `GraphParseResult` values (see **Return types**).
+exposes these as an iterator of `ParsedGraphAsset` values (see **Return types**).
 
 ## Metadata architecture
 
@@ -365,7 +365,7 @@ is produced by the parser from the source.
 ### Level 2 — Edge metadata
 
 Edge annotation keys are discovered in the same discovery pass and promoted to
-typed columns in the edge table. The edge table accompanies every `GraphParseResult`,
+typed columns in the edge table. The edge table accompanies every `ParsedGraphAsset`,
 with one row per directed edge:
 
 | Column | Type | Description |
@@ -382,7 +382,7 @@ graphs it contains one row per node (excluding the entry-point node).
 
 Metadata about a single graph as a unit: name/identifier (e.g. NEXUS `tree PAUP_1`),
 weight or posterior probability in a sample, rooting declaration, graph-level
-comments. Carried in the `graph_label` and related fields of `GraphParseResult`
+comments. Carried in the `graph_label` and related fields of `ParsedGraphAsset`
 (see **Return types**).
 
 ### Level 4 — Collection-level and file-level metadata
@@ -402,15 +402,15 @@ It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
 
 ## Return types
 
-### GraphParseResult
+### ParsedGraphAsset
 
-`GraphParseResult{NodeT}` is the single-graph result struct yielded by the lazy
+`ParsedGraphAsset{NodeT}` is the single-graph result struct yielded by the lazy
 graph iterator and collected in `ParsedGraphStore.graphs`. It carries the complete parse
 output for one graph together with the index coordinates needed to locate it within
 a multi-source, multi-collection load.
 
 ```julia
-struct GraphParseResult{NodeT}
+struct ParsedGraphAsset{NodeT}
     index                :: Int                      # overall 1-based index across entire load
     source_idx           :: Int                      # 1-based index of source file
     collection_idx       :: Int                      # 1-based index of collection within source
@@ -437,14 +437,14 @@ struct ParsedGraphStore{NodeT}
     source_table     :: <Tables.jl compliant>    # one row per source file
     collection_table :: <Tables.jl compliant>    # one row per collection within sources
     graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
-    graphs           :: <lazy iterator of GraphParseResult{NodeT}>
+    graphs           :: <lazy iterator of ParsedGraphAsset{NodeT}>
 end
 ```
 
 `source_table` columns: `source_idx`, `source_path`, format-specific file-level
 metadata. `collection_table` columns: `source_idx`, `collection_idx`, `label`,
 `graph_count`, collection-level metadata (e.g. NEXUS TRANSLATE table encoding).
-`graph_table` mirrors the index coordinates and label fields of `GraphParseResult`
+`graph_table` mirrors the index coordinates and label fields of `ParsedGraphAsset`
 without the node/edge table payloads.
 
 ### Convenience wrappers
@@ -454,8 +454,8 @@ without the node/edge table payloads.
 | `load(src, NodeT)` | `ParsedGraphStore{NodeT}` via dispatch extension |
 | `load(src; builder = fn)` | `ParsedGraphStore{NodeT}` via callback |
 | `load(src)` | `ParsedGraphStore` with node/edge tables only (no builder) |
-| `loadfirst(src, ...)` | First `GraphParseResult`; no error on multiple |
-| `loadone(src, ...)` | Single `GraphParseResult`; errors if count ≠ 1 |
+| `loadfirst(src, ...)` | First `ParsedGraphAsset`; no error on multiple |
+| `loadone(src, ...)` | Single `ParsedGraphAsset`; errors if count ≠ 1 |
 | `load([f1, f2], ...)` | Multi-source; `source_idx` distinguishes origins |
 
 ## FileIO contract
@@ -475,7 +475,7 @@ It must support:
 
 The package must provide:
 
-* lazy iterators over multi-graph sources, yielding `GraphParseResult{NodeT}` values
+* lazy iterators over multi-graph sources, yielding `ParsedGraphAsset{NodeT}` values
 * `ParsedGraphStore.graphs` as the primary lazy iteration surface
 * multi-source loading via `load([f1, f2, ...], ...)`
 
@@ -575,11 +575,11 @@ The package is successful when:
 * `load("file.nwk"; builder = fn)` returns `ParsedGraphStore{NodeT}` via callback
 * `load("file.nwk")` returns `ParsedGraphStore` with node/edge tables usable with zero
   builder code
-* `loadone` and `loadfirst` convenience wrappers return `GraphParseResult` correctly
+* `loadone` and `loadfirst` convenience wrappers return `ParsedGraphAsset` correctly
 * multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
 * explicit format override works
 * lazy iteration over `ParsedGraphStore.graphs` is available for all multi-graph sources
-* builder output is type-stable; `GraphParseResult{NodeT}` is fully parameterized
+* builder output is type-stable; `ParsedGraphAsset{NodeT}` is fully parameterized
 * `node_idx` in `add_child` enables lossless joins between graph structure and
   node/edge tables
 * network graph files with hybrid/reticulate nodes parse correctly through the

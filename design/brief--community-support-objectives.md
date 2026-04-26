@@ -31,7 +31,7 @@ All `add_child` signatures in this document use the full protocol defined in
   `:: AbstractVector{RE}` for network protocol)
 * the `nodedata :: R` argument built by the discovery pass
 
-All `ParsedGraphStore` and `GraphParseResult` return types used here are as
+All `ParsedGraphStore` and `ParsedGraphAsset` return types used here are as
 defined in `brief.md §Return types`. Any change to the primary protocol in
 `brief.md` must be reflected here, and vice versa.
 
@@ -187,7 +187,7 @@ call time.
 The LineagesIO edge table carries gamma at the correct level
 (`edge_table.gamma`). The extension can therefore:
 1. Build graph structure during `add_child` (edges created with `length` only)
-2. Post-build: iterate `GraphParseResult.edge_table`, locate hybrid edges by
+2. Post-build: iterate `ParsedGraphAsset.edge_table`, locate hybrid edges by
    `(src_node_idx, dst_node_idx)`, assign `.gamma` from the table row
 
 This is a two-phase approach. See **Open design questions** for the alternative
@@ -542,12 +542,12 @@ end # module
 ### Extension API surface
 
 Each extension exports a single accessor for the target-package type from a
-`GraphParseResult`:
+`ParsedGraphAsset`:
 
 | Extension | Function | Returns |
 |---|---|---|
-| `PhyloNetworksExt` | `get_hybridnetwork(g::GraphParseResult)` | `HybridNetwork` |
-| `PhyloExt` | `get_rootedtree(g::GraphParseResult)` | `RootedTree` |
+| `PhyloNetworksExt` | `get_hybridnetwork(g::ParsedGraphAsset)` | `HybridNetwork` |
+| `PhyloExt` | `get_rootedtree(g::ParsedGraphAsset)` | `RootedTree` |
 
 ---
 
@@ -559,7 +559,7 @@ Each extension exports a single accessor for the target-package type from a
 in LineagesIO's public API.
 
 `finalize_graph!(handle)` is called once per graph after the last `add_child`
-call and before `GraphParseResult` is assembled. The default implementation is
+call and before `ParsedGraphAsset` is assembled. The default implementation is
 a no-op. Extensions overload it for types that require cleanup.
 
 `PhyloNetworksExt` overloads it to call `storeHybrids!`, `checkNumHybEdges!`,
