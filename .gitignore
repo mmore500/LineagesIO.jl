@@ -5,6 +5,7 @@
 
 .vscode/*
 .codex
+.workflow-docs/*.code-workspace
 
 # =====================================
 # Quarto: output directories and formats
