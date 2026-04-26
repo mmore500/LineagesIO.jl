@@ -44,7 +44,7 @@ delegated work derived from these tasks.
 **Companion design documents (all mandatory, line by line):**
 
 - `design/brief.md` (v2.0, 2026-04-25) — primary design authority; builder
-  protocol signatures and dispatch levels; `GraphAsset` and `GraphStore` struct
+  protocol signatures and dispatch levels; `LineageGraphAsset` and `LineageGraphStore` struct
   field specifications; `finalize_graph!` hook contract; module design sections
 - `design/brief--community-support-objectives.md` (v1.0, 2026-04-25) —
   extension architecture; `PhyloNetworksNodeHandle` and `PhyloNodeRef` stubs;
@@ -59,7 +59,7 @@ implementing anything.
 - `fileio.jl/` — FileIO backend contract; `DataFormat` and `File`/`Stream`
   types; `add_format` registration pattern; private `load`/`save` naming inside
   a module. Read now even though the FileIO adapter is built in Tranche 5:
-  `GraphAsset` and `GraphStore` must be designed to be compatible with FileIO
+  `LineageGraphAsset` and `LineageGraphStore` must be designed to be compatible with FileIO
   dispatch from the start.
 - `AbstractTrees.jl/` — traversal traits and iteration interface; constraints
   on how node types must behave for LineagesMakie interoperability
@@ -82,8 +82,8 @@ Confirm that `julia --project=test test/runtests.jl` passes before making any
 change. If it does not pass, stop and escalate before proceeding. Do not assume
 the repository is in green state.
 
-Verify that the `add_child` signatures, `GraphAsset` field names, and
-`GraphStore` field names match `design/brief.md §Builder protocol` and
+Verify that the `add_child` signatures, `LineageGraphAsset` field names, and
+`LineageGraphStore` field names match `design/brief.md §Builder protocol` and
 `01_prd.md §Return types` exactly. If any discrepancy is found between design
 documents and the PRD, stop and escalate rather than adapting silently.
 
@@ -92,7 +92,7 @@ documents and the PRD, stop and escalate rather than adapting silently.
 This tranche establishes the architectural contracts on which every subsequent
 tranche depends. Nothing else can proceed until these are in place and verified.
 The work must begin and end with all tests passing, Aqua and JET clean.
-Any deviation from the `add_child` signature, `GraphAsset` field names, or
+Any deviation from the `add_child` signature, `LineageGraphAsset` field names, or
 `finalize_graph!` contract must be escalated to the project owner before
 proceeding.
 
@@ -174,7 +174,7 @@ NodeT where {NodeT}` with a no-op default body that returns `handle` unchanged.
 Per `STYLE-julia.md §4`, a `!`-function must return the mutated argument —
 `finalize_graph!` follows this contract even though the default is a no-op.
 Write a complete docstring describing: called once per graph after the last
-`add_child` call for that graph and before `GraphAsset` assembly; default
+`add_child` call for that graph and before `LineageGraphAsset` assembly; default
 implementation is a no-op that returns `handle` unchanged; extensions override
 this function for their concrete node handle types to perform post-build
 cleanup; `PhyloNetworksExt` uses it to call `storeHybrids!`,
@@ -182,16 +182,16 @@ cleanup; `PhyloNetworksExt` uses it to call `storeHybrids!`,
 
 ---
 
-### 5. Define `GraphAsset{NodeT}` struct
+### 5. Define `LineageGraphAsset{NodeT}` struct
 
 **Type**: WRITE
-**Output**: `src/types.jl` defines and exports `GraphAsset{NodeT}` as an
+**Output**: `src/types.jl` defines and exports `LineageGraphAsset{NodeT}` as an
 immutable struct with exactly the fields and types specified in the PRD; all
 fields concretely typed or concretized through type parameters; complete
 docstring; test suite passes
 **Depends on**: Task 2
 
-In `src/types.jl`, define `GraphAsset` as an immutable `struct`. The struct
+In `src/types.jl`, define `LineageGraphAsset` as an immutable `struct`. The struct
 must carry at minimum two additional type parameters beyond `NodeT` to
 concretize `node_table` and `edge_table`, because per `STYLE-julia.md §1.12`,
 struct fields must not be abstractly typed. Choose a representation for
@@ -199,28 +199,28 @@ struct fields must not be abstractly typed. Choose a representation for
 Read the Tables.jl source in the upstream resources to confirm the chosen
 representation satisfies the Tables.jl interface before committing to it.
 The exact field names and types are specified in `01_prd.md §Return types` and
-`design/brief.md §GraphAsset` — match them exactly. Export `GraphAsset`. Add
+`design/brief.md §LineageGraphAsset` — match them exactly. Export `LineageGraphAsset`. Add
 `using Tables: Tables` (or the specific qualified import needed) only in the
 file that requires it, per `STYLE-julia.md §5` (no bare `using Tables`). Write
 a complete docstring. Run the test suite and verify it passes.
 
 ---
 
-### 6. Define `GraphStore{NodeT}` struct
+### 6. Define `LineageGraphStore{NodeT}` struct
 
 **Type**: WRITE
-**Output**: `src/types.jl` defines and exports `GraphStore{NodeT}` as an
+**Output**: `src/types.jl` defines and exports `LineageGraphStore{NodeT}` as an
 immutable struct with exactly the fields and types specified in the PRD; all
 fields concretely typed or concretized through type parameters; complete
 docstring; test suite passes
 **Depends on**: Task 5
 
-In `src/types.jl`, define `GraphStore` as an immutable `struct` with type
+In `src/types.jl`, define `LineageGraphStore` as an immutable `struct` with type
 parameters for each concretely typed field beyond `NodeT`. The `graphs` field
 must be a lazy iterator type (not a `Vector`) — choose a concrete iterator type
 that is non-materializing and can be typed at compile time. The exact field
 names are specified in `01_prd.md §Return types` and `design/brief.md
-§GraphStore`. Export `GraphStore`. Write a complete docstring. Run the test
+§LineageGraphStore`. Export `LineageGraphStore`. Write a complete docstring. Run the test
 suite and verify it passes.
 
 ---
@@ -239,12 +239,12 @@ Required tests: (a) `finalize_graph!` default no-op — define a minimal
 assert the returned value is identical to the input and no error is raised;
 (b) `add_child` generic function exists and is exported. Create
 `test/test_types.jl` with a named `@testset "types"` block. Required tests:
-(a) `GraphAsset{MyTestNode}` can be constructed with all fields; (b)
-`@inferred` applied to accessing `graph_rootnode` on a `GraphAsset{MyTestNode}`
+(a) `LineageGraphAsset{MyTestNode}` can be constructed with all fields; (b)
+`@inferred` applied to accessing `graph_rootnode` on a `LineageGraphAsset{MyTestNode}`
 returns `MyTestNode` without instability; (c) `Tables.istable(asset.node_table)`
 returns `true`; (d) `Tables.istable(asset.edge_table)` returns `true`;
-(e) `GraphStore{MyTestNode}` can be constructed; (f) `@inferred` on
-`GraphStore` field access produces no instability. Add `include("test_protocol.jl")`
+(e) `LineageGraphStore{MyTestNode}` can be constructed; (f) `@inferred` on
+`LineageGraphStore` field access produces no instability. Add `include("test_protocol.jl")`
 and `include("test_types.jl")` to `test/runtests.jl`. Run
 `julia --project=test test/runtests.jl` and confirm all tests pass,
 `Aqua.test_all(LineagesIO)` reports no issues, and

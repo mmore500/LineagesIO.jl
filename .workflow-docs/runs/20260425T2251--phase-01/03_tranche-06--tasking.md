@@ -96,7 +96,7 @@ The LineageNetwork parser introduces the `:network` protocol tier and hybrid
 node deduplication. The parser owns no architectural invariants beyond
 LineageNetwork format semantics and hybrid token recognition — all node
 indexing, deduplication across occurrences of the same hybrid token, and
-`GraphAsset` assembly remain owned by the orchestration layer. The tranche
+`LineageGraphAsset` assembly remain owned by the orchestration layer. The tranche
 must begin and end with all tests passing, Aqua and JET clean.
 
 ## Tasks
@@ -240,7 +240,7 @@ under `:network` protocol with a pure-tree result.
 (f) Error: given a malformed LineageNetwork string (e.g., unmatched `#H`
 token), verify an error is raised that includes source location information.
 (g) FileIO end-to-end: load `simple_network.lnw` via `load(path)` (using
-auto-detection); verify `GraphStore` is returned and `GraphAsset` fields match
+auto-detection); verify `LineageGraphStore` is returned and `LineageGraphAsset` fields match
 fixture ground truth.
 
 Add `include("test_lineagenetwork.jl")` to `test/runtests.jl`. Run

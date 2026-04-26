@@ -96,7 +96,7 @@ Before writing a single line of code:
 The `PhyloExt` extension implements the `add_child` overloads that build a
 live `RootedTree` object during loading. It owns no orchestration logic — all
 `node_idx` assignment, label passthrough, `finalize_graph!` invocation
-timing, and `GraphAsset` assembly remain owned by the orchestration layer. The
+timing, and `LineageGraphAsset` assembly remain owned by the orchestration layer. The
 default `finalize_graph!` no-op is sufficient for Phylo — the extension does
 not override it unless a concrete need is identified and escalated. The
 extension must be loadable only when `Phylo` is present in the user's
@@ -198,7 +198,7 @@ test file must be conditionally included: only include it if `Phylo` is loaded
 in the test environment. Configure the test environment in `test/Project.toml`
 to include `Phylo` as a test dependency. The following tests are required:
 
-(a) Entry-point: loading a Newick file returns a `GraphAsset` whose
+(a) Entry-point: loading a Newick file returns a `LineageGraphAsset` whose
 `graph_rootnode` is a `PhyloNodeRef`; verify that `graph_rootnode.tree` is a
 `RootedTree`.
 (b) Tree topology: load `test/fixtures/newick/simple.nwk`; verify that the
@@ -209,7 +209,7 @@ that internal node labels appear in the `RootedTree` with the correct values.
 (d) Edge lengths: load `test/fixtures/newick/simple.nwk`; verify that branch
 lengths in the `RootedTree` match the fixture values.
 (e) Multi-tree: load `test/fixtures/newick/multitree.nwk`; verify that the
-`GraphStore` contains exactly 3 `GraphAsset` values each wrapping a separate
+`LineageGraphStore` contains exactly 3 `LineageGraphAsset` values each wrapping a separate
 `RootedTree`.
 (f) Extension isolation: confirm that when `Phylo` is not loaded, loading a
 Newick file with a plain `add_child` extension (not `PhyloNodeRef`) works

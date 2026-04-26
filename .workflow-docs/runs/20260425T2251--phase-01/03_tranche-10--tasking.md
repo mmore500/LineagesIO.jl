@@ -121,8 +121,8 @@ declaration, `using`/`import` statements, and `include` calls per
 a complete docstring describing its purpose, parameters, return value, and any
 errors it may raise. Record every missing or incomplete docstring.
 
-**Tables.jl compliance**: verify that `GraphAsset.node_table` and
-`GraphAsset.edge_table` satisfy the Tables.jl interface by checking
+**Tables.jl compliance**: verify that `LineageGraphAsset.node_table` and
+`LineageGraphAsset.edge_table` satisfy the Tables.jl interface by checking
 `Tables.istable` returns `true`.
 
 **AbstractTrees compatibility**: verify that `PhyloNetworksNodeHandle` and
@@ -135,7 +135,7 @@ test coverage.
 
 **Ownership boundaries**: verify that no parser file (`src/parsers/`) assigns
 `node_idx`, modifies or synthesizes labels (labels must pass through unchanged),
-calls `finalize_graph!`, or assembles `GraphAsset`. Verify that no extension file (`ext/`) performs
+calls `finalize_graph!`, or assembles `LineageGraphAsset`. Verify that no extension file (`ext/`) performs
 orchestration logic. Record any violation.
 
 Write the results to `03_tranche-10--audit.md`. Group findings by dimension.
@@ -181,7 +181,7 @@ report no issues
 Create `test/test_tables_compliance.jl` with a named `@testset "tables_compliance"`
 block. For each of the three format parsers (Newick, LineageNetwork,
 LineageGraphML), load a fixture file and run the following checks on the
-resulting `GraphAsset`: (a) `Tables.istable(asset.node_table)` returns `true`;
+resulting `LineageGraphAsset`: (a) `Tables.istable(asset.node_table)` returns `true`;
 (b) `Tables.istable(asset.edge_table)` returns `true`; (c)
 `Tables.schema(asset.node_table)` returns a schema with the expected column
 names and types (field-level verification against fixture ground truth); (d)
@@ -205,10 +205,10 @@ verify the interface contracts that LineagesMakie depends on
 Create `test/test_makie_interop.jl` with a named `@testset "makie_interop"`
 block. Per `STYLE-makie.md` and `AbstractTrees.jl/` upstream source, verify
 that the node handle types produced by each format parser satisfy the
-AbstractTrees interface: (a) for a loaded Newick `GraphAsset`, verify that
+AbstractTrees interface: (a) for a loaded Newick `LineageGraphAsset`, verify that
 `AbstractTrees.children(handle)` is defined and returns the correct children;
-(b) for a loaded LineageNetwork `GraphAsset`, same check; (c) for a loaded
-LineageGraphML `GraphAsset`, same check; (d) for `PhyloNetworksNodeHandle`
+(b) for a loaded LineageNetwork `LineageGraphAsset`, same check; (c) for a loaded
+LineageGraphML `LineageGraphAsset`, same check; (d) for `PhyloNetworksNodeHandle`
 (if PhyloNetworks is available), verify AbstractTrees compatibility; (e) for
 `PhyloNodeRef` (if Phylo is available), same check. All checks must verify
 field-level values, not merely that the method is defined. Add
@@ -220,7 +220,7 @@ field-level values, not merely that the method is defined. Add
 
 **Type**: WRITE
 **Output**: `README.md` describes the `add_child` protocol, both dispatch
-levels, `finalize_graph!`, `GraphAsset`, `GraphStore`, all three supported
+levels, `finalize_graph!`, `LineageGraphAsset`, `LineageGraphStore`, all three supported
 formats, both extensions, and the `loadfirst`/`loadone`/`load` view functions;
 `CHANGELOG.md` has a `[1.0.0]` entry listing all user-facing features
 delivered in Phase 1; all prose follows `STYLE-writing.md`; all identifiers
@@ -230,7 +230,7 @@ in prose match `STYLE-vocabulary.md`
 Update `README.md` to cover: (a) installation; (b) the `add_child` protocol
 with a minimal usage example showing method extension for a custom node type;
 (c) `finalize_graph!` hook with a brief description and when to override it;
-(d) `GraphAsset` and `GraphStore` — what they are, how to access `node_table`,
+(d) `LineageGraphAsset` and `LineageGraphStore` — what they are, how to access `node_table`,
 `edge_table`, and `graph_rootnode`; (e) supported formats and their extensions;
 (f) `loadfirst`, `loadone`, and multi-source `load` with brief examples;
 (g) PhyloNetworksExt and PhyloExt — how to trigger them and what they return.

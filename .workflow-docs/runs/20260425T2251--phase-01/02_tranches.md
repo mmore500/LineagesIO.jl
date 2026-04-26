@@ -70,7 +70,7 @@ description derived from this tranche.
 - `design/brief.md` (v2.0, 2026-04-25) — primary design authority; builder
   protocol signatures and dispatch levels; metadata architecture; return type
   field specifications; `finalize_graph!` hook contract; module design section
-  for `add_child` protocol module, `GraphAsset{NodeT}`, `GraphStore{NodeT}`
+  for `add_child` protocol module, `LineageGraphAsset{NodeT}`, `LineageGraphStore{NodeT}`
 - `design/brief--community-support-objectives.md` (v1.0, 2026-04-25) —
   extension architecture; `PhyloNetworksNodeHandle` and `PhyloNodeRef` stubs;
   finalization hook contract; resolved design questions
@@ -87,7 +87,7 @@ implementing anything.
 - `fileio.jl/` — FileIO backend contract; `DataFormat` and `File`/`Stream`
   types; `add_format` registration pattern; how private `load`/`save` are
   structured. Read now even though the FileIO adapter is built in Tranche 5:
-  `GraphAsset` and `GraphStore` must be designed to work correctly with FileIO
+  `LineageGraphAsset` and `LineageGraphStore` must be designed to work correctly with FileIO
   dispatch from the start.
 - `AbstractTrees.jl/` — traversal traits and iteration interface; constraints
   on how node types must behave for LineagesMakie interoperability
@@ -131,7 +131,7 @@ code in the module declaration file (per `STYLE-julia.md §8`). All implementati
 lives in included files:
 
 - `src/protocol.jl` — `add_child` generic function and `finalize_graph!` hook
-- `src/types.jl` — `GraphAsset{NodeT}` and `GraphStore{NodeT}` structs
+- `src/types.jl` — `LineageGraphAsset{NodeT}` and `LineageGraphStore{NodeT}` structs
 
 Subsequent tranches will add further `include` calls.
 
@@ -193,17 +193,17 @@ finalize_graph!(handle :: NodeT) :: NodeT where {NodeT} = handle
 The default must return `handle` unchanged. This is the public protocol function;
 extensions override it for their concrete node handle types. Write a complete
 docstring describing the contract: called once per graph after the last
-`add_child`, before `GraphAsset` assembly; default is no-op; extensions override
+`add_child`, before `LineageGraphAsset` assembly; default is no-op; extensions override
 for post-build cleanup.
 
-**5. `GraphAsset{NodeT}` struct**
+**5. `LineageGraphAsset{NodeT}` struct**
 
-Define and export `GraphAsset{NodeT}` in `src/types.jl` as an immutable struct
+Define and export `LineageGraphAsset{NodeT}` in `src/types.jl` as an immutable struct
 with exactly the fields and types specified in `01_prd.md §Return types` and
-`design/brief.md §GraphAsset`:
+`design/brief.md §LineageGraphAsset`:
 
 ```julia
-struct GraphAsset{NodeT}
+struct LineageGraphAsset{NodeT}
     index                :: Int
     source_idx           :: Int
     collection_idx       :: Int
@@ -226,21 +226,21 @@ confirm the chosen representation satisfies the interface.
 
 Write a complete docstring.
 
-**6. `GraphStore{NodeT}` struct**
+**6. `LineageGraphStore{NodeT}` struct**
 
-Define and export `GraphStore{NodeT}` in `src/types.jl` with exactly the fields
+Define and export `LineageGraphStore{NodeT}` in `src/types.jl` with exactly the fields
 specified in `01_prd.md §Return types`:
 
 ```julia
-struct GraphStore{NodeT}
+struct LineageGraphStore{NodeT}
     source_table     :: <Tables.jl compliant — concretely typed>
     collection_table :: <Tables.jl compliant — concretely typed>
     graph_table      :: <Tables.jl compliant — concretely typed>
-    graphs           :: <lazy iterator of GraphAsset{NodeT} — concretely typed>
+    graphs           :: <lazy iterator of LineageGraphAsset{NodeT} — concretely typed>
 end
 ```
 
-Same type-stability and concreteness requirements as `GraphAsset`. Write a
+Same type-stability and concreteness requirements as `LineageGraphAsset`. Write a
 complete docstring.
 
 **7. Test file scaffolding**
@@ -252,7 +252,7 @@ runnable now and passing.
 Tests for `finalize_graph!`: no-op default must not error and must return the
 input handle unchanged for an arbitrary test node type defined within the test.
 
-Tests for `GraphAsset` and `GraphStore`: type stability via `@inferred` on
+Tests for `LineageGraphAsset` and `LineageGraphStore`: type stability via `@inferred` on
 field access; correct parameterization; Tables.jl interface compliance via
 `Tables.istable(...)`.
 
@@ -266,7 +266,7 @@ Aqua and JET checks must pass at tranche end.
 2. `@doc LineagesIO.add_child` — complete docstring visible.
 3. `@doc LineagesIO.finalize_graph!` — complete docstring visible.
 4. Define a minimal `MyNode` type, extend `add_child`, construct a
-   `GraphAsset{MyNode}` manually; confirm no `@code_warntype` instability.
+   `LineageGraphAsset{MyNode}` manually; confirm no `@code_warntype` instability.
 5. `Tables.istable(asset.node_table)` and `Tables.istable(asset.edge_table)`
    both return `true`.
 
@@ -290,7 +290,7 @@ All tests pass. `Aqua.test_all(LineagesIO)` reports no issues.
 - [ ] Given `finalize_graph!(handle)` is called with no user-defined override,
   when it returns, then the returned value is identical to `handle` and no error
   is raised.
-- [ ] Given `GraphAsset{MyNode}` is constructed, when `@inferred` is applied to
+- [ ] Given `LineageGraphAsset{MyNode}` is constructed, when `@inferred` is applied to
   accessing `graph_rootnode`, then `MyNode` is inferred without instability.
 - [ ] Given `Tables.istable(asset.node_table)`, when called, then `true` is
   returned.
@@ -308,11 +308,11 @@ All tests pass. `Aqua.test_all(LineagesIO)` reports no issues.
 - User story 1: user can define and dispatch `add_child` via method extension
 - User story 2: user can define the network-level `add_child` overload
 - User story 3: compiler specializes pipeline on `NodeT` at compile time
-- User story 19: `load` always returns `GraphStore{NodeT}` (struct defined)
-- User story 20: `GraphStore` fields correctly named and typed
-- User story 21: `GraphAsset` fields correctly named and typed
+- User story 19: `load` always returns `LineageGraphStore{NodeT}` (struct defined)
+- User story 20: `LineageGraphStore` fields correctly named and typed
+- User story 21: `LineageGraphAsset` fields correctly named and typed
 - User story 22: `graph_rootnode :: NodeT` is the entry-point handle
-- User story 23: `GraphStore{NodeT}` and `GraphAsset{NodeT}` are fully type-stable
+- User story 23: `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are fully type-stable
 - User story 44: `finalize_graph!` exported with no-op default
 - User story 45: `finalize_graph!` contract established (called once per graph)
 - User story 46: extensions can override `finalize_graph!` for their handle type
@@ -570,12 +570,12 @@ use `node_idx`.
 **`finalize_graph!` invocation:**
 
 Called exactly once per graph, after the last `add_child` call for that graph,
-and before `GraphAsset` is assembled. The default no-op returns silently;
+and before `LineageGraphAsset` is assembled. The default no-op returns silently;
 extension overrides are dispatched through standard Julia multiple dispatch.
 
-**`GraphAsset` assembly:**
+**`LineageGraphAsset` assembly:**
 
-After `finalize_graph!` returns, assemble the `GraphAsset{NodeT}` from the
+After `finalize_graph!` returns, assemble the `LineageGraphAsset{NodeT}` from the
 collected node table rows, edge table rows, index coordinates, labels, and the
 `graph_rootnode` handle returned by the first `add_child` call.
 
@@ -586,8 +586,8 @@ collected node table rows, edge table rows, index coordinates, labels, and the
 - `node_idx` is 1-based and sequential per graph
 - `node_idx` resets to 1 for each new graph in a multi-graph source
 - Empty label → `""` passed through unchanged
-- `finalize_graph!` called after last `add_child`, before `GraphAsset` assembly
-- `GraphAsset` fields correctly populated after assembly
+- `finalize_graph!` called after last `add_child`, before `LineageGraphAsset` assembly
+- `LineageGraphAsset` fields correctly populated after assembly
 
 ### How to verify
 
@@ -598,7 +598,7 @@ collected node table rows, edge table rows, index coordinates, labels, and the
    any parse work begins, with message identifying the mismatch.
 2. Define both extended methods and pass `builder` kwarg; confirm kwarg wins.
 3. Run a mock parse through the orchestration layer; inspect the assembled
-   `GraphAsset` field by field.
+   `LineageGraphAsset` field by field.
 
 **Automated:**
 
@@ -624,7 +624,7 @@ All tests pass. Aqua and JET pass.
 - [ ] Given a source node with an empty label, when the orchestration layer
   processes it, then the resulting node table entry has label `""`.
 - [ ] Given a complete single-graph parse, when the last `add_child` returns,
-  then `finalize_graph!` is called exactly once before `GraphAsset` is assembled.
+  then `finalize_graph!` is called exactly once before `LineageGraphAsset` is assembled.
 - [ ] Given an extension that overrides `finalize_graph!` for `MyHandle`, when
   a graph with `NodeT = MyHandle` is loaded, then the extension override is
   invoked.
@@ -644,7 +644,7 @@ All tests pass. Aqua and JET pass.
 - User story 17: `node_idx` is 1-based sequential integer assigned by library
 - User story 18: parser supplies `""` for absent labels; orchestration passes labels through unchanged
 - User story 44: `finalize_graph!` invoked after last `add_child` per graph
-- User story 45: invoked before `GraphAsset` is assembled
+- User story 45: invoked before `LineageGraphAsset` is assembled
 - User story 46: extension overrides dispatched correctly
 
 ---
@@ -772,7 +772,7 @@ field-level values, not merely that parsing succeeds:
 - Simple tree: node count, each leaf label, each edge length verified
   individually against fixture
 - Internal labels: internal node labels present in node table rows
-- Multi-tree: correct count of `GraphAsset` values; each tree's node count
+- Multi-tree: correct count of `LineageGraphAsset` values; each tree's node count
   correct
 - Empty labels: node table entries have `label == ""`; join works on `node_idx`
 - Bootstrap: `nodedata.bootstrap` contains the correct value at the `add_child`
@@ -783,7 +783,7 @@ field-level values, not merely that parsing succeeds:
 **Manual:**
 
 1. Invoke the Newick parser directly through the orchestration layer against
-   `test/fixtures/newick/simple.nwk`; confirm `GraphAsset` fields match fixture.
+   `test/fixtures/newick/simple.nwk`; confirm `LineageGraphAsset` fields match fixture.
 2. Inspect `edge_table` on the result; confirm `edgelength` values match fixture.
 
 *(FileIO adapter not yet present; test through the parser's internal API.)*
@@ -803,7 +803,7 @@ All tests pass. Aqua and JET pass.
 - [ ] Given a Newick file with internal node labels, when parsed, then internal
   labels appear in the node table rows with correct values.
 - [ ] Given a multi-tree Newick file with 3 trees, when parsed, then exactly 3
-  `GraphAsset` values are produced.
+  `LineageGraphAsset` values are produced.
 - [ ] Given a node with an empty label, when processed by the orchestration
   layer, then the node table entry has label `""`.
 - [ ] Given a Newick file with bootstrap value `95.0` on an internal node, when
@@ -886,7 +886,7 @@ matches the code. Confirm Aqua and JET pass before starting.
 ### What to build
 
 This tranche delivers the first complete end-to-end path: a Newick file on disk
-→ `GraphStore{NodeT}`. Tranches 6 and 7 extend the adapter to additional formats
+→ `LineageGraphStore{NodeT}`. Tranches 6 and 7 extend the adapter to additional formats
 without changing its core structure. Design the adapter's dispatch architecture
 to be extension-friendly from the start.
 
@@ -903,7 +903,7 @@ Supported for this tranche (Newick only):
 - Format auto-detection: `.nwk`, `.newick`, `.tre` → `format"Newick"`
 - Explicit format override: `load(File{format"Newick"}("file.txt"), MyNode)`
 - Stream-based I/O: `load(Stream{format"Newick"}(io), MyNode)`
-- No-`NodeT` call: `load("file.nwk")` returns `GraphStore` with tables only,
+- No-`NodeT` call: `load("file.nwk")` returns `LineageGraphStore` with tables only,
   no builder invoked
 - Error on ambiguous format (unmapped extension, no explicit override):
   `ArgumentError` requesting explicit override
@@ -922,16 +922,16 @@ would use, even though registration itself is out of scope.
 
 Export and implement:
 
-- `loadfirst(src, ...)` — returns the first `GraphAsset`; does not error if
+- `loadfirst(src, ...)` — returns the first `LineageGraphAsset`; does not error if
   source contains multiple graphs
-- `loadone(src, ...)` — returns a single `GraphAsset`; raises informative
+- `loadone(src, ...)` — returns a single `LineageGraphAsset`; raises informative
   `ArgumentError` if source contains zero or more than one graph, naming the
   actual count
 - Multi-source `load([f1, f2, ...], ...)` — loads multiple sources; each
-  `GraphAsset` carries `source_idx` identifying its origin file
+  `LineageGraphAsset` carries `source_idx` identifying its origin file
 
-`GraphStore.graphs` is declared as a lazy iterator in Tranche 1. Ensure the
-concrete iterator type assigned during `GraphAsset` assembly is correctly
+`LineageGraphStore.graphs` is declared as a lazy iterator in Tranche 1. Ensure the
+concrete iterator type assigned during `LineageGraphAsset` assembly is correctly
 iterable and non-materializing.
 
 Write complete docstrings for `load`, `loadfirst`, `loadone`.
@@ -940,16 +940,16 @@ Write complete docstrings for `load`, `loadfirst`, `loadone`.
 specified in `01_prd.md §Testing and verification decisions — FileIO adapter`.
 All tests must verify field-level values:
 
-- Auto-detection: `.nwk` → Newick, correct `GraphAsset` fields
+- Auto-detection: `.nwk` → Newick, correct `LineageGraphAsset` fields
 - Explicit override: `File{format"Newick"}` loads correctly
 - Stream I/O: `Stream{format"Newick"}` loads correctly
 - Ambiguous extension: `ArgumentError` raised
-- `loadfirst`: returns first `GraphAsset` from multi-tree without error
-- `loadone`: returns single `GraphAsset` from single-tree file
+- `loadfirst`: returns first `LineageGraphAsset` from multi-tree without error
+- `loadone`: returns single `LineageGraphAsset` from single-tree file
 - `loadone`: `ArgumentError` for multi-tree (more than one graph)
 - `loadone`: `ArgumentError` for empty source (zero graphs)
 - Multi-source: two files, `source_idx` values are 1 and 2 respectively
-- Lazy iteration: `GraphStore.graphs` iteration yields `GraphAsset{NodeT}` values
+- Lazy iteration: `LineageGraphStore.graphs` iteration yields `LineageGraphAsset{NodeT}` values
 
 ### How to verify
 
@@ -958,9 +958,9 @@ All tests must verify field-level values:
 1. `using LineagesIO`
 2. Define `MyNode` with `add_child` extensions.
 3. `store = load("test/fixtures/newick/simple.nwk", MyNode)` — returns
-   `GraphStore{MyNode}`.
+   `LineageGraphStore{MyNode}`.
 4. `asset = loadone("test/fixtures/newick/simple.nwk", MyNode)` — returns
-   `GraphAsset{MyNode}`.
+   `LineageGraphAsset{MyNode}`.
 5. `asset.graph_rootnode isa MyNode` — `true`.
 6. `Tables.istable(asset.node_table)` — `true`.
 7. `load(File{format"Newick"}("test/fixtures/newick/simple.nwk"), MyNode)` —
@@ -978,37 +978,37 @@ All tests pass. Aqua and JET pass.
 
 ### Acceptance criteria
 
-- [ ] Given `load("file.nwk", MyNode)`, when called, then a `GraphStore{MyNode}`
+- [ ] Given `load("file.nwk", MyNode)`, when called, then a `LineageGraphStore{MyNode}`
   is returned.
 - [ ] Given `load(File{format"Newick"}("file.txt"), MyNode)`, when called, then
-  parsing succeeds and returns `GraphStore{MyNode}`.
+  parsing succeeds and returns `LineageGraphStore{MyNode}`.
 - [ ] Given `load(Stream{format"Newick"}(io), MyNode)`, when called, then
   parsing succeeds.
 - [ ] Given a file with an unmapped extension and no explicit override, when
   `load` is called, then `ArgumentError` is raised requesting explicit format
   override.
 - [ ] Given `loadone` on a single-tree file, when called, then a single
-  `GraphAsset` is returned with no error.
+  `LineageGraphAsset` is returned with no error.
 - [ ] Given `loadone` on a multi-tree file, when called, then `ArgumentError`
   is raised naming the graph count.
 - [ ] Given `loadone` on an empty source, when called, then `ArgumentError` is
   raised.
 - [ ] Given `loadfirst` on a multi-tree file, when called, then the first
-  `GraphAsset` is returned without error.
-- [ ] Given `load([f1, f2], MyNode)`, when called, then `GraphAsset` values
+  `LineageGraphAsset` is returned without error.
+- [ ] Given `load([f1, f2], MyNode)`, when called, then `LineageGraphAsset` values
   from `f1` have `source_idx == 1` and those from `f2` have `source_idx == 2`.
-- [ ] Given `GraphStore.graphs` iteration, when consumed lazily, then each
-  element is a `GraphAsset{NodeT}` and the full collection is not materialized
+- [ ] Given `LineageGraphStore.graphs` iteration, when consumed lazily, then each
+  element is a `LineageGraphAsset{NodeT}` and the full collection is not materialized
   until `collect` is called.
 - [ ] Given Aqua and JET are run, then no issues are reported.
 
 ### User stories addressed
 
-- User story 19: `load` always returns `GraphStore{NodeT}`
-- User story 24: `loadfirst` returns first `GraphAsset`; no error on multiple
-- User story 25: `loadone` returns single `GraphAsset`; errors if count ≠ 1
+- User story 19: `load` always returns `LineageGraphStore{NodeT}`
+- User story 24: `loadfirst` returns first `LineageGraphAsset`; no error on multiple
+- User story 25: `loadone` returns single `LineageGraphAsset`; errors if count ≠ 1
 - User story 26: `load([...], ...)` with `source_idx` distinguishing origins
-- User story 27: `GraphStore.graphs` is a lazy iterator
+- User story 27: `LineageGraphStore.graphs` is a lazy iterator
 - User story 39: `load` and `save` are private methods inside `LineagesIO`
 - User story 40: format auto-detection for unambiguous extensions
 - User story 41: explicit format override works
@@ -1140,7 +1140,7 @@ conflict with generic Newick. Document the extension choices.
 **Manual:**
 
 1. `load("test/fixtures/lineagenetwork/hybrid.lnw", MyNode)` returns
-   `GraphStore{MyNode}`.
+   `LineageGraphStore{MyNode}`.
 2. Inspect the assembled `edge_table`; confirm `gamma` column is present and
    populated with fixture values.
 3. Confirm `add_child` was called with `length(parents) == 2` for the hybrid
@@ -1507,7 +1507,7 @@ All tests pass. Aqua and JET pass for the extension.
 
 - [ ] Given `using LineagesIO, PhyloNetworks`, when
   `loadone("file.nwk", PhyloNetworksNodeHandle)` is called, then a
-  `GraphAsset{PhyloNetworksNodeHandle}` is returned.
+  `LineageGraphAsset{PhyloNetworksNodeHandle}` is returned.
 - [ ] Given a Newick file with 5 nodes and 4 edges, when loaded, then
   `asset.graph_rootnode.net.numnodes == 5` and
   `asset.graph_rootnode.net.numedges == 4`.
@@ -1671,7 +1671,7 @@ Add `test/ext/PhyloExt/` with its own `Project.toml`. Add
   (not `nothing`, not `-1.0`, not `0.0`)
 - `node_idx` present in each node's data dict at the correct value
 - `node_idx` values in node data dicts enable round-trip join to
-  `GraphAsset.node_table` — demonstrate this with at least one join in the tests
+  `LineageGraphAsset.node_table` — demonstrate this with at least one join in the tests
 
 ### How to verify
 
@@ -1694,7 +1694,7 @@ All tests pass. Aqua and JET pass for the extension.
 
 - [ ] Given `using LineagesIO, Phylo`, when
   `loadone("file.nwk", PhyloNodeRef)` is called, then a
-  `GraphAsset{PhyloNodeRef}` is returned.
+  `LineageGraphAsset{PhyloNodeRef}` is returned.
 - [ ] Given a Newick file with node label `"taxon_A"`, when loaded, then
   `"taxon_A"` appears as a node name in `asset.graph_rootnode.tree`.
 - [ ] Given a Newick file with branch length `1.5`, when loaded, then the
@@ -1810,8 +1810,8 @@ everything built in Tranches 1–9.
 
 **Docstrings (mandatory on all exported names):**
 
-Complete docstrings for: `add_child`, `finalize_graph!`, `GraphAsset`,
-`GraphStore`, `load`, `loadfirst`, `loadone`. Each docstring must include:
+Complete docstrings for: `add_child`, `finalize_graph!`, `LineageGraphAsset`,
+`LineageGraphStore`, `load`, `loadfirst`, `loadone`. Each docstring must include:
 
 - What the function or type does
 - All parameters with types and semantics
@@ -1829,12 +1829,12 @@ At minimum search for: `vertex`, `vertices`, `branch` (as identifier), `tip`,
 
 **Tables.jl compliance verification:**
 
-For `node_table` and `edge_table` in every `GraphAsset` variant, confirm:
+For `node_table` and `edge_table` in every `LineageGraphAsset` variant, confirm:
 `Tables.istable(...)`, `Tables.schema(...)`, `Tables.rows(...)` all work.
 
 **LineagesMakie interoperability verification (user story 59):**
 
-Demonstrate that a loaded `GraphAsset` (with a user-defined `NodeT` that
+Demonstrate that a loaded `LineageGraphAsset` (with a user-defined `NodeT` that
 implements `children` and `edgelength` accessors) is immediately consumable by
 LineagesMakie's accessor protocol without additional transformation. This does
 not require LineagesMakie as a dependency — a documentation example or test
@@ -1867,7 +1867,7 @@ All pass with zero failures, zero Aqua issues, zero JET issues.
 **Manual:**
 
 1. `@doc LineagesIO.add_child` — complete docstring with example visible.
-2. `@doc LineagesIO.GraphAsset` — complete docstring visible.
+2. `@doc LineagesIO.LineageGraphAsset` — complete docstring visible.
 3. Vocabulary search:
    `grep -r "branch_length\|tip\|vertex\|root_node\|edge_length" src/ ext/`
    returns no matches in project-owned identifiers.
@@ -1888,7 +1888,7 @@ All pass with zero failures, zero Aqua issues, zero JET issues.
 - [ ] Given all 11 target outcome criteria in `01_prd.md §Target outcome`, when
   each is evaluated, then all are satisfied.
 - [ ] Given `Tables.istable(asset.node_table)` and
-  `Tables.istable(asset.edge_table)` for any loaded `GraphAsset`, then both
+  `Tables.istable(asset.edge_table)` for any loaded `LineageGraphAsset`, then both
   return `true`.
 - [ ] Given a user-defined `NodeT` with `children` and `edgelength` accessors,
   when `asset.graph_rootnode` is used with LineagesMakie's accessor protocol,

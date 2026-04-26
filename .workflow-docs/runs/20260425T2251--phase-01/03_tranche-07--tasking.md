@@ -223,14 +223,14 @@ correct values.
 node labels appear in the node table with correct values.
 (d) Content sniffing: load `ambiguous_xml.graphml` (with `.xml` extension)
 via `load(path)` without an explicit format override; verify it routes to
-`format"LineageGraphML"` and returns a correct `GraphStore`.
+`format"LineageGraphML"` and returns a correct `LineageGraphStore`.
 (e) Non-phylogeny XML error: given a `.xml` file that does not contain the
 phylogeny namespace declaration, verify `ArgumentError` is raised.
 (f) Pre-order invariant: verify that for each non-root node's `add_child`
 call, `parent` is the handle returned by the `add_child` call for its direct
 ancestor.
 (g) FileIO end-to-end: load `simple_tree.graphml` via `load(path)`; verify
-`GraphStore` is returned and `GraphAsset` fields match fixture ground truth.
+`LineageGraphStore` is returned and `LineageGraphAsset` fields match fixture ground truth.
 
 Add `include("test_lineagegraphml.jl")` to `test/runtests.jl`. Run
 `julia --project=test test/runtests.jl` and confirm all tests pass,

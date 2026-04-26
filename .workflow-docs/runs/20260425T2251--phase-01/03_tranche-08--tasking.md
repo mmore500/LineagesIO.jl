@@ -102,7 +102,7 @@ Before writing a single line of code:
 The `PhyloNetworksExt` extension implements the `add_child` and
 `finalize_graph!` overloads that build a live `HybridNetwork` object during
 loading. It owns no orchestration logic — all `node_idx` assignment, label
-disambiguation, `finalize_graph!` invocation timing, and `GraphAsset` assembly
+disambiguation, `finalize_graph!` invocation timing, and `LineageGraphAsset` assembly
 remain owned by the orchestration layer. The extension must be loadable only
 when `PhyloNetworks` is present in the user's environment; it must not affect
 any behavior when `PhyloNetworks` is absent. The tranche must begin and end
@@ -232,7 +232,7 @@ environment. Configure the test environment in `test/Project.toml` to include
 actively loads it). The following tests are required:
 
 (a) Entry-point: loading a single-node LineageNetwork file returns a
-`GraphAsset` whose `graph_rootnode` is a `PhyloNetworksNodeHandle`; verify
+`LineageGraphAsset` whose `graph_rootnode` is a `PhyloNetworksNodeHandle`; verify
 that `graph_rootnode.network` is a `HybridNetwork`.
 (b) Tree topology: load `test/fixtures/lineagenetwork/no_hybrids.lnw`; verify
 that the resulting `HybridNetwork` has the correct node count and that leaf

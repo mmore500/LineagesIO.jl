@@ -31,7 +31,7 @@ All `add_child` signatures in this document use the full protocol defined in
   `:: AbstractVector{RE}` for network protocol)
 * the `nodedata :: R` argument built by the discovery pass
 
-All `GraphStore` and `GraphAsset` return types used here are as
+All `LineageGraphStore` and `LineageGraphAsset` return types used here are as
 defined in `brief.md §Return types`. Any change to the primary protocol in
 `brief.md` must be reflected here, and vice versa.
 
@@ -187,7 +187,7 @@ call time.
 The LineagesIO edge table carries gamma at the correct level
 (`edge_table.gamma`). The extension can therefore:
 1. Build graph structure during `add_child` (edges created with `length` only)
-2. Post-build: iterate `GraphAsset.edge_table`, locate hybrid edges by
+2. Post-build: iterate `LineageGraphAsset.edge_table`, locate hybrid edges by
    `(src_node_idx, dst_node_idx)`, assign `.gamma` from the table row
 
 This is a two-phase approach. See **Open design questions** for the alternative
@@ -505,7 +505,7 @@ function LineagesIO.add_child(
 ) where {R}
     tree = RootedTree(; name = "tree_$node_idx")
     nodename = isempty(label) ? "node_$node_idx" : label
-    # Store node_idx in node data for round-trip join to GraphStore node_table
+    # Store node_idx in node data for round-trip join to LineageGraphStore node_table
     data = Dict{String,Any}(pairs(nodedata))
     data["node_idx"] = node_idx
     createnode!(tree, nodename; data = data)
@@ -542,12 +542,12 @@ end # module
 ### Extension API surface
 
 Each extension exports a single accessor for the target-package type from a
-`GraphAsset`:
+`LineageGraphAsset`:
 
 | Extension | Function | Returns |
 |---|---|---|
-| `PhyloNetworksExt` | `get_hybridnetwork(g::GraphAsset)` | `HybridNetwork` |
-| `PhyloExt` | `get_rootedtree(g::GraphAsset)` | `RootedTree` |
+| `PhyloNetworksExt` | `get_hybridnetwork(g::LineageGraphAsset)` | `HybridNetwork` |
+| `PhyloExt` | `get_rootedtree(g::LineageGraphAsset)` | `RootedTree` |
 
 ---
 
@@ -559,7 +559,7 @@ Each extension exports a single accessor for the target-package type from a
 in LineagesIO's public API.
 
 `finalize_graph!(handle)` is called once per graph after the last `add_child`
-call and before `GraphAsset` is assembled. The default implementation is
+call and before `LineageGraphAsset` is assembled. The default implementation is
 a no-op. Extensions overload it for types that require cleanup.
 
 `PhyloNetworksExt` overloads it to call `storeHybrids!`, `checkNumHybEdges!`,

@@ -85,7 +85,7 @@ Before writing a single line of code:
 The Newick parser is an internal submodule; users access it through the FileIO
 adapter (Tranche 5), not directly. The parser owns no architectural invariants
 beyond Newick format semantics — all node indexing, label passthrough,
-`finalize_graph!` invocation, and `GraphAsset` assembly are owned by the
+`finalize_graph!` invocation, and `LineageGraphAsset` assembly are owned by the
 orchestration layer. The tranche must begin and end with all tests passing,
 Aqua and JET clean.
 
@@ -201,7 +201,7 @@ individually, each edge length individually against the documented fixture
 values.
 (b) Internal labels: parse `internal_labels.nwk`; verify that internal node
 labels appear in the node table rows with correct values.
-(c) Multi-tree: parse `multitree.nwk`; verify exactly 3 `GraphAsset` values
+(c) Multi-tree: parse `multitree.nwk`; verify exactly 3 `LineageGraphAsset` values
 are produced and each has the documented node count.
 (d) Empty labels: parse `empty_labels.nwk`; verify that the node table entries
 for the empty-label nodes have `label == ""`, and that a join on `node_idx`

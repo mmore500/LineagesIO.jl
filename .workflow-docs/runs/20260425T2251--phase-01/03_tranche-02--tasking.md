@@ -62,7 +62,7 @@ Before writing a single line of code:
    independently.
 2. Confirm `julia --project=test test/runtests.jl` passes with Aqua and JET
    clean. If it does not, stop and escalate before proceeding.
-3. Verify that `GraphAsset{NodeT}` and `GraphStore{NodeT}` field names and
+3. Verify that `LineageGraphAsset{NodeT}` and `LineageGraphStore{NodeT}` field names and
    types match `01_prd.md §Return types` exactly. If any discrepancy is found,
    stop and escalate.
 

@@ -43,7 +43,7 @@ LineagesIO.jl phase 1 is complete when all of the following are true:
    begins.
 3. The discovery pass runs before any `add_child` calls and produces stable `R`
    (node row) and `RE` (edge row) NamedTuple types for the entire source load.
-4. `GraphStore{NodeT}` and `GraphAsset{NodeT}` are defined, correctly
+4. `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are defined, correctly
    parameterized, and type-stable.
 5. `load`, `loadfirst`, `loadone`, and multi-source `load([...], ...)` work for
    all phase 1 formats.
@@ -69,11 +69,11 @@ including error states and edge cases.
 1. A user can define `LineagesIO.add_child(parent :: Nothing, ...) :: MyNode`
    and `LineagesIO.add_child(parent :: MyNode, ...) :: MyNode` for their node
    type, pass `MyNode` as a positional argument to `load`, and receive a
-   `GraphStore{MyNode}` with `graph_rootnode :: MyNode` on each `GraphAsset`.
+   `LineageGraphStore{MyNode}` with `graph_rootnode :: MyNode` on each `LineageGraphAsset`.
 
 2. A user can define the network-level overload
    `LineagesIO.add_child(parents :: AbstractVector{MyNode}, ...) :: MyNode` and
-   load a `format"LineageNetwork"` file to receive a `GraphStore{MyNode}` with
+   load a `format"LineageNetwork"` file to receive a `LineageGraphStore{MyNode}` with
    hybrid nodes correctly threaded through the builder.
 
 3. The compiler specializes the entire parse pipeline on `NodeT` at compile time;
@@ -84,7 +84,7 @@ including error states and edge cases.
 
 4. A user can pass `builder = (parent, node_idx, label, edgelength, edgedata,
    nodedata) -> ...` as a keyword argument to `load` and receive a
-   `GraphStore{NodeT}` parameterized on the callback's return type.
+   `LineageGraphStore{NodeT}` parameterized on the callback's return type.
 
 5. When both extended methods and a `builder` callback are present, the `builder`
    callback takes precedence.
@@ -130,7 +130,7 @@ including error states and edge cases.
     to edge annotations (e.g., `edgedata[i].gamma` for network-level hybrid
     edges).
 
-16. The edge table in each `GraphAsset` always contains one row per directed edge,
+16. The edge table in each `LineageGraphAsset` always contains one row per directed edge,
     with columns `src_node_idx`, `dst_node_idx`, `edgelength`, and any
     format-specific promoted columns.
 
@@ -146,36 +146,36 @@ including error states and edge cases.
 
 ### Return types
 
-19. `load` always returns `GraphStore{NodeT}`; callers cannot assume a source
+19. `load` always returns `LineageGraphStore{NodeT}`; callers cannot assume a source
     contains only one graph.
 
-20. `GraphStore` has fields: `source_table`, `collection_table`, `graph_table`,
-    `graphs` (lazy iterator of `GraphAsset{NodeT}`).
+20. `LineageGraphStore` has fields: `source_table`, `collection_table`, `graph_table`,
+    `graphs` (lazy iterator of `LineageGraphAsset{NodeT}`).
 
-21. `GraphAsset` has fields: `index`, `source_idx`, `collection_idx`,
+21. `LineageGraphAsset` has fields: `index`, `source_idx`, `collection_idx`,
     `collection_graph_idx`, `collection_label`, `graph_label`, `node_table`,
     `edge_table`, `graph_rootnode`, `source_path`.
 
 22. `graph_rootnode :: NodeT` is the handle returned by the first `add_child`
     call (the entry-point node).
 
-23. `GraphStore{NodeT}` and `GraphAsset{NodeT}` are fully type-stable; all type
+23. `LineageGraphStore{NodeT}` and `LineageGraphAsset{NodeT}` are fully type-stable; all type
     parameters are resolved at compile time.
 
 ### Convenience wrappers
 
-24. `loadfirst(src, ...)` returns the first `GraphAsset`; it does not error if
+24. `loadfirst(src, ...)` returns the first `LineageGraphAsset`; it does not error if
     the source contains multiple graphs.
 
-25. `loadone(src, ...)` returns a single `GraphAsset`; it raises an informative
+25. `loadone(src, ...)` returns a single `LineageGraphAsset`; it raises an informative
     error if the source does not contain exactly one graph.
 
-26. `load([f1, f2, ...], ...)` loads multiple sources; each `GraphAsset` carries
+26. `load([f1, f2, ...], ...)` loads multiple sources; each `LineageGraphAsset` carries
     `source_idx` identifying its origin file.
 
 ### Lazy iteration
 
-27. `GraphStore.graphs` is a lazy iterator yielding `GraphAsset{NodeT}` values;
+27. `LineageGraphStore.graphs` is a lazy iterator yielding `LineageGraphAsset{NodeT}` values;
     multi-graph sources are not fully materialized unless explicitly collected.
 
 ### Newick format
@@ -240,7 +240,7 @@ including error states and edge cases.
     no-op default implementation.
 
 45. `finalize_graph!` is called once per graph after the last `add_child` call
-    for that graph and before `GraphAsset` is assembled.
+    for that graph and before `LineageGraphAsset` is assembled.
 
 46. Extensions can override `finalize_graph!` for their node handle type to
     perform post-build cleanup.
@@ -320,7 +320,7 @@ including error states and edge cases.
   boundary. The source code is a clean stub; no existing implementation is
   disrupted.
 - **Internal redesign forbidden**: Changes to the `add_child` protocol
-  signature, `GraphStore` or `GraphAsset` struct fields, or the `finalize_graph!`
+  signature, `LineageGraphStore` or `LineageGraphAsset` struct fields, or the `finalize_graph!`
   hook contract must be escalated to the project owner. These interfaces are
   settled in the design briefs.
 - **External breaking changes allowed**: None applicable. This is initial
@@ -419,7 +419,7 @@ The routing layer that:
 - validates builder compatibility before the first `add_child` call
 - manages the `node_idx` counter (1-based, sequential, unique within a graph)
 - calls `finalize_graph!` after each graph's `add_child` sequence
-- assembles `GraphAsset{NodeT}` after finalization
+- assembles `LineageGraphAsset{NodeT}` after finalization
 
 ### Metadata architecture
 
@@ -437,12 +437,12 @@ Tables are Tables.jl-compliant. DataFrames.jl is not a dependency.
 
 ### Return types
 
-- **`GraphAsset{NodeT}`** — single-graph result struct with index coordinates,
+- **`LineageGraphAsset{NodeT}`** — single-graph result struct with index coordinates,
   node and edge tables, and `graph_rootnode :: NodeT`. Parameterized and
   type-stable.
-- **`GraphStore{NodeT}`** — top-level load result with `source_table`,
+- **`LineageGraphStore{NodeT}`** — top-level load result with `source_table`,
   `collection_table`, `graph_table`, and `graphs` (lazy iterator of
-  `GraphAsset{NodeT}`).
+  `LineageGraphAsset{NodeT}`).
 
 ### FileIO adapter layer
 
@@ -452,7 +452,7 @@ Format detection from extension and magic bytes. Explicit format override via
 
 ### View layer
 
-Lazy iterator over `GraphStore.graphs`. Multi-source indexing via `source_idx`.
+Lazy iterator over `LineageGraphStore.graphs`. Multi-source indexing via `source_idx`.
 `loadfirst` and `loadone` convenience wrappers.
 
 ### Package extension architecture
@@ -632,7 +632,7 @@ promotion; schema stability across rows; empty source handling.
 
 **Responsibility**: Route between format parsers and user builders. Validate
 builder compatibility. Manage `node_idx`. Call `finalize_graph!`. Assemble
-`GraphAsset`.
+`LineageGraphAsset`.
 
 **Interface**: Internal layer; coordinates parser submodules and user-supplied
 builders.
@@ -642,14 +642,14 @@ kwarg precedence; `node_idx` sequencing; `finalize_graph!` invocation timing.
 
 ---
 
-### `GraphAsset{NodeT}`
+### `LineageGraphAsset{NodeT}`
 
 **Responsibility**: Single-graph result struct.
 
 **Interface**: Public exported type.
 
 ```julia
-struct GraphAsset{NodeT}
+struct LineageGraphAsset{NodeT}
     index                :: Int
     source_idx           :: Int
     collection_idx       :: Int
@@ -668,18 +668,18 @@ compliance tests for node and edge tables.
 
 ---
 
-### `GraphStore{NodeT}`
+### `LineageGraphStore{NodeT}`
 
 **Responsibility**: Top-level load result.
 
 **Interface**: Public exported type.
 
 ```julia
-struct GraphStore{NodeT}
+struct LineageGraphStore{NodeT}
     source_table     :: <Tables.jl compliant>
     collection_table :: <Tables.jl compliant>
     graph_table      :: <Tables.jl compliant>
-    graphs           :: <lazy iterator of GraphAsset{NodeT}>
+    graphs           :: <lazy iterator of LineageGraphAsset{NodeT}>
 end
 ```
 
@@ -711,7 +711,7 @@ post-build finalization.
 
 **Tested**: Yes. Test that the no-op default does not error. Integration tests
 (via `PhyloNetworksExt`) that the hook is called after each graph's `add_child`
-sequence and before `GraphAsset` is assembled.
+sequence and before `LineageGraphAsset` is assembled.
 
 ---
 
@@ -807,7 +807,7 @@ PRD.
 | Branching structure | `clade graph` | `topology` (unqualified) |
 | Central protocol function | `add_child` | — |
 | Post-build hook | `finalize_graph!` | — |
-| Top-level result types | `GraphStore`, `GraphAsset` | — |
+| Top-level result types | `LineageGraphStore`, `LineageGraphAsset` | — |
 | Workflow work unit | `tranche` | `issue` (as workflow term), `ticket` |
 | Bounded steps within a tranche | `task` | `step` (when carrying formal verification) |
 | Masking change | `anti-fix` | `fix` or `workaround` without explicit owner/scope statement |
@@ -868,14 +868,14 @@ All of the above, plus:
 - If a package extension was added or modified, at least one integration test
   demonstrates the round-trip (file → target package type) and verifies
   field-level values, not merely that the function returns something.
-- If the `add_child` protocol signature, `GraphStore` or `GraphAsset` struct
+- If the `add_child` protocol signature, `LineageGraphStore` or `LineageGraphAsset` struct
   fields, or the `finalize_graph!` hook contract changed, the design briefs were
   updated with explicit project owner approval before implementation proceeded.
 
 ### Authorization rule
 
-Any proposed deviation from the `add_child` protocol signature, `GraphStore` or
-`GraphAsset` struct fields, `finalize_graph!` hook contract, format identifiers,
+Any proposed deviation from the `add_child` protocol signature, `LineageGraphStore` or
+`LineageGraphAsset` struct fields, `finalize_graph!` hook contract, format identifiers,
 or controlled vocabulary must be escalated to the project owner before the
 tranche proceeds. The tranche must not silently adapt.
 
@@ -900,7 +900,7 @@ tranche proceeds. The tranche must not silently adapt.
 | Newick parser | Parse tests: simple trees; edge lengths; internal labels; multi-tree files |
 | LineageNetwork parser | Parse tests: networks with hybrid nodes; gamma in `edgedata[i].gamma` at call site |
 | LineageGraphML parser | Parse tests: basic round-trip; attribute promotion |
-| `GraphStore` / `GraphAsset` | Type stability tests; Tables.jl compliance; multi-source indexing |
+| `LineageGraphStore` / `LineageGraphAsset` | Type stability tests; Tables.jl compliance; multi-source indexing |
 | FileIO adapter | Detection tests; override tests; stream I/O tests |
 | `finalize_graph!` | No-op default test; called-at-right-time integration test |
 | `PhyloNetworksExt` | Round-trip: file → `HybridNetwork`; hybrid node structure; gamma values on edges |

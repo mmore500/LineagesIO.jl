@@ -29,7 +29,7 @@ delegated work derived from these tasks.
 - `STYLE-vocabulary.md` — controlled terminology; proscribed terms. Key
   constraints: `node_idx` (not `id`, `index`, `num`); `rootnode` not `root`;
   `add_child` (canonical function name); `finalize_graph!` (canonical hook name);
-  `GraphAsset`/`GraphStore` (canonical return type names); `tranche` not `issue`
+  `LineageGraphAsset`/`LineageGraphStore` (canonical return type names); `tranche` not `issue`
 - `STYLE-workflow-docs.md` — revalidation rule; pass-forward obligations
 - `STYLE-writing.md` — prose style for documentation
 - `CONTRIBUTING.md` — contribution process and expectations
@@ -74,7 +74,7 @@ Before writing a single line of code:
 
 The orchestration layer owns the following invariants exclusively: protocol tier
 routing, builder validation, `node_idx` assignment, label passthrough,
-`finalize_graph!` invocation timing, and `GraphAsset` assembly. No other layer
+`finalize_graph!` invocation timing, and `LineageGraphAsset` assembly. No other layer
 may enforce or re-enforce these rules. Violations of this principle are
 architectural smells that must be escalated per `STYLE-architecture.md`. The
 tranche must begin and end with all tests passing, Aqua and JET clean.
@@ -131,13 +131,13 @@ label, `""` is what `add_child` receives. `node_idx` is the sole join key;
 
 ---
 
-### 3. Implement `finalize_graph!` invocation and `GraphAsset` assembly
+### 3. Implement `finalize_graph!` invocation and `LineageGraphAsset` assembly
 
 **Type**: WRITE
 **Output**: `finalize_graph!` is called exactly once per graph, after the last
-`add_child` call for that graph and before `GraphAsset` is assembled; the
-`GraphAsset` is assembled from the accumulated node table rows, edge table rows,
-index coordinates, labels, and the entry-point handle; all `GraphAsset` fields
+`add_child` call for that graph and before `LineageGraphAsset` is assembled; the
+`LineageGraphAsset` is assembled from the accumulated node table rows, edge table rows,
+index coordinates, labels, and the entry-point handle; all `LineageGraphAsset` fields
 are correctly populated
 **Depends on**: Task 2
 
@@ -145,15 +145,15 @@ Within `src/orchestration.jl`, after the format parser signals that the last
 `add_child` for a graph has been made, call `finalize_graph!(entry_point_handle)`
 and capture its return value (the same handle, or a replacement if the extension
 returns a different object). Only after `finalize_graph!` returns, assemble the
-`GraphAsset{NodeT}` using the accumulated rows and the returned handle as
-`graph_rootnode`. The `GraphAsset` fields `index`, `source_idx`,
+`LineageGraphAsset{NodeT}` using the accumulated rows and the returned handle as
+`graph_rootnode`. The `LineageGraphAsset` fields `index`, `source_idx`,
 `collection_idx`, `collection_graph_idx`, `collection_label`, `graph_label`,
 `node_table`, `edge_table`, `graph_rootnode`, and `source_path` must all be
 populated correctly per `01_prd.md §Return types`. The node table must carry one
 row per node with `node_idx` as its primary key; the edge table must carry one
 row per directed edge with `src_node_idx`, `dst_node_idx`, and `edgelength`
 columns at minimum. The assembly logic must be type-stable: the type of
-`GraphAsset{NodeT}` including all table type parameters must be fully
+`LineageGraphAsset{NodeT}` including all table type parameters must be fully
 determined at compile time.
 
 ---
@@ -184,9 +184,9 @@ second graph's first `node_idx` is 1.
 assembled node table entry has label `""`.
 (f) `finalize_graph!` timing: define a mock extension that overrides
 `finalize_graph!` and records when it is called; confirm it is called exactly
-once per graph, after the last `add_child` but before the `GraphAsset` is
+once per graph, after the last `add_child` but before the `LineageGraphAsset` is
 returned.
-(g) `GraphAsset` field correctness: after a complete mock parse, verify
+(g) `LineageGraphAsset` field correctness: after a complete mock parse, verify
 `graph_rootnode`, `node_table`, and `edge_table` fields contain the expected
 values — not just that they exist.
 
