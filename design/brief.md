@@ -614,13 +614,15 @@ documents. Neither document is complete without the other.
 
 Where "reading" means line-by-line, without summarization or assuming:
 
+* Reading of **`design/brief--community-support-objectives.md`** is
+  **MANDATED** alongside this document. See **Companion design documents** above.
+
 * Reading and compliance with — and ensuring downstream community reading and
   compliance with — **GOVERNANCE DOCUMENTS** (`STYLE-*.md` files) are
   **MANDATED** and must be incorporated into every stage of the process, from
   design to final product.
-
-* Reading of **`design/brief--community-support-objectives.md`** is
-  **MANDATED** alongside this document. See **Companion design documents** above.
+  
+* In particular, note terminological policies in `STYLE-vocabulary.md`.
 
 * Reading of **KEY TECHNOLOGICAL CONTEXT** is mandated for the project, and
   downstream/community reading of all of the following is required:
