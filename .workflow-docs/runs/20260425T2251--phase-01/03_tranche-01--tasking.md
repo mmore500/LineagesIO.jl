@@ -148,9 +148,9 @@ three overload stubs, matching the signatures in `design/brief.md §Builder
 protocol` and `01_prd.md §add_child protocol module` character-for-character.
 Do not provide any default method bodies — this function is implemented by
 users, not the library. The three signatures are: (1) network level with
-`parents :: AbstractVector{NodeHandle}`, (2) single-parent entry-point with
+`parents :: AbstractVector{NodeT}`, (2) single-parent entry-point with
 `parent :: Nothing`, and (3) single-parent non-entry-point with
-`parent :: NodeHandle`. Add `add_child` to the module exports. Write a complete
+`parent :: NodeT`. Add `add_child` to the module exports. Write a complete
 docstring on the generic function describing the protocol contract, both
 dispatch levels, all parameter semantics, the relationship to `finalize_graph!`,
 and a minimal usage example showing method extension. Per `STYLE-julia.md §1.13`,
@@ -169,8 +169,8 @@ no-op default that returns `handle` unchanged; complete docstring present; test
 suite passes
 **Depends on**: Task 3
 
-In `src/protocol.jl`, define and export `finalize_graph!(handle :: NodeHandle) ::
-NodeHandle where {NodeHandle}` with a no-op default body that returns `handle` unchanged.
+In `src/protocol.jl`, define and export `finalize_graph!(handle :: NodeT) ::
+NodeT where {NodeT}` with a no-op default body that returns `handle` unchanged.
 Per `STYLE-julia.md §4`, a `!`-function must return the mutated argument —
 `finalize_graph!` follows this contract even though the default is a no-op.
 Write a complete docstring describing: called once per graph after the last
@@ -182,17 +182,17 @@ cleanup; `PhyloNetworksExt` uses it to call `storeHybrids!`,
 
 ---
 
-### 5. Define `LineageGraphAsset{NodeHandle}` struct
+### 5. Define `LineageGraphAsset{NodeT}` struct
 
 **Type**: WRITE
-**Output**: `src/types.jl` defines and exports `LineageGraphAsset{NodeHandle}` as an
+**Output**: `src/types.jl` defines and exports `LineageGraphAsset{NodeT}` as an
 immutable struct with exactly the fields and types specified in the PRD; all
 fields concretely typed or concretized through type parameters; complete
 docstring; test suite passes
 **Depends on**: Task 2
 
 In `src/types.jl`, define `LineageGraphAsset` as an immutable `struct`. The struct
-must carry at minimum two additional type parameters beyond `NodeHandle` to
+must carry at minimum two additional type parameters beyond `NodeT` to
 concretize `node_table` and `edge_table`, because per `STYLE-julia.md §1.12`,
 struct fields must not be abstractly typed. Choose a representation for
 `node_table` and `edge_table` that is Tables.jl-compliant and type-stable.
@@ -206,17 +206,17 @@ a complete docstring. Run the test suite and verify it passes.
 
 ---
 
-### 6. Define `LineageGraphStore{NodeHandle}` struct
+### 6. Define `LineageGraphStore{NodeT}` struct
 
 **Type**: WRITE
-**Output**: `src/types.jl` defines and exports `LineageGraphStore{NodeHandle}` as an
+**Output**: `src/types.jl` defines and exports `LineageGraphStore{NodeT}` as an
 immutable struct with exactly the fields and types specified in the PRD; all
 fields concretely typed or concretized through type parameters; complete
 docstring; test suite passes
 **Depends on**: Task 5
 
 In `src/types.jl`, define `LineageGraphStore` as an immutable `struct` with type
-parameters for each concretely typed field beyond `NodeHandle`. The `graphs` field
+parameters for each concretely typed field beyond `NodeT`. The `graphs` field
 must be a lazy iterator type (not a `Vector`) — choose a concrete iterator type
 that is non-materializing and can be typed at compile time. The exact field
 names are specified in `01_prd.md §Return types` and `design/brief.md

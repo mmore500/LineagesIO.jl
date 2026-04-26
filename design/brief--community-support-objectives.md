@@ -148,10 +148,10 @@ end
 #### Integration requirements for LineagesIO extension
 
 **Protocol level**: General (network) — hybrid nodes require
-`add_child(parents::AbstractVector{NodeHandle}, ...)`.
+`add_child(parents::AbstractVector{NodeT}, ...)`.
 
 **Wrapper type needed**: `HybridNetwork` is the graph container; `Node` is the
-node handle. The `add_child` protocol returns `NodeHandle` per call, but
+node handle. The `add_child` protocol returns `NodeT` per call, but
 `HybridNetwork` holds all nodes and must persist across calls. The extension
 must bundle both:
 
@@ -427,10 +427,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    :: AbstractVector{Union{EdgeUnit, Nothing}},  # edgelengths — empty for entry-point
+    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths — empty for entry-point
     :: AbstractVector,                              # edgedata    — empty for entry-point
-    :: NodeRow,                                           # nodedata    — no metadata store on HybridNetwork/Node
-) where {EdgeUnit, NodeRow}
+    :: NodeRowT,                                           # nodedata    — no metadata store on HybridNetwork/Node
+) where {EdgeUnitT, NodeRowT}
     @assert isempty(parents)
     net = HybridNetwork()
     root = Node(node_idx, false)
@@ -446,10 +446,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    edgelengths :: AbstractVector{Union{EdgeUnit, Nothing}},
-    edgedata    :: AbstractVector{EdgeRow},
-    nodedata    :: NodeRow,
-) where {EdgeUnit, NodeRow, EdgeRow}
+    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}},
+    edgedata    :: AbstractVector{EdgeRowT},
+    nodedata    :: NodeRowT,
+) where {EdgeUnitT, NodeRowT, EdgeRowT}
     @assert !isempty(parents)
     net = parents[1].net
     is_hybrid = length(parents) > 1
@@ -499,10 +499,10 @@ function LineagesIO.add_child(
     :: Nothing,                   # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnit, Nothing},  # edgelength — no incoming edge for entry-point
+    :: Union{EdgeUnitT, Nothing},  # edgelength — no incoming edge for entry-point
     :: Nothing,                    # edgedata   — no parent edge for entry-point
-    nodedata   :: NodeRow,
-) where {EdgeUnit, NodeRow}
+    nodedata   :: NodeRowT,
+) where {EdgeUnitT, NodeRowT}
     tree = RootedTree(; name = "tree_$node_idx")
     nodename = isempty(label) ? "node_$node_idx" : label
     # Store node_idx in node data for round-trip join to LineageGraphStore node_table
@@ -519,10 +519,10 @@ function LineagesIO.add_child(
     parent     :: PhyloNodeRef,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnit, Nothing},
-    :: EdgeRow,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
-    nodedata   :: NodeRow,
-) where {EdgeUnit, NodeRow, EdgeRow}
+    edgelength :: Union{EdgeUnitT, Nothing},
+    :: EdgeRowT,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
+    nodedata   :: NodeRowT,
+) where {EdgeUnitT, NodeRowT, EdgeRowT}
     tree = parent.tree
     nodename = isempty(label) ? "node_$node_idx" : label
     data = Dict{String,Any}(pairs(nodedata))

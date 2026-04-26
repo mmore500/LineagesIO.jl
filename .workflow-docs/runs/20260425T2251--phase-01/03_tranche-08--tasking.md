@@ -89,7 +89,7 @@ Before writing a single line of code:
 3. Read `PhyloNetworks.jl/src/` in full. Understand the `HybridNetwork` and
    `Node` construction API before writing a single line of `add_child`.
 4. Verify that the orchestration layer's `:network` tier path correctly handles
-   `parents :: AbstractVector{NodeHandle}` for multi-parent `add_child` calls. If
+   `parents :: AbstractVector{NodeT}` for multi-parent `add_child` calls. If
    any discrepancy is found between the orchestration layer and the `add_child`
    signature expected by the PhyloNetworks API, escalate before proceeding.
 5. **Stop before any `Project.toml` changes**: read the current

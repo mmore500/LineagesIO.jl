@@ -151,13 +151,13 @@ share identical call signatures; only the provisioning mechanism differs.
 
 Users extend `LineagesIO.add_child` for their concrete node type and pass the
 type as a positional argument to `load`. The library dispatches all builder calls
-through normal Julia multiple dispatch, specializing fully on `NodeHandle` at compile
+through normal Julia multiple dispatch, specializing fully on `NodeT` at compile
 time.
 
 This follows the Tables.jl sink pattern used by CSV.jl (`CSV.read(src, DataFrame)`)
 and similar ecosystem interfaces. Making the node type explicit at the call site
 eliminates any ambiguity about which methods to dispatch to and allows the compiler
-to specialize the entire parse on `NodeHandle` without runtime lookup.
+to specialize the entire parse on `NodeT` without runtime lookup.
 
 ```julia
 # User extends LineagesIO.add_child for MyNode:
@@ -165,10 +165,10 @@ function LineagesIO.add_child(
     :: Nothing,                           # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnit, Nothing},          # edgelength — no incoming edge for entry-point
+    :: Union{EdgeUnitT, Nothing},          # edgelength — no incoming edge for entry-point
     :: Nothing,                            # edgedata  — no parent edge for entry-point
-    nodedata   :: NodeRow,
-) where {EdgeUnit, NodeRow}
+    nodedata   :: NodeRowT,
+) where {EdgeUnitT, NodeRowT}
     return MyNode(node_idx, label, nodedata.bootstrap)   # entry-point node
 end
 
@@ -176,10 +176,10 @@ function LineagesIO.add_child(
     parent     :: MyNode,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnit, Nothing},
-    :: EdgeRow,                                 # edgedata row — use fields as needed, e.g. edgedata.gamma
-    nodedata   :: NodeRow,
-) where {EdgeUnit, NodeRow, EdgeRow}
+    edgelength :: Union{EdgeUnitT, Nothing},
+    :: EdgeRowT,                                 # edgedata row — use fields as needed, e.g. edgedata.gamma
+    nodedata   :: NodeRowT,
+) where {EdgeUnitT, NodeRowT, EdgeRowT}
     return add_node_to_graph!(parent, node_idx, label, edgelength, nodedata.bootstrap)
 end
 
@@ -193,7 +193,7 @@ The three calling patterns for `load` are therefore:
 |---|---|
 | `load("file.nwk")` | `LineageGraphStore` with node/edge tables only (no builder) |
 | `load("file.nwk", MyNode)` | `LineageGraphStore{MyNode}` via dispatch extension |
-| `load("file.nwk"; builder = fn)` | `LineageGraphStore{NodeHandle}` via callback |
+| `load("file.nwk"; builder = fn)` | `LineageGraphStore{NodeT}` via callback |
 
 An explicit `builder` kwarg always takes precedence over extended methods.
 
@@ -219,18 +219,18 @@ phylogenetic files.
 **Network level — general case (baseline):**
 
 ```julia
-# NodeHandle     = node handle type; dispatch target for user extensions
-# EdgeUnit = edge length element type (unconstrained; Nothing for absent lengths)
-# NodeRow         = row type of node_table, fixed by discovery pass
-# EdgeRow        = row type of edge_table, fixed by discovery pass (one row per parent edge)
+# NodeT     = node handle type; dispatch target for user extensions
+# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
+# NodeRowT         = row type of node_table, fixed by discovery pass
+# EdgeRowT        = row type of edge_table, fixed by discovery pass (one row per parent edge)
 function add_child(
-    :: AbstractVector{NodeHandle},                      # parents
+    :: AbstractVector{NodeT},                      # parents
     :: Int,                                         # node_idx
     :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnit, Nothing}},  # edgelengths
-    :: AbstractVector{EdgeRow},                          # edgedata
-    :: NodeRow,                                           # nodedata
-) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end
+    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
+    :: AbstractVector{EdgeRowT},                          # edgedata
+    :: NodeRowT,                                           # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
 ```
 
 `parents`, `edgelengths`, and `edgedata` are parallel vectors: `edgelengths[i]`
@@ -243,31 +243,31 @@ reticulate and hybrid nodes with multiple incoming edges.
 **Single-parent level — restricted case:**
 
 ```julia
-# NodeHandle     = node handle type; dispatch target for user extensions
-# EdgeUnit = edge length element type (unconstrained; Nothing for absent lengths)
-# NodeRow         = row type of node_table, fixed by discovery pass
-# EdgeRow        = row type of edge_table
+# NodeT     = node handle type; dispatch target for user extensions
+# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
+# NodeRowT         = row type of node_table, fixed by discovery pass
+# EdgeRowT        = row type of edge_table
 function add_child(
     :: Nothing,                        # parent  — entry-point; no parent edge
     :: Int,                             # node_idx
     :: AbstractString,                  # label
-    :: Union{EdgeUnit, Nothing},       # edgelength — no incoming edge for entry-point
+    :: Union{EdgeUnitT, Nothing},       # edgelength — no incoming edge for entry-point
     :: Nothing,                         # edgedata   — no parent edge for entry-point
-    :: NodeRow,                               # nodedata
-) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow} end  # entry-point; called exactly once per graph
+    :: NodeRowT,                               # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end  # entry-point; called exactly once per graph
 
 function add_child(
-    :: NodeHandle,                           # parent
+    :: NodeT,                           # parent
     :: Int,                             # node_idx
     :: AbstractString,                  # label
-    :: Union{EdgeUnit, Nothing},       # edgelength
-    :: EdgeRow,                              # edgedata — one row for the single parent edge
-    :: NodeRow,                               # nodedata
-) :: NodeHandle where {NodeHandle, EdgeUnit, NodeRow, EdgeRow} end  # subsequent node
+    :: Union{EdgeUnitT, Nothing},       # edgelength
+    :: EdgeRowT,                              # edgedata — one row for the single parent edge
+    :: NodeRowT,                               # nodedata
+) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end  # subsequent node
 ```
 
 `parent = nothing` (with `edgedata = nothing`) signals entry-point node creation.
-The returned `NodeHandle` is the library's only handle on the graph; all subsequent
+The returned `NodeT` is the library's only handle on the graph; all subsequent
 calls receive it or a descendant as `parent`. This overload applies when every
 node has at most one parent — the restricted case that includes all rooted trees.
 
@@ -306,7 +306,7 @@ parse. There are no surprises mid-parse.
 * `node_idx` is a 1-based sequential integer assigned by the library for each node
   during parsing. It is the primary key of the node table and the foreign key used
   in the edge table (`src_node_idx`, `dst_node_idx`). The library assigns it; the
-  user stores it on their `NodeHandle` to enable joins against the tables.
+  user stores it on their `NodeT` to enable joins against the tables.
 * `label` is the raw node label from the source file, possibly empty. If the
   source supplies no label or a non-unique label the library generates
   `"node_$node_idx"`, which is guaranteed unique within a graph.
@@ -324,7 +324,7 @@ parse. There are no surprises mid-parse.
   architecture**). `NodeRow` is the row type of `node_table` — a `NamedTuple` type
   established by the discovery pass before any `add_child` calls are made. Fields
   are the promoted table column names; optional fields are `Union{T, Nothing}`.
-* The returned `NodeHandle` is passed as `parent` in all subsequent `add_child` calls
+* The returned `NodeT` is passed as `parent` in all subsequent `add_child` calls
   for that node's children. It is the library's only stored handle; the user must
   retain any graph-structure reference they need.
 
@@ -413,13 +413,13 @@ It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
 
 ### LineageGraphAsset
 
-`LineageGraphAsset{NodeHandle}` is the single-graph result struct yielded by the lazy
+`LineageGraphAsset{NodeT}` is the single-graph result struct yielded by the lazy
 graph iterator and collected in `LineageGraphStore.graphs`. It carries the complete parse
 output for one graph together with the index coordinates needed to locate it within
 a multi-source, multi-collection load.
 
 ```julia
-struct LineageGraphAsset{NodeHandle}
+struct LineageGraphAsset{NodeT}
     index                :: Int                      # overall 1-based index across entire load
     source_idx           :: Int                      # 1-based index of source file
     collection_idx       :: Int                      # 1-based index of collection within source
@@ -428,7 +428,7 @@ struct LineageGraphAsset{NodeHandle}
     graph_label          :: Union{String, Nothing}   # e.g. NEXUS individual graph name
     node_table           :: <Tables.jl compliant>    # one row per node; node_idx as primary key
     edge_table           :: <Tables.jl compliant>    # one row per edge; src_node_idx, dst_node_idx
-    graph_rootnode       :: NodeHandle                    # entry-point handle returned by add_child([],...);
+    graph_rootnode       :: NodeT                    # entry-point handle returned by add_child([],...);
                                                      # semantic root for directed rooted graphs,
                                                      # traversal origin for unrooted graphs
     source_path          :: Union{String, Nothing}
@@ -437,16 +437,16 @@ end
 
 ### LineageGraphStore
 
-`LineageGraphStore{NodeHandle}` is always returned by `load` — callers cannot assume a source
+`LineageGraphStore{NodeT}` is always returned by `load` — callers cannot assume a source
 contains only one graph. The nesting structure (source → collection → graph) is
 expressed as index coordinates on each record, not as nested containers.
 
 ```julia
-struct LineageGraphStore{NodeHandle}
+struct LineageGraphStore{NodeT}
     source_table     :: <Tables.jl compliant>    # one row per source file
     collection_table :: <Tables.jl compliant>    # one row per collection within sources
     graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
-    graphs           :: <lazy iterator of LineageGraphAsset{NodeHandle}>
+    graphs           :: <lazy iterator of LineageGraphAsset{NodeT}>
 end
 ```
 
@@ -460,8 +460,8 @@ without the node/edge table payloads.
 
 | Function | Behaviour |
 |---|---|
-| `load(src, NodeHandle)` | `LineageGraphStore{NodeHandle}` via dispatch extension |
-| `load(src; builder = fn)` | `LineageGraphStore{NodeHandle}` via callback |
+| `load(src, NodeT)` | `LineageGraphStore{NodeT}` via dispatch extension |
+| `load(src; builder = fn)` | `LineageGraphStore{NodeT}` via callback |
 | `load(src)` | `LineageGraphStore` with node/edge tables only (no builder) |
 | `loadfirst(src, ...)` | First `LineageGraphAsset`; no error on multiple |
 | `loadone(src, ...)` | Single `LineageGraphAsset`; errors if count ≠ 1 |
@@ -484,7 +484,7 @@ It must support:
 
 The package must provide:
 
-* lazy iterators over multi-graph sources, yielding `LineageGraphAsset{NodeHandle}` values
+* lazy iterators over multi-graph sources, yielding `LineageGraphAsset{NodeT}` values
 * `LineageGraphStore.graphs` as the primary lazy iteration surface
 * multi-source loading via `load([f1, f2, ...], ...)`
 
@@ -531,7 +531,7 @@ Ambiguous formats must require explicit override.
 All APIs must support:
 
 * user-supplied builders — either extended `LineagesIO.add_child` methods or
-  explicit `builder` callback functions — parameterized on `NodeHandle`, `EdgeUnit`, `D`
+  explicit `builder` callback functions — parameterized on `NodeT`, `EdgeUnitT`, `D`
 * parameterized return types driven by builder return type
 * configurable parsing modes per format
 
@@ -581,18 +581,18 @@ Registration itself is out of scope.
 The package is successful when:
 
 * `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` via dispatch extension
-* `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeHandle}` via callback
+* `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeT}` via callback
 * `load("file.nwk")` returns `LineageGraphStore` with node/edge tables usable with zero
   builder code
 * `loadone` and `loadfirst` convenience wrappers return `LineageGraphAsset` correctly
 * multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
 * explicit format override works
 * lazy iteration over `LineageGraphStore.graphs` is available for all multi-graph sources
-* builder output is type-stable; `LineageGraphAsset{NodeHandle}` is fully parameterized
+* builder output is type-stable; `LineageGraphAsset{NodeT}` is fully parameterized
 * `node_idx` in `add_child` enables lossless joins between graph structure and
   node/edge tables
 * network graph files with hybrid/reticulate nodes parse correctly through the
-  general `add_child(parents::AbstractVector{NodeHandle}, ...)` protocol
+  general `add_child(parents::AbstractVector{NodeT}, ...)` protocol
 * loaded graphs are immediately consumable by LineagesMakie via its accessor
   protocol without additional transformation
 

@@ -84,7 +84,7 @@ Before writing a single line of code:
 3. Read `Phylo.jl/src/` in full. Understand the `RootedTree` and node
    construction API before writing a single line of `add_child`.
 4. Verify that the orchestration layer's `:single_parent` tier path correctly
-   handles both `parent :: Nothing` and `parent :: NodeHandle` overloads. If any
+   handles both `parent :: Nothing` and `parent :: NodeT` overloads. If any
    discrepancy is found, escalate before proceeding.
 5. **Stop before any `Project.toml` changes**: read the current
    `Project.toml`, confirm that `Phylo` is not already listed under

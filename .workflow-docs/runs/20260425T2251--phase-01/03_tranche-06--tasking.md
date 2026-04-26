@@ -83,7 +83,7 @@ Before writing a single line of code:
 2. Confirm `julia --project=test test/runtests.jl` passes with Aqua and JET
    clean. If it does not, stop and escalate before proceeding.
 3. Verify that the orchestration layer's `:network` tier path in
-   `src/orchestration.jl` accepts `parents :: AbstractVector{NodeHandle}` at each
+   `src/orchestration.jl` accepts `parents :: AbstractVector{NodeT}` at each
    `add_child` call site. If the network tier path is absent or incomplete,
    escalate before proceeding.
 4. Verify that the FileIO adapter in `src/fileio.jl` can accept a second
