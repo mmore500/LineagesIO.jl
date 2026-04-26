@@ -327,7 +327,7 @@ validates lazily.
 | LineagesIO arg | Phylo API call | Result |
 |---|---|---|
 | `label` | `createnode!(tree, label)` | node created by name |
-| `edgelength` | `createbranch!(tree, parent_name, child_name, length=edgelength)` | branch with length |
+| `edgeweight` | `createbranch!(tree, parent_name, child_name, length=edgeweight)` | branch with length |
 | `nodedata.*` | `setnodedata!(tree, child_name, Dict(pairs(nodedata)))` | all promoted fields as node data dict |
 | `node_idx` | Stored in node data: `"node_idx" => node_idx` | enables joins to LineagesIO node table |
 
@@ -419,13 +419,13 @@ struct PhyloNetworksNodeHandle
     node :: Node
 end
 
-# Entry-point node creation (parents, edgelengths are empty vectors; edgedata/nodedata not used)
+# Entry-point node creation (parents, edgeweights are empty vectors; edgedata/nodedata not used)
 # HybridNetwork/Node has no generic metadata dict, so nodedata is intentionally ignored.
 function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths — empty for entry-point
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights — empty for entry-point
     kwargs...,                                     # edgedata, nodedata — not stored on HybridNetwork/Node
 ) where {EdgeUnitT}
     @assert isempty(parents)
@@ -443,7 +443,7 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}};
+    edgeweights :: AbstractVector{Union{EdgeUnitT, Nothing}};
     edgedata    = nothing,
     nodedata    = nothing,
 ) where {EdgeUnitT}
@@ -455,7 +455,7 @@ function LineagesIO.add_child(
     pushNode!(net, child)
     bootstrap = hasproperty(nodedata, :bootstrap) ? something(nodedata.bootstrap, -1.0) : -1.0
     edgerows = isnothing(edgedata) ? fill(NamedTuple(), length(parents)) : edgedata
-    for (par, elen, erow) in zip(parents, edgelengths, edgerows)
+    for (par, elen, erow) in zip(parents, edgeweights, edgerows)
         e = Edge(length(net.edge) + 1, isnothing(elen) ? -1.0 : elen)
         e.y     = bootstrap
         e.gamma = hasproperty(erow, :gamma) ? something(erow.gamma, (is_hybrid ? -1.0 : 1.0)) :
@@ -492,12 +492,12 @@ struct PhyloNodeRef
 end
 
 # Entry-point node creation (parent is nothing, edgedata is nothing)
-# parent and edgelength are anonymous — dispatch-only or inapplicable.
+# parent and edgeweight are anonymous — dispatch-only or inapplicable.
 function LineagesIO.add_child(
     :: Nothing,                   # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing};  # edgelength — no incoming edge for entry-point
+    :: Union{EdgeUnitT, Nothing};  # edgeweight — no incoming edge for entry-point
     nodedata   = nothing,
     kwargs...,                     # absorbs edgedata; no parent edge at entry-point
 ) where {EdgeUnitT}
@@ -517,7 +517,7 @@ function LineagesIO.add_child(
     parent     :: PhyloNodeRef,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnitT, Nothing};
+    edgeweight :: Union{EdgeUnitT, Nothing};
     nodedata   = nothing,
     kwargs...,                     # absorbs edgedata; not forwarded in Phase 1
 ) where {EdgeUnitT}
@@ -527,7 +527,7 @@ function LineagesIO.add_child(
     data["node_idx"] = node_idx
     createnode!(tree, nodename; data = data)
     # Phylo branch length is Union{Float64,Missing}; convert Nothing → missing
-    phylo_len = isnothing(edgelength) ? missing : edgelength
+    phylo_len = isnothing(edgeweight) ? missing : edgeweight
     createbranch!(tree, parent.nodename, nodename, phylo_len)
     return PhyloNodeRef(tree, nodename)
 end

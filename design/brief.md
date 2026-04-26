@@ -165,7 +165,7 @@ function LineagesIO.add_child(
     :: Nothing,                           # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing};          # edgelength
+    :: Union{EdgeUnitT, Nothing};          # edgeweight
     nodedata   = nothing,
     kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
 ) :: MyNode where {EdgeUnitT}
@@ -177,12 +177,12 @@ function LineagesIO.add_child(
     parent     :: MyNode,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnitT, Nothing};
+    edgeweight :: Union{EdgeUnitT, Nothing};
     nodedata   = nothing,
     kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
 ) :: MyNode where {EdgeUnitT}
     bootstrap = hasproperty(nodedata, :bootstrap) ? nodedata.bootstrap : nothing
-    return add_node_to_graph!(parent, node_idx, label, edgelength, bootstrap)
+    return add_node_to_graph!(parent, node_idx, label, edgeweight, bootstrap)
 end
 
 # Node type passed as positional argument — no kwarg needed:
@@ -206,7 +206,7 @@ Users pass an `add_child`-compatible function as the `builder` keyword argument 
 always takes precedence over any extended `LineagesIO.add_child` methods in scope.
 
 ```julia
-result = load("file.nwk"; builder = (parent, node_idx, label, edgelength; edgedata=nothing, nodedata=nothing) -> ...)
+result = load("file.nwk"; builder = (parent, node_idx, label, edgeweight; edgedata=nothing, nodedata=nothing) -> ...)
 ```
 
 This style is preferred for ad-hoc or scripting contexts, for cases where a user
@@ -222,19 +222,19 @@ phylogenetic files.
 
 ```julia
 # NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
+# EdgeUnitT = edge weight element type (unconstrained; Nothing for absent lengths)
 function add_child(
     :: AbstractVector{NodeT},
     :: Int,                                        # node_idx
     :: AbstractString,                             # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
     kwargs...,                                     # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 ```
 
-`parents`, `edgelengths`, and `edgedata` are parallel vectors: `edgelengths[i]`
+`parents`, `edgeweights`, and `edgedata` are parallel vectors: `edgeweights[i]`
 and `edgedata[i]` describe the edge from `parents[i]` to the new node. An empty
-`parents` vector (with correspondingly empty `edgelengths` and `edgedata`) signals
+`parents` vector (with correspondingly empty `edgeweights` and `edgedata`) signals
 entry-point node creation (the traversal origin). This overload is the baseline:
 it handles directed and undirected graphs, rooted and unrooted, including
 reticulate and hybrid nodes with multiple incoming edges.
@@ -243,12 +243,12 @@ reticulate and hybrid nodes with multiple incoming edges.
 
 ```julia
 # NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
+# EdgeUnitT = edge weight element type (unconstrained; Nothing for absent lengths)
 function add_child(
     :: Nothing,                        # parent — entry-point; called exactly once per graph
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 
@@ -256,7 +256,7 @@ function add_child(
     :: NodeT,                          # parent
     :: Int,                            # node_idx
     :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgelength
+    :: Union{EdgeUnitT, Nothing};      # edgeweight
     kwargs...,                         # edgedata = nothing, nodedata = nothing
 ) :: NodeT where {NodeT, EdgeUnitT} end
 ```
@@ -305,14 +305,14 @@ parse. There are no surprises mid-parse.
 * `label` is the raw node label from the source file, possibly empty. If the
   source supplies no label or a non-unique label the library generates
   `"node_$node_idx"`, which is guaranteed unique within a graph.
-* `edgelength` / `edgelengths` is `nothing` when the source does not supply a
+* `edgeweight` / `edgeweights` is `nothing` when the source does not supply a
   value for that edge.
 * `edgedata` (keyword, default `nothing`) carries the edge table row(s) for the
   incoming edge(s) to this node. The orchestration always passes a real value: an
   `EdgeRow` NamedTuple for single-parent non-entry-point nodes, an
   `AbstractVector{EdgeRow}` for network-level nodes, and `nothing` for entry-point
   nodes (no incoming edge). `EdgeRow` is fixed by the discovery pass. Fields include
-  `edgelength`, format-specific columns (`gamma`, `support`, etc.), all as
+  `edgeweight`, format-specific columns (`gamma`, `support`, etc.), all as
   `Union{T, Nothing}` when optional.
 * `nodedata :: NodeRow` is a single row of the node table for this node (see **Metadata
   architecture**). `NodeRow` is the row type of `node_table` — a `NamedTuple` type
@@ -375,7 +375,7 @@ with one row per directed edge:
 |---|---|---|
 | `src_node_idx` | `Int` | parent node index (traversal-order predecessor for unrooted graphs) |
 | `dst_node_idx` | `Int` | child node index |
-| `edgelength` | `Union{Float64, Nothing}` | edge weight/length |
+| `edgeweight` | `Union{Float64, Nothing}` | edge weight/length |
 | format-specific columns | — | e.g. `gamma` for hybrid edge inheritance proportions |
 
 The edge table is always present regardless of graph type. For single-parent
@@ -644,7 +644,7 @@ Where "reading" means line-by-line, without summarization or assuming:
     mandatory context for `format"TskitTrees"` design
 
   **Visualization interoperability:**
-  - `LineagesMakie.jl` — accessor protocol (`children`, `edgelength`,
+  - `LineagesMakie.jl` — accessor protocol (`children`, `edgeweight`,
     `branchingtime`, `coalescenceage`, `nodevalue`, `nodecoordinates`,
     `nodepos`); loaded graphs must be immediately consumable
 
