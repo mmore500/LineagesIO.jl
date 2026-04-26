@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "08cc72d54c80594943f618f2e70bba162384a1af"
+project_hash = "1531f7b98c6d9414e592963c6b550a4e70e74b12"
 
 [[deps.Aqua]]
 deps = ["Compat", "Pkg", "Test"]
@@ -51,6 +51,16 @@ deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.3.0+1"
 
+[[deps.DataAPI]]
+git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
+uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
+version = "1.16.0"
+
+[[deps.DataValueInterfaces]]
+git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
+uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
+version = "1.0.0"
+
 [[deps.Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -61,6 +71,18 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.7.0"
 
+[[deps.FileIO]]
+deps = ["Pkg", "Requires", "UUIDs"]
+git-tree-sha1 = "6522cfb3b8fe97bec632252263057996cbd3de20"
+uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+version = "1.18.0"
+
+    [deps.FileIO.extensions]
+    HTTPExt = "HTTP"
+
+    [deps.FileIO.weakdeps]
+    HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
@@ -69,6 +91,11 @@ version = "1.11.0"
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 version = "1.11.0"
+
+[[deps.IteratorInterfaceExtensions]]
+git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
+uuid = "82899510-4779-5014-852e-03e436cf321d"
+version = "1.0.0"
 
 [[deps.JET]]
 deps = ["CodeTracking", "Compiler", "InteractiveUtils", "JuliaInterpreter", "JuliaSyntax", "LoweredCodeUtils", "MacroTools", "Pkg", "PrecompileTools", "Preferences", "Revise", "Test"]
@@ -122,6 +149,7 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
 
 [[deps.LineagesIO]]
+deps = ["FileIO", "Tables"]
 path = ".."
 uuid = "bdba7728-14e2-45e7-a2f0-1ba665f6f151"
 version = "0.1.0"
@@ -200,6 +228,12 @@ deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 version = "1.11.0"
 
+[[deps.Requires]]
+deps = ["UUIDs"]
+git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
+uuid = "ae029012-a4dd-5104-9daa-d747884805df"
+version = "1.3.1"
+
 [[deps.Revise]]
 deps = ["CodeTracking", "FileWatching", "InteractiveUtils", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Preferences", "REPL", "UUIDs"]
 git-tree-sha1 = "5f4f629c085b87e71125eec6773f5f872c74a47a"
@@ -232,6 +266,18 @@ version = "1.11.0"
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
+
+[[deps.TableTraits]]
+deps = ["IteratorInterfaceExtensions"]
+git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
+uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
+version = "1.0.1"
+
+[[deps.Tables]]
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
+git-tree-sha1 = "f2c1efbc8f3a609aadf318094f8fc5204bdaf344"
+uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+version = "1.12.1"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]

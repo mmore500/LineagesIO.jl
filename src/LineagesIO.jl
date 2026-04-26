@@ -1,5 +1,8 @@
 module LineagesIO
 
-# Write your package code here.
+import FileIO
+
+include("protocol.jl")
+include("types.jl")
 
 end
