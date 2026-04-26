@@ -57,7 +57,7 @@ builder protocol contract.
 
 When this work is complete:
 
-- `load("file.nwk", MyNode)` returns `ParsedGraphStore{MyNode}` — a collection,
+- `load("file.nwk", MyNode)` returns `GraphStore{MyNode}` — a collection,
   always, not a single graph — containing lazy graph iterators and Tables.jl
   tables for node, edge, graph, collection, and source metadata.
 - The builder protocol dispatches through `LineagesIO.add_child`, which users
@@ -74,23 +74,23 @@ When this work is complete:
 ## User stories
 
 1. A researcher loads a single Newick file into their custom `MyNode` type with
-   `loadone("tree.nwk", MyNode)` and receives a `ParsedGraphAsset{MyNode}`
+   `loadone("tree.nwk", MyNode)` and receives a `GraphAsset{MyNode}`
    containing the root handle, a node table with bootstrap and edgelength
    columns, and an edge table.
 
 2. A researcher loads a NEXUS file containing 1,000 MCMC samples and iterates
    lazily over the samples: `for g in load("samples.nex", MyNode).graphs`. The
    TRANSLATE table is visible in `result.collection_table`; each sample is a
-   `ParsedGraphAsset` with index coordinates.
+   `GraphAsset` with index coordinates.
 
 3. A researcher who does not define any builder calls `load("tree.nwk")` and
-   receives a `ParsedGraphStore` containing fully populated node and edge tables; they
+   receives a `GraphStore` containing fully populated node and edge tables; they
    can pass these directly to DataFrames, Plots, or CSV without writing any
    `add_child` method.
 
 4. A researcher using PhyloNetworks calls
    `loadone("net.nwk", PhyloNetworksNodeHandle)` and receives a
-   `ParsedGraphAsset{PhyloNetworksNodeHandle}`; they unwrap via
+   `GraphAsset{PhyloNetworksNodeHandle}`; they unwrap via
    `result.graph_rootnode.net` to get a fully finalized `HybridNetwork` (all
    post-build cleanup applied automatically via the finalization hook).
 
@@ -113,7 +113,7 @@ When this work is complete:
 
 9. A researcher loads multiple source files at once:
    `load(["file1.nwk", "file2.nwk"], MyNode)`. The result is a single
-   `ParsedGraphStore`; `source_idx` on each `ParsedGraphAsset` identifies the origin.
+   `GraphStore`; `source_idx` on each `GraphAsset` identifies the origin.
 
 10. A researcher calls `loadone("file.nwk", MyNode)` and receives an error
     (with a clear message) if the file contains more than one graph; they call
@@ -137,7 +137,7 @@ When this work is complete:
     `result.source_table`.
 
 15. A researcher loads an extended Newick file with hybrid edges. The
-    `ParsedGraphAsset.edge_table` has a `gamma` column; the gamma values are
+    `GraphAsset.edge_table` has a `gamma` column; the gamma values are
     correct for each individual hybrid edge (one row per directed edge).
 
 16. A researcher calls `save("out.nwk", graph, MyNode)` (Phase 2) and receives
@@ -154,7 +154,7 @@ When this work is complete:
 
 - **Internal redesign allowed:** Complete redesign of the builder protocol
   (add_child signature, dispatch levels, protocol determination), the return
-  type hierarchy (ParsedGraphStore, ParsedGraphAsset), and the metadata model (four
+  type hierarchy (GraphStore, GraphAsset), and the metadata model (four
   levels, discovery pass, edge table). All internal parsing machinery is
   replaceable.
 - **Internal redesign forbidden:** Governance document compliance obligations
@@ -182,7 +182,7 @@ The v1 design brief (archived) had:
   unified column promotion
 - Per-call dispatch on `length(parents)` — collapses under hybrid nodes
 - No sequential `node_idx` — no join key between graph structure and tables
-- No `ParsedGraphStore` / `ParsedGraphAsset` distinction — collection semantics absent
+- No `GraphStore` / `GraphAsset` distinction — collection semantics absent
 
 ### Failure modes
 
@@ -201,7 +201,7 @@ The v1 design brief (archived) had:
 
 | Module | Responsibility |
 |---|---|
-| `LineagesIO` (core) | Exports `add_child` generic function; exports `load`, `loadfirst`, `loadone`; defines `ParsedGraphStore`, `ParsedGraphAsset`; orchestrates format detection and builder dispatch |
+| `LineagesIO` (core) | Exports `add_child` generic function; exports `load`, `loadfirst`, `loadone`; defines `GraphStore`, `GraphAsset`; orchestrates format detection and builder dispatch |
 | `LineagesIO.Newick` | Newick tokenizer, recursive-descent parser, discovery pass, `add_child` emission |
 | `LineagesIO.LineageGraphML` | GraphML-with-phylogeny-profile parser, discovery pass, `add_child` emission |
 | `LineagesIO.Nexus` (Phase 2) | NEXUS TAXA + TREES + TRANSLATE block parser |
@@ -218,7 +218,7 @@ The v1 design brief (archived) had:
 - **Builder protocol layer owns**: `add_child` generic definition, protocol
   determination, builder validation gate, `node_idx` assignment, discovery pass
   coordination.
-- **ParsedGraphStore / ParsedGraphAsset own**: index coordinate tracking, table
+- **GraphStore / GraphAsset own**: index coordinate tracking, table
   materialization, lazy iteration surface.
 - **Extensions own**: target-package wrapper types, `add_child` methods for
   those types, finalization hooks.
@@ -231,8 +231,8 @@ The v1 design brief (archived) had:
   in scope when a node's `add_child` call is made.
 - `node_idx` is 1-based, sequential across all nodes in a single graph, and is
   the primary key of `node_table` and the foreign key in `edge_table`.
-- `load` always returns `ParsedGraphStore`. No calling convention may return a bare
-  `NodeT` or bare `ParsedGraphAsset` from `load`.
+- `load` always returns `GraphStore`. No calling convention may return a bare
+  `NodeT` or bare `GraphAsset` from `load`.
 - The row type `R` of `nodedata :: R` and the row type `RE` of `edgedata :: RE`
   are both fixed for the entire parse of a source. Both are determined after the
   discovery pass and before the first `add_child` call.
@@ -294,7 +294,7 @@ The v1 design brief (archived) had:
 ### `LineagesIO` core
 
 **Responsibility:** Public API surface: `add_child` generic, `load`, `loadfirst`,
-`loadone`, `ParsedGraphStore`, `ParsedGraphAsset`, `finalize_graph!`. Format detection
+`loadone`, `GraphStore`, `GraphAsset`, `finalize_graph!`. Format detection
 and builder dispatch orchestration.
 
 **Interface (public):**
@@ -305,15 +305,15 @@ function add_child end
 function finalize_graph! end   # default no-op; extensions overload
 
 # Load entry points
-load(src, NodeT; kwargs...)         :: ParsedGraphStore{NodeT}
-load(src; builder, kwargs...)       :: ParsedGraphStore{NodeT}
-load(src; kwargs...)                :: ParsedGraphStore
-loadfirst(src, ...; kwargs...)      :: ParsedGraphAsset
-loadone(src, ...; kwargs...)        :: ParsedGraphAsset
-load(srcs::AbstractVector, ...; kwargs...)  :: ParsedGraphStore   # multi-source
+load(src, NodeT; kwargs...)         :: GraphStore{NodeT}
+load(src; builder, kwargs...)       :: GraphStore{NodeT}
+load(src; kwargs...)                :: GraphStore
+loadfirst(src, ...; kwargs...)      :: GraphAsset
+loadone(src, ...; kwargs...)        :: GraphAsset
+load(srcs::AbstractVector, ...; kwargs...)  :: GraphStore   # multi-source
 
 # Return types
-struct ParsedGraphAsset{NodeT}
+struct GraphAsset{NodeT}
     index                :: Int
     source_idx           :: Int
     collection_idx       :: Int
@@ -326,11 +326,11 @@ struct ParsedGraphAsset{NodeT}
     source_path          :: Union{String, Nothing}
 end
 
-struct ParsedGraphStore{NodeT}
+struct GraphStore{NodeT}
     source_table     :: <Tables.jl compliant>
     collection_table :: <Tables.jl compliant>
     graph_table      :: <Tables.jl compliant>
-    graphs           :: <lazy iterator of ParsedGraphAsset{NodeT}>
+    graphs           :: <lazy iterator of GraphAsset{NodeT}>
 end
 ```
 
@@ -369,7 +369,7 @@ tests for protocol determination gate, builder validation, discovery pass,
 Build node table and edge table rows.
 
 **Interface (internal):** Called by FileIO adapter layer. Declares
-`SINGLE_PARENT` protocol. Returns iterator of `ParsedGraphAsset` values.
+`SINGLE_PARENT` protocol. Returns iterator of `GraphAsset` values.
 
 **Tested:** Yes — roundtrip tests, edge-length precision, bootstrap parsing,
 NHX key extraction, empty label handling, multi-Newick files.
@@ -383,7 +383,7 @@ attribute profile. Discovery pass over all `<data>` elements. Emit `add_child`
 calls. Build node/edge tables.
 
 **Interface (internal):** Declares `SINGLE_PARENT` protocol (Phase 1). Returns
-iterator of `ParsedGraphAsset` values.
+iterator of `GraphAsset` values.
 
 **Tested:** Yes — roundtrip tests, data element extraction, multi-graph
 GraphML files.
@@ -416,7 +416,7 @@ struct PhyloNetworksNodeHandle
     net  :: PhyloNetworks.HybridNetwork
     node :: PhyloNetworks.Node
 end
-get_hybridnetwork(g::ParsedGraphAsset) :: HybridNetwork
+get_hybridnetwork(g::GraphAsset) :: HybridNetwork
 ```
 
 **Tested:** Yes — roundtrip Newick → `HybridNetwork` for single-parent and
@@ -438,7 +438,7 @@ struct PhyloNodeRef
     tree     :: Phylo.RootedTree
     nodename :: String
 end
-get_rootedtree(g::ParsedGraphAsset) :: RootedTree
+get_rootedtree(g::GraphAsset) :: RootedTree
 ```
 
 **Tested:** Yes — roundtrip Newick → `RootedTree`, NHX metacomment
@@ -473,15 +473,15 @@ tranches and tasks must preserve and enforce them.
 | Canonical term | Proscribed alternatives | Notes |
 |---|---|---|
 | `add_child` | `add_node`, `build_node`, `create_child` | The one exported generic function |
-| `graph_rootnode` | `root`, `graph`, `rootvertex` | Entry-point handle in `ParsedGraphAsset` |
-| `ParsedGraphStore` | any bare-node or bare-graph return type | `load` always returns a collection |
-| `ParsedGraphAsset` | `ParsedGraph`, `TreeResult` | Single-graph result struct |
+| `graph_rootnode` | `root`, `graph`, `rootvertex` | Entry-point handle in `GraphAsset` |
+| `GraphStore` | any bare-node or bare-graph return type | `load` always returns a collection |
+| `GraphAsset` | `Graph`, `TreeResult` | Single-graph result struct |
 | `node_idx` | `nodeid`, `nodeindex`, `node_id` | Library-assigned 1-based join key |
 | `nodedata` | `data`, `metadata`, `node_data` | The `nodedata :: R` argument to `add_child` |
 | `edgelengths` | `branch_lengths`, `weights`, `lengths` | Parallel vector in network protocol |
 | `edgedata` | `edge_metadata`, `edge_data`, `edgeMeta` | Per-edge row(s) passed to `add_child`; `:: AbstractVector{RE}` (network), `:: RE` / `:: Nothing` (single-parent) |
 | `finalize_graph!` | `postprocess!`, `cleanup!` | Post-build hook |
-| `ParsedGraphStore.graphs` | `trees`, `results`, `items` | Lazy iterator field |
+| `GraphStore.graphs` | `trees`, `results`, `items` | Lazy iterator field |
 | general (network) protocol | "multi-parent protocol", "network mode" | The baseline dispatch level |
 | single-parent protocol | "tree protocol", "restricted mode" | The restricted case |
 | discovery pass | "pre-scan", "schema inference" | Full-source scan before `add_child` |
@@ -543,7 +543,7 @@ and add new protocol functions without requiring user approval, provided:
 1. The external FileIO contract remains intact.
 2. The `add_child` public generic signature is not changed without explicit
    approval.
-3. The `ParsedGraphStore` and `ParsedGraphAsset` field names are not changed without
+3. The `GraphStore` and `GraphAsset` field names are not changed without
    explicit approval.
 
 ---
@@ -551,7 +551,7 @@ and add new protocol functions without requiring user approval, provided:
 ## Testing and verification decisions
 
 - **Must remain green throughout:** `test/runtests.jl` at every tranche boundary.
-- **Format round-trip tests required:** For each format parser: file → `ParsedGraphStore`
+- **Format round-trip tests required:** For each format parser: file → `GraphStore`
   → node table values verified against known-good expected output.
 - **Node index join test required:** `node_idx` in graph structure must match
   primary key of `node_table`; join must return correct metadata.
@@ -592,8 +592,8 @@ and add new protocol functions without requiring user approval, provided:
 
 | # | Question | Owner | Suggested resolution |
 |---|---|---|---|
-| 1 | Should `finalize_graph!` be called by the lazy iterator (before yielding each `ParsedGraphAsset`) or by the format parser (after last `add_child` for a graph)? | Project owner | Recommend: lazy iterator, for streaming consistency. |
-| 2 | `load(src)` with no builder — what is the concrete type of `graph_rootnode`? | Project owner | Recommend: `graph_rootnode :: Nothing`; `ParsedGraphStore{Nothing}`; field documented as only meaningful when a builder is provided. |
+| 1 | Should `finalize_graph!` be called by the lazy iterator (before yielding each `GraphAsset`) or by the format parser (after last `add_child` for a graph)? | Project owner | Recommend: lazy iterator, for streaming consistency. |
+| 2 | `load(src)` with no builder — what is the concrete type of `graph_rootnode`? | Project owner | Recommend: `graph_rootnode :: Nothing`; `GraphStore{Nothing}`; field documented as only meaningful when a builder is provided. |
 | 3 | Does `format"LineageNetwork"` use a separate parser submodule or augment `LineagesIO.Newick`? | Project owner | Recommend: separate submodule `LineagesIO.LineageNetwork` to keep single-parent Newick parser clean and testable independently. |
 
 ---
@@ -613,7 +613,7 @@ Concretely:
 - "Tree level" is proscribed — use "single-parent level (restricted case)".
 - "Network level" is proscribed — use "general case (baseline)".
 - The vector-parents overload of `add_child` is listed first in all documentation.
-- `ParsedGraphStore` and `ParsedGraphAsset` field names use graph-general language.
+- `GraphStore` and `GraphAsset` field names use graph-general language.
 
 ### Community integration objectives
 
@@ -662,7 +662,7 @@ Activate the `PRD → Tranches` phase to decompose this PRD into implementation
 tranches. Recommended tranche ordering:
 
 1. **Foundational tranche** — core module skeleton: `add_child` generic,
-   `ParsedGraphStore`, `ParsedGraphAsset`, `finalize_graph!` no-op, `node_idx`
+   `GraphStore`, `GraphAsset`, `finalize_graph!` no-op, `node_idx`
    assignment, protocol determination gate, builder validation. No format
    parsers yet; scaffold with stubs.
 

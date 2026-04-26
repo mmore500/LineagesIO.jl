@@ -21,7 +21,7 @@ It serves as:
 
 ## Design objectives
 
-The package must satisfy the following goals.
+The package must satisfy the following goals:
 
 It must provide idiomatic FileIO integration for supported phylogenetic formats
 through `load`, `save`, explicit `File{format"..."}(...)`, and stream-based entry
@@ -33,7 +33,7 @@ separate package.
 
 It must support lazy iteration over phylogenetic graph collections.
 
-Using idiomatic Julia generics mechanisms — parameterized types and functions,
+Using idiomatic Julia mechanisms for generics — parameterized types and functions,
 multiple dispatch, callback/builder functions — this package will not itself
 provide any concrete domain types. All graph construction and materialization is
 performed by the user either implicitly (via type parameterization, methods on
@@ -51,6 +51,11 @@ Through use of idiomatic Julia mechanisms and practices — parameterization,
 multiple dispatch, keyword-argument function-based access — the base layer must
 be transparent to particular types yet remain type-stable with all types known
 at compile time (see `STYLE-julia.md`).
+
+A core mission is to provide broad-spectrum file format deserialization and 
+(eventually) serialization support for phylogenetic, and more generally, biological and mathematical domain-centered packages and applications such as PhyloNetworks and Phylo. 
+
+Community developers and users can then focus efforts on domain side abstraction and implementation, relying on deserialization/serialization of their data as just part of existing infrastructure without worrying about file format parsing or composition, namespace mapping, data coversion, or graph construction.
 
 ## Non-goals
 
@@ -186,9 +191,9 @@ The three calling patterns for `load` are therefore:
 
 | Call | Returns |
 |---|---|
-| `load("file.nwk")` | `ParsedGraphStore` with node/edge tables only (no builder) |
-| `load("file.nwk", MyNode)` | `ParsedGraphStore{MyNode}` via dispatch extension |
-| `load("file.nwk"; builder = fn)` | `ParsedGraphStore{NodeT}` via callback |
+| `load("file.nwk")` | `GraphStore` with node/edge tables only (no builder) |
+| `load("file.nwk", MyNode)` | `GraphStore{MyNode}` via dispatch extension |
+| `load("file.nwk"; builder = fn)` | `GraphStore{NodeT}` via callback |
 
 An explicit `builder` kwarg always takes precedence over extended methods.
 
@@ -331,7 +336,7 @@ been created and their handles are in scope.
 
 For formats containing multiple graphs (NEXUS, multi-Newick, tskit `TreeSequence`),
 the full `add_child` sequence is invoked once per graph. The lazy iteration layer
-exposes these as an iterator of `ParsedGraphAsset` values (see **Return types**).
+exposes these as an iterator of `GraphAsset` values (see **Return types**).
 
 ## Metadata architecture
 
@@ -365,7 +370,7 @@ is produced by the parser from the source.
 ### Level 2 — Edge metadata
 
 Edge annotation keys are discovered in the same discovery pass and promoted to
-typed columns in the edge table. The edge table accompanies every `ParsedGraphAsset`,
+typed columns in the edge table. The edge table accompanies every `GraphAsset`,
 with one row per directed edge:
 
 | Column | Type | Description |
@@ -382,7 +387,7 @@ graphs it contains one row per node (excluding the entry-point node).
 
 Metadata about a single graph as a unit: name/identifier (e.g. NEXUS `tree PAUP_1`),
 weight or posterior probability in a sample, rooting declaration, graph-level
-comments. Carried in the `graph_label` and related fields of `ParsedGraphAsset`
+comments. Carried in the `graph_label` and related fields of `GraphAsset`
 (see **Return types**).
 
 ### Level 4 — Collection-level and file-level metadata
@@ -393,7 +398,7 @@ format version, source program). For `format"TskitTrees"`, the file level carrie
 the entire population, individual, site, and migration tables from the tskit
 `TreeSequence` model.
 
-Carried in the `collection_table` and `source_table` of `ParsedGraphStore`
+Carried in the `collection_table` and `source_table` of `GraphStore`
 (see **Return types**).
 
 LineagesIO.jl takes `Tables.jl` as a dependency (lightweight pure-interface package).
@@ -402,15 +407,15 @@ It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
 
 ## Return types
 
-### ParsedGraphAsset
+### GraphAsset
 
-`ParsedGraphAsset{NodeT}` is the single-graph result struct yielded by the lazy
-graph iterator and collected in `ParsedGraphStore.graphs`. It carries the complete parse
+`GraphAsset{NodeT}` is the single-graph result struct yielded by the lazy
+graph iterator and collected in `GraphStore.graphs`. It carries the complete parse
 output for one graph together with the index coordinates needed to locate it within
 a multi-source, multi-collection load.
 
 ```julia
-struct ParsedGraphAsset{NodeT}
+struct GraphAsset{NodeT}
     index                :: Int                      # overall 1-based index across entire load
     source_idx           :: Int                      # 1-based index of source file
     collection_idx       :: Int                      # 1-based index of collection within source
@@ -426,36 +431,36 @@ struct ParsedGraphAsset{NodeT}
 end
 ```
 
-### ParsedGraphStore
+### GraphStore
 
-`ParsedGraphStore{NodeT}` is always returned by `load` — callers cannot assume a source
+`GraphStore{NodeT}` is always returned by `load` — callers cannot assume a source
 contains only one graph. The nesting structure (source → collection → graph) is
 expressed as index coordinates on each record, not as nested containers.
 
 ```julia
-struct ParsedGraphStore{NodeT}
+struct GraphStore{NodeT}
     source_table     :: <Tables.jl compliant>    # one row per source file
     collection_table :: <Tables.jl compliant>    # one row per collection within sources
     graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
-    graphs           :: <lazy iterator of ParsedGraphAsset{NodeT}>
+    graphs           :: <lazy iterator of GraphAsset{NodeT}>
 end
 ```
 
 `source_table` columns: `source_idx`, `source_path`, format-specific file-level
 metadata. `collection_table` columns: `source_idx`, `collection_idx`, `label`,
 `graph_count`, collection-level metadata (e.g. NEXUS TRANSLATE table encoding).
-`graph_table` mirrors the index coordinates and label fields of `ParsedGraphAsset`
+`graph_table` mirrors the index coordinates and label fields of `GraphAsset`
 without the node/edge table payloads.
 
 ### Convenience wrappers
 
 | Function | Behaviour |
 |---|---|
-| `load(src, NodeT)` | `ParsedGraphStore{NodeT}` via dispatch extension |
-| `load(src; builder = fn)` | `ParsedGraphStore{NodeT}` via callback |
-| `load(src)` | `ParsedGraphStore` with node/edge tables only (no builder) |
-| `loadfirst(src, ...)` | First `ParsedGraphAsset`; no error on multiple |
-| `loadone(src, ...)` | Single `ParsedGraphAsset`; errors if count ≠ 1 |
+| `load(src, NodeT)` | `GraphStore{NodeT}` via dispatch extension |
+| `load(src; builder = fn)` | `GraphStore{NodeT}` via callback |
+| `load(src)` | `GraphStore` with node/edge tables only (no builder) |
+| `loadfirst(src, ...)` | First `GraphAsset`; no error on multiple |
+| `loadone(src, ...)` | Single `GraphAsset`; errors if count ≠ 1 |
 | `load([f1, f2], ...)` | Multi-source; `source_idx` distinguishes origins |
 
 ## FileIO contract
@@ -475,8 +480,8 @@ It must support:
 
 The package must provide:
 
-* lazy iterators over multi-graph sources, yielding `ParsedGraphAsset{NodeT}` values
-* `ParsedGraphStore.graphs` as the primary lazy iteration surface
+* lazy iterators over multi-graph sources, yielding `GraphAsset{NodeT}` values
+* `GraphStore.graphs` as the primary lazy iteration surface
 * multi-source loading via `load([f1, f2, ...], ...)`
 
 ## Format support
@@ -571,15 +576,15 @@ Registration itself is out of scope.
 
 The package is successful when:
 
-* `load("file.nwk", MyNode)` returns `ParsedGraphStore{MyNode}` via dispatch extension
-* `load("file.nwk"; builder = fn)` returns `ParsedGraphStore{NodeT}` via callback
-* `load("file.nwk")` returns `ParsedGraphStore` with node/edge tables usable with zero
+* `load("file.nwk", MyNode)` returns `GraphStore{MyNode}` via dispatch extension
+* `load("file.nwk"; builder = fn)` returns `GraphStore{NodeT}` via callback
+* `load("file.nwk")` returns `GraphStore` with node/edge tables usable with zero
   builder code
-* `loadone` and `loadfirst` convenience wrappers return `ParsedGraphAsset` correctly
+* `loadone` and `loadfirst` convenience wrappers return `GraphAsset` correctly
 * multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
 * explicit format override works
-* lazy iteration over `ParsedGraphStore.graphs` is available for all multi-graph sources
-* builder output is type-stable; `ParsedGraphAsset{NodeT}` is fully parameterized
+* lazy iteration over `GraphStore.graphs` is available for all multi-graph sources
+* builder output is type-stable; `GraphAsset{NodeT}` is fully parameterized
 * `node_idx` in `add_child` enables lossless joins between graph structure and
   node/edge tables
 * network graph files with hybrid/reticulate nodes parse correctly through the
