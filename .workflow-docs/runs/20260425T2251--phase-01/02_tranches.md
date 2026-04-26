@@ -560,12 +560,12 @@ callback directly.
 - Resets to 1 at the start of each new graph within a source load.
 - The parser does not assign `node_idx`; the orchestration layer does.
 
-**Node label disambiguation:**
+**Node label passthrough:**
 
-When the parser produces an empty label, or a label that collides with a
-previously assigned label in the current graph, generate `"node_$node_idx"`.
-This string is globally unique within a graph and serves as a stable join key
-to the node table.
+The orchestration layer passes `label` through to `add_child` unchanged.
+Parsers supply `""` for absent labels. No disambiguation is performed in
+the orchestration layer. `node_idx` is the unique identifier; all joins
+use `node_idx`.
 
 **`finalize_graph!` invocation:**
 
@@ -585,8 +585,7 @@ collected node table rows, edge table rows, index coordinates, labels, and the
 - `builder` kwarg takes precedence over extended methods
 - `node_idx` is 1-based and sequential per graph
 - `node_idx` resets to 1 for each new graph in a multi-graph source
-- Empty label → `"node_$node_idx"` generated label
-- Colliding label → `"node_$node_idx"` generated label
+- Empty label → `""` passed through unchanged
 - `finalize_graph!` called after last `add_child`, before `GraphAsset` assembly
 - `GraphAsset` fields correctly populated after assembly
 
@@ -623,9 +622,7 @@ All tests pass. Aqua and JET pass.
 - [ ] Given a second graph in a multi-graph source, when `node_idx` assignment
   begins for that graph, then it restarts at 1.
 - [ ] Given a source node with an empty label, when the orchestration layer
-  processes it, then the resulting node table entry has label `"node_$node_idx"`.
-- [ ] Given a source node whose label collides with an already-assigned label
-  in the same graph, when processed, then it receives label `"node_$node_idx"`.
+  processes it, then the resulting node table entry has label `""`.
 - [ ] Given a complete single-graph parse, when the last `add_child` returns,
   then `finalize_graph!` is called exactly once before `GraphAsset` is assembled.
 - [ ] Given an extension that overrides `finalize_graph!` for `MyHandle`, when
@@ -645,7 +642,7 @@ All tests pass. Aqua and JET pass.
 - User story 8: `:single_parent` format with network-level builder calls vector
   overload with `parents = []` (root) or `parents = [parent]` (others)
 - User story 17: `node_idx` is 1-based sequential integer assigned by library
-- User story 18: empty or colliding labels generate `"node_$node_idx"`
+- User story 18: parser supplies `""` for absent labels; orchestration passes labels through unchanged
 - User story 44: `finalize_graph!` invoked after last `add_child` per graph
 - User story 45: invoked before `GraphAsset` is assembled
 - User story 46: extension overrides dispatched correctly
@@ -744,7 +741,7 @@ Required support:
 - Edge lengths (`:length` after node name or closing parenthesis)
 - Internal node labels (name before `:` or after `)`)
 - Multi-tree files (multiple trees separated by `;`)
-- Empty/absent labels (passed to orchestration layer for disambiguation)
+- Empty/absent labels (parser passes `""` to orchestration layer; label is unchanged)
 - Bootstrap values as internal node annotations (number at internal node
   position, as per `Phylo.jl` convention)
 
@@ -777,8 +774,7 @@ field-level values, not merely that parsing succeeds:
 - Internal labels: internal node labels present in node table rows
 - Multi-tree: correct count of `GraphAsset` values; each tree's node count
   correct
-- Empty labels: generated labels match `"node_$node_idx"` pattern; node table
-  join works on generated labels
+- Empty labels: node table entries have `label == ""`; join works on `node_idx`
 - Bootstrap: `nodedata.bootstrap` contains the correct value at the `add_child`
   call site; value present in node table
 
@@ -809,7 +805,7 @@ All tests pass. Aqua and JET pass.
 - [ ] Given a multi-tree Newick file with 3 trees, when parsed, then exactly 3
   `GraphAsset` values are produced.
 - [ ] Given a node with an empty label, when processed by the orchestration
-  layer, then the node table entry has label `"node_$node_idx"`.
+  layer, then the node table entry has label `""`.
 - [ ] Given a Newick file with bootstrap value `95.0` on an internal node, when
   parsed, then `nodedata.bootstrap === 95.0` at the corresponding `add_child`
   call.

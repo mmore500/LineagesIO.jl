@@ -140,9 +140,9 @@ including error states and edge cases.
     primary key of the node table and the foreign key in the edge table
     (`src_node_idx`, `dst_node_idx`).
 
-18. When a source node has an empty label or a label that collides with an
-    already-created node in the same graph, the library generates
-    `"node_$node_idx"`, which is guaranteed unique within a graph.
+18. When a source node has no label, the parser passes `""` to `add_child`.
+    The orchestration layer passes labels through unchanged. `node_idx` is
+    the unique identifier within a graph.
 
 ### Return types
 
@@ -505,9 +505,12 @@ proceeds.
    `edgedata :: Nothing`. This eliminates any two-phase gamma workaround for
    `PhyloNetworksExt`.
 
-5. **Node label disambiguation**: When a source node has an empty or colliding
-   label, the library generates `"node_$node_idx"`. This string is globally
-   unique within a graph and serves as a stable join key to the node table.
+5. **Node label passthrough**: The orchestration layer passes `label` from the
+   parser to `add_child` unchanged. Parsers supply `""` for absent labels. The
+   orchestration layer performs no disambiguation. Node identity and all
+   programmatic joins use `node_idx`, the primary key of the node table.
+   Extensions that require unique node names (e.g., Phylo, PhyloNetworks) handle
+   name uniqueness internally.
 
 6. **Tables.jl only, no DataFrames.jl**: LineagesIO takes Tables.jl as a
    dependency. DataFrames.jl is not a dependency; users who want a DataFrame
@@ -581,8 +584,8 @@ single-parent protocol. Perform discovery pass. Emit `add_child` in pre-order.
 protocol orchestration layer.
 
 **Tested**: Yes. Parse tests for: simple trees; trees with edge lengths; trees
-with internal node labels; multi-tree files; empty labels (generates
-`"node_$node_idx"`); bootstrap values in node metadata.
+with internal node labels; multi-tree files; empty labels (passed through as
+`""`); bootstrap values in node metadata.
 
 ---
 

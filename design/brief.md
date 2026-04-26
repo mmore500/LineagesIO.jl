@@ -303,9 +303,9 @@ parse. There are no surprises mid-parse.
   during parsing. It is the primary key of the node table and the foreign key used
   in the edge table (`src_node_idx`, `dst_node_idx`). The library assigns it; the
   user stores it on their `NodeT` to enable joins against the tables.
-* `label` is the raw node label from the source file, possibly empty. If the
-  source supplies no label or a non-unique label the library generates
-  `"node_$node_idx"`, which is guaranteed unique within a graph.
+* `label` is the raw node label from the source file, possibly empty. When the
+  source supplies no label, the parser passes `""`. The orchestration layer
+  passes labels through unchanged; `node_idx` is the join key.
 * `edgelength` / `edgelengths` is `nothing` when the source does not supply a
   value for that edge.
 * `edgedata :: RE` (single-parent level) or `edgedata :: AbstractVector{RE}`

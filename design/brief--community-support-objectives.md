@@ -581,18 +581,22 @@ This eliminates the two-phase gamma workaround entirely: `PhyloNetworksExt`
 reads `edgedata[i].gamma` directly in the `add_child` call and sets `e.gamma`
 on each incoming edge in one pass. The stubs above reflect this decision.
 
-### 3. Node label disambiguation
+### 3. Node label passthrough and extension-local uniqueness
 
-**Decision:** When a source node has an empty label or a label that would
-collide with an already-created node, generate `"node_$node_idx"`. Because
-`node_idx` is 1-based and globally unique within a graph, this string is
-guaranteed not to collide with any other generated name. It also serves as a
-stable join key to the LineagesIO node table.
+**Decision:** The orchestration layer passes `label` to `add_child` unchanged.
+Parsers supply `""` for absent source labels. No disambiguation is performed in
+core. `node_idx` is the unique identifier within a graph and the sole join key
+to the LineagesIO node table. Two nodes may carry the same label; they are
+always distinguished by their distinct `node_idx` values.
 
-Applies to both `PhyloNetworksNodeHandle` (sets `Node.name`) and `PhyloNodeRef`
-(used as the Phylo node name string). In both cases `node_idx` is also stored
-in accessible metadata (Phylo node data dict `"node_idx"` key) for round-trip
-disambiguation.
+Extensions that require unique node names handle empty or colliding labels
+internally. `PhyloNetworksNodeHandle` sets `Node.name` using
+`isempty(label) ? "node_$node_idx" : label` — this is extension-local logic,
+not a core guarantee. `PhyloNodeRef` applies the same pattern for Phylo's
+`createnode!`, which uses node names as dictionary keys; collision handling
+within the `RootedTree` is also the extension's responsibility. In both
+extensions `node_idx` is stored in accessible metadata for round-trip joins to
+the LineagesIO node table.
 
 ---
 
