@@ -82,8 +82,8 @@ including error states and edge cases.
 
 ### Builder protocol — callback style
 
-4. A user can pass `builder = (parent, node_idx, label, edgelength, edgedata,
-   nodedata) -> ...` as a keyword argument to `load` and receive a
+4. A user can pass `builder = (parent, node_idx, label, edgelength; edgedata=nothing,
+   nodedata=nothing) -> ...` as a keyword argument to `load` and receive a
    `LineageGraphStore{NodeT}` parameterized on the callback's return type.
 
 5. When both extended methods and a `builder` callback are present, the `builder`
@@ -122,13 +122,13 @@ including error states and edge cases.
 13. The edge row type `EdgeRow` is a fixed `NamedTuple` type established after the
     discovery pass; it is stable for the entire load of a source.
 
-14. `nodedata :: NodeRow` passed to each `add_child` call gives the user typed access to
-    node annotations (e.g., `nodedata.bootstrap`).
+14. The `nodedata` keyword argument passed to each `add_child` call gives the user typed access to
+    node annotations (e.g., `nodedata.bootstrap`); the orchestration always passes a real `NodeRow`
+    value; the `nothing` default is for manual call sites only.
 
-15. `edgedata :: EdgeRow` (single-parent level) or `edgedata :: AbstractVector{EdgeRow}`
-    (network level) passed to each `add_child` call gives the user typed access
-    to edge annotations (e.g., `edgedata[i].gamma` for network-level hybrid
-    edges).
+15. The `edgedata` keyword argument passed to each `add_child` call gives the user typed access
+    to edge annotations (e.g., `edgedata[i].gamma` for network-level hybrid edges,
+    `edgedata.gamma` for single-parent level); the orchestration always passes a real value.
 
 16. The edge table in each `LineageGraphAsset` always contains one row per directed edge,
     with columns `src_node_idx`, `dst_node_idx`, `edgelength`, and any
@@ -373,8 +373,8 @@ Two dispatch levels:
 - **Network level** (general case): handles rooted and unrooted graphs, directed
   and undirected, including reticulate and hybrid nodes with multiple incoming
   edges. Signature: `add_child(parents::AbstractVector{NodeT}, node_idx::Int,
-  label::AbstractString, edgelengths::AbstractVector{Union{EdgeUnitT, Nothing}},
-  edgedata::AbstractVector{EdgeRowT}, nodedata::NodeRow) :: NodeT`.
+  label::AbstractString, edgelengths::AbstractVector{Union{EdgeUnitT, Nothing}};
+  edgedata=nothing, nodedata=nothing) :: NodeT`.
 - **Single-parent level** (restricted case): applies when every node has at most
   one parent. Entry-point overload: `add_child(parent::Nothing, ...) :: NodeT`.
   Non-entry-point overload: `add_child(parent::NodeT, ...) :: NodeT`.
@@ -500,10 +500,10 @@ proceeds.
    override for their node handle type.
 
 4. **Per-edge metadata in `add_child` signatures**: All `add_child` overloads
-   carry `edgedata`. Network level: `edgedata :: AbstractVector{EdgeRow}`. Single-
-   parent non-entry-point: `edgedata :: EdgeRow`. Single-parent entry-point:
-   `edgedata :: Nothing`. This eliminates any two-phase gamma workaround for
-   `PhyloNetworksExt`.
+   carry `edgedata` and `nodedata` as optional keyword arguments (default `nothing`).
+   The orchestration layer always passes real values; the `nothing` default enables
+   simpler user extensions and manual call sites (tests, REPL). This eliminates any
+   two-phase gamma workaround for `PhyloNetworksExt`.
 
 5. **Node label passthrough**: The orchestration layer passes `label` from the
    parser to `add_child` unchanged. Parsers supply `""` for absent labels. The
@@ -542,33 +542,30 @@ function and the `finalize_graph!` hook.
 
 # Network level — general case (baseline)
 function add_child(
-    :: AbstractVector{NodeT},                      # parents
-    :: Int,                                         # node_idx
-    :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
-    :: AbstractVector{EdgeRowT},                          # edgedata
-    :: NodeRowT,                                           # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
+    :: AbstractVector{NodeT},
+    :: Int,                                        # node_idx
+    :: AbstractString,                             # label
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    kwargs...,                                     # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 # Single-parent level — entry-point node
 function add_child(
-    :: Nothing,                      # parent
-    :: Int,                           # node_idx
-    :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: Nothing,                       # edgedata
-    :: NodeRowT,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end
+    :: Nothing,
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 # Single-parent level — subsequent nodes
 function add_child(
-    :: NodeT,                         # parent
-    :: Int,                           # node_idx
-    :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: EdgeRowT,                            # edgedata
-    :: NodeRowT,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
+    :: NodeT,
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 # Post-build finalization hook
 function finalize_graph!(:: NodeT) :: NodeT where {NodeT} end  # no-op default

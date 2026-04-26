@@ -149,38 +149,33 @@ must match the PRD exactly:
 ```julia
 # NodeT     = node handle type; dispatch target for user extensions
 # EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
-# NodeRowT         = row type of node_table, fixed by discovery pass
-# EdgeRowT        = row type of edge_table, fixed by discovery pass
 
 # Network level — general case (baseline)
 function add_child(
-    :: AbstractVector{NodeT},                      # parents
-    :: Int,                                         # node_idx
-    :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
-    :: AbstractVector{EdgeRowT},                          # edgedata
-    :: NodeRowT,                                           # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
+    :: AbstractVector{NodeT},
+    :: Int,                                        # node_idx
+    :: AbstractString,                             # label
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    kwargs...,                                     # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 # Single-parent level — entry-point node
 function add_child(
-    :: Nothing,                      # parent
-    :: Int,                           # node_idx
-    :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: Nothing,                       # edgedata
-    :: NodeRowT,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end
+    :: Nothing,
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 # Single-parent level — subsequent nodes
 function add_child(
-    :: NodeT,                         # parent
-    :: Int,                           # node_idx
-    :: AbstractString,                # label
-    :: Union{EdgeUnitT, Nothing},     # edgelength
-    :: EdgeRowT,                            # edgedata
-    :: NodeRowT,                             # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
+    :: NodeT,
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 ```
 
 Write a complete docstring on `add_child` describing the protocol contract,

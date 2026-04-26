@@ -165,22 +165,24 @@ function LineagesIO.add_child(
     :: Nothing,                           # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing},          # edgelength — no incoming edge for entry-point
-    :: Nothing,                            # edgedata  — no parent edge for entry-point
-    nodedata   :: NodeRowT,
-) where {EdgeUnitT, NodeRowT}
-    return MyNode(node_idx, label, nodedata.bootstrap)   # entry-point node
+    :: Union{EdgeUnitT, Nothing};          # edgelength
+    nodedata   = nothing,
+    kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
+) :: MyNode where {EdgeUnitT}
+    bootstrap = hasproperty(nodedata, :bootstrap) ? nodedata.bootstrap : nothing
+    return MyNode(node_idx, label, bootstrap)
 end
 
 function LineagesIO.add_child(
     parent     :: MyNode,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnitT, Nothing},
-    :: EdgeRowT,                                 # edgedata row — use fields as needed, e.g. edgedata.gamma
-    nodedata   :: NodeRowT,
-) where {EdgeUnitT, NodeRowT, EdgeRowT}
-    return add_node_to_graph!(parent, node_idx, label, edgelength, nodedata.bootstrap)
+    edgelength :: Union{EdgeUnitT, Nothing};
+    nodedata   = nothing,
+    kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
+) :: MyNode where {EdgeUnitT}
+    bootstrap = hasproperty(nodedata, :bootstrap) ? nodedata.bootstrap : nothing
+    return add_node_to_graph!(parent, node_idx, label, edgelength, bootstrap)
 end
 
 # Node type passed as positional argument — no kwarg needed:
@@ -204,7 +206,7 @@ Users pass an `add_child`-compatible function as the `builder` keyword argument 
 always takes precedence over any extended `LineagesIO.add_child` methods in scope.
 
 ```julia
-result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, edgedata, nodedata) -> ...)
+result = load("file.nwk"; builder = (parent, node_idx, label, edgelength; edgedata=nothing, nodedata=nothing) -> ...)
 ```
 
 This style is preferred for ad-hoc or scripting contexts, for cases where a user
@@ -221,16 +223,13 @@ phylogenetic files.
 ```julia
 # NodeT     = node handle type; dispatch target for user extensions
 # EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
-# NodeRowT         = row type of node_table, fixed by discovery pass
-# EdgeRowT        = row type of edge_table, fixed by discovery pass (one row per parent edge)
 function add_child(
-    :: AbstractVector{NodeT},                      # parents
-    :: Int,                                         # node_idx
-    :: AbstractString,                              # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths
-    :: AbstractVector{EdgeRowT},                          # edgedata
-    :: NodeRowT,                                           # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end
+    :: AbstractVector{NodeT},
+    :: Int,                                        # node_idx
+    :: AbstractString,                             # label
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths
+    kwargs...,                                     # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 ```
 
 `parents`, `edgelengths`, and `edgedata` are parallel vectors: `edgelengths[i]`
@@ -245,25 +244,21 @@ reticulate and hybrid nodes with multiple incoming edges.
 ```julia
 # NodeT     = node handle type; dispatch target for user extensions
 # EdgeUnitT = edge length element type (unconstrained; Nothing for absent lengths)
-# NodeRowT         = row type of node_table, fixed by discovery pass
-# EdgeRowT        = row type of edge_table
 function add_child(
-    :: Nothing,                        # parent  — entry-point; no parent edge
-    :: Int,                             # node_idx
-    :: AbstractString,                  # label
-    :: Union{EdgeUnitT, Nothing},       # edgelength — no incoming edge for entry-point
-    :: Nothing,                         # edgedata   — no parent edge for entry-point
-    :: NodeRowT,                               # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT} end  # entry-point; called exactly once per graph
+    :: Nothing,                        # parent — entry-point; called exactly once per graph
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 
 function add_child(
-    :: NodeT,                           # parent
-    :: Int,                             # node_idx
-    :: AbstractString,                  # label
-    :: Union{EdgeUnitT, Nothing},       # edgelength
-    :: EdgeRowT,                              # edgedata — one row for the single parent edge
-    :: NodeRowT,                               # nodedata
-) :: NodeT where {NodeT, EdgeUnitT, NodeRowT, EdgeRowT} end  # subsequent node
+    :: NodeT,                          # parent
+    :: Int,                            # node_idx
+    :: AbstractString,                 # label
+    :: Union{EdgeUnitT, Nothing};      # edgelength
+    kwargs...,                         # edgedata = nothing, nodedata = nothing
+) :: NodeT where {NodeT, EdgeUnitT} end
 ```
 
 `parent = nothing` (with `edgedata = nothing`) signals entry-point node creation.
@@ -312,14 +307,13 @@ parse. There are no surprises mid-parse.
   `"node_$node_idx"`, which is guaranteed unique within a graph.
 * `edgelength` / `edgelengths` is `nothing` when the source does not supply a
   value for that edge.
-* `edgedata :: EdgeRow` (single-parent level) or `edgedata :: AbstractVector{EdgeRow}`
-  (network level) carries the edge table row(s) for the incoming edge(s) to this
-  node. `EdgeRow` is the row type of `edge_table` — a `NamedTuple` type fixed by the
-  discovery pass, parallel to how `NodeRow` is fixed for nodes. Fields include
+* `edgedata` (keyword, default `nothing`) carries the edge table row(s) for the
+  incoming edge(s) to this node. The orchestration always passes a real value: an
+  `EdgeRow` NamedTuple for single-parent non-entry-point nodes, an
+  `AbstractVector{EdgeRow}` for network-level nodes, and `nothing` for entry-point
+  nodes (no incoming edge). `EdgeRow` is fixed by the discovery pass. Fields include
   `edgelength`, format-specific columns (`gamma`, `support`, etc.), all as
-  `Union{T, Nothing}` when optional. For the entry-point node there is no
-  incoming edge; the library passes `edgedata = nothing` (single-parent) or an
-  empty vector (network level).
+  `Union{T, Nothing}` when optional.
 * `nodedata :: NodeRow` is a single row of the node table for this node (see **Metadata
   architecture**). `NodeRow` is the row type of `node_table` — a `NamedTuple` type
   established by the discovery pass before any `add_child` calls are made. Fields

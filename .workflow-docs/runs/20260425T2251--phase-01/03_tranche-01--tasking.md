@@ -150,7 +150,8 @@ Do not provide any default method bodies — this function is implemented by
 users, not the library. The three signatures are: (1) network level with
 `parents :: AbstractVector{NodeT}`, (2) single-parent entry-point with
 `parent :: Nothing`, and (3) single-parent non-entry-point with
-`parent :: NodeT`. Add `add_child` to the module exports. Write a complete
+`parent :: NodeT`. All three take `edgedata = nothing` and `nodedata = nothing`
+as optional keyword arguments (after the `;` separator). Add `add_child` to the module exports. Write a complete
 docstring on the generic function describing the protocol contract, both
 dispatch levels, all parameter semantics, the relationship to `finalize_graph!`,
 and a minimal usage example showing method extension. Per `STYLE-julia.md §1.13`,

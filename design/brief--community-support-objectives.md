@@ -27,9 +27,8 @@ All `add_child` signatures in this document use the full protocol defined in
 `brief.md`, including:
 
 * the `node_idx :: Int` sequential join key
-* the `edgedata` argument (`:: Nothing` / `:: EdgeRow` for single-parent protocol;
-  `:: AbstractVector{EdgeRow}` for network protocol)
-* the `nodedata :: NodeRow` argument built by the discovery pass
+* `edgedata = nothing` and `nodedata = nothing` as optional keyword arguments;
+  the orchestration layer always passes real values at call time
 
 All `LineageGraphStore` and `LineageGraphAsset` return types used here are as
 defined in `brief.md §Return types`. Any change to the primary protocol in
@@ -420,17 +419,15 @@ struct PhyloNetworksNodeHandle
     node :: Node
 end
 
-# Entry-point node creation (parents, edgelengths, edgedata all empty)
-# edgelengths, edgedata, nodedata are anonymous — structurally inapplicable:
-# entry-point has no parent edges; HybridNetwork/Node has no generic metadata dict.
+# Entry-point node creation (parents, edgelengths are empty vectors; edgedata/nodedata not used)
+# HybridNetwork/Node has no generic metadata dict, so nodedata is intentionally ignored.
 function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    :: AbstractVector{Union{EdgeUnitT, Nothing}},  # edgelengths — empty for entry-point
-    :: AbstractVector,                              # edgedata    — empty for entry-point
-    :: NodeRowT,                                           # nodedata    — no metadata store on HybridNetwork/Node
-) where {EdgeUnitT, NodeRowT}
+    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgelengths — empty for entry-point
+    kwargs...,                                     # edgedata, nodedata — not stored on HybridNetwork/Node
+) where {EdgeUnitT}
     @assert isempty(parents)
     net = HybridNetwork()
     root = Node(node_idx, false)
@@ -446,10 +443,10 @@ function LineagesIO.add_child(
     parents     :: AbstractVector{PhyloNetworksNodeHandle},
     node_idx    :: Int,
     label       :: AbstractString,
-    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}},
-    edgedata    :: AbstractVector{EdgeRowT},
-    nodedata    :: NodeRowT,
-) where {EdgeUnitT, NodeRowT, EdgeRowT}
+    edgelengths :: AbstractVector{Union{EdgeUnitT, Nothing}};
+    edgedata    = nothing,
+    nodedata    = nothing,
+) where {EdgeUnitT}
     @assert !isempty(parents)
     net = parents[1].net
     is_hybrid = length(parents) > 1
@@ -457,7 +454,8 @@ function LineagesIO.add_child(
     child.name = isempty(label) ? "node_$node_idx" : label
     pushNode!(net, child)
     bootstrap = hasproperty(nodedata, :bootstrap) ? something(nodedata.bootstrap, -1.0) : -1.0
-    for (par, elen, erow) in zip(parents, edgelengths, edgedata)
+    edgerows = isnothing(edgedata) ? fill(NamedTuple(), length(parents)) : edgedata
+    for (par, elen, erow) in zip(parents, edgelengths, edgerows)
         e = Edge(length(net.edge) + 1, isnothing(elen) ? -1.0 : elen)
         e.y     = bootstrap
         e.gamma = hasproperty(erow, :gamma) ? something(erow.gamma, (is_hybrid ? -1.0 : 1.0)) :
@@ -494,38 +492,38 @@ struct PhyloNodeRef
 end
 
 # Entry-point node creation (parent is nothing, edgedata is nothing)
-# parent and edgelength/edgedata are anonymous — dispatch-only or inapplicable.
+# parent and edgelength are anonymous — dispatch-only or inapplicable.
 function LineagesIO.add_child(
     :: Nothing,                   # parent — dispatch-only; entry-point has no parent
     node_idx   :: Int,
     label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing},  # edgelength — no incoming edge for entry-point
-    :: Nothing,                    # edgedata   — no parent edge for entry-point
-    nodedata   :: NodeRowT,
-) where {EdgeUnitT, NodeRowT}
+    :: Union{EdgeUnitT, Nothing};  # edgelength — no incoming edge for entry-point
+    nodedata   = nothing,
+    kwargs...,                     # absorbs edgedata; no parent edge at entry-point
+) where {EdgeUnitT}
     tree = RootedTree(; name = "tree_$node_idx")
     nodename = isempty(label) ? "node_$node_idx" : label
     # Store node_idx in node data for round-trip join to LineageGraphStore node_table
-    data = Dict{String,Any}(pairs(nodedata))
+    data = Dict{String,Any}(isnothing(nodedata) ? () : pairs(nodedata))
     data["node_idx"] = node_idx
     createnode!(tree, nodename; data = data)
     return PhyloNodeRef(tree, nodename)
 end
 
 # Non-entry-point node creation
-# edgedata is anonymous — RecursiveBranch has no generic per-edge metadata field;
+# edgedata ignored — RecursiveBranch has no generic per-edge metadata field;
 # edge-level annotations from the LineagesIO edge_table are not forwarded in Phase 1.
 function LineagesIO.add_child(
     parent     :: PhyloNodeRef,
     node_idx   :: Int,
     label      :: AbstractString,
-    edgelength :: Union{EdgeUnitT, Nothing},
-    :: EdgeRowT,        # edgedata — Phylo RecursiveBranch has no generic metadata dict
-    nodedata   :: NodeRowT,
-) where {EdgeUnitT, NodeRowT, EdgeRowT}
+    edgelength :: Union{EdgeUnitT, Nothing};
+    nodedata   = nothing,
+    kwargs...,                     # absorbs edgedata; not forwarded in Phase 1
+) where {EdgeUnitT}
     tree = parent.tree
     nodename = isempty(label) ? "node_$node_idx" : label
-    data = Dict{String,Any}(pairs(nodedata))
+    data = Dict{String,Any}(isnothing(nodedata) ? () : pairs(nodedata))
     data["node_idx"] = node_idx
     createnode!(tree, nodename; data = data)
     # Phylo branch length is Union{Float64,Missing}; convert Nothing → missing
@@ -568,14 +566,15 @@ validates lazily). See stubs above.
 
 ### 2. Per-edge metadata at `add_child` call time
 
-**Decision:** Extend all `add_child` signatures with `edgedata` — the complex
-case is the baseline; simpler cases are specialisations of it.
+**Decision:** Carry `edgedata` and `nodedata` as optional keyword arguments on all
+`add_child` overloads — the complex case is the baseline; simpler cases are
+specialisations of it.
 
-The network-level signature receives `edgedata :: AbstractVector{EdgeRow}` parallel
-to `parents`. The single-parent-level signatures receive `edgedata :: EdgeRow` (one
-edge row) for non-entry-point nodes and `edgedata :: Nothing` for the
-entry-point node. `EdgeRow` is the row type of the edge table, built by the
-discovery pass — the same mechanism used for `nodedata :: NodeRow`.
+The orchestration always passes real values: `edgedata` is an `AbstractVector{EdgeRow}`
+(network level), an `EdgeRow` (single-parent non-entry-point), or `nothing`
+(entry-point — no incoming edge). `nodedata` is always a `NodeRow`. The `nothing`
+default enables simpler user extensions and manual call sites without requiring the
+full discovery pass.
 
 This eliminates the two-phase gamma workaround entirely: `PhyloNetworksExt`
 reads `edgedata[i].gamma` directly in the `add_child` call and sets `e.gamma`
