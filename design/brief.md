@@ -158,20 +158,22 @@ to specialize the entire parse on `NodeT` without runtime lookup.
 # User extends LineagesIO.add_child for MyNode:
 function LineagesIO.add_child(
     parent     :: Nothing,
+    node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{Float64, Nothing},
     data       :: D,
 ) where {D}
-    return MyNode(label, edgelength, data.bootstrap)   # root; data carries format metadata
+    return MyNode(node_idx, label, edgelength, data.bootstrap)   # entry-point node
 end
 
 function LineagesIO.add_child(
     parent     :: MyNode,
+    node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{Float64, Nothing},
     data       :: D,
 ) where {D}
-    return add_child_to_tree!(parent, label, edgelength, data.bootstrap)
+    return add_node_to_graph!(parent, node_idx, label, edgelength, data.bootstrap)
 end
 
 # Node type passed as positional argument — no kwarg needed:
@@ -182,9 +184,9 @@ The three calling patterns for `load` are therefore:
 
 | Call | Returns |
 |---|---|
-| `load("file.nwk")` | Tables.jl node table (no builder) |
-| `load("file.nwk", MyNode)` | `MyNode` tree via dispatch extension |
-| `load("file.nwk"; builder = fn)` | builder's `NodeT` via callback |
+| `load("file.nwk")` | `LoadResult` with node/edge tables only (no builder) |
+| `load("file.nwk", MyNode)` | `LoadResult{MyNode}` via dispatch extension |
+| `load("file.nwk"; builder = fn)` | `LoadResult{NodeT}` via callback |
 
 An explicit `builder` kwarg always takes precedence over extended methods.
 
@@ -195,7 +197,7 @@ Users pass an `add_child`-compatible function as the `builder` keyword argument 
 always takes precedence over any extended `LineagesIO.add_child` methods in scope.
 
 ```julia
-result = load("file.nwk"; builder = (parent, label, edgelength, data) -> ...)
+result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, data) -> ...)
 ```
 
 This style is preferred for ad-hoc or scripting contexts, for cases where a user
@@ -207,33 +209,12 @@ disambiguation between several extended methods is impractical.
 The protocol defines two levels, corresponding to the two structural families of
 phylogenetic files.
 
-**Tree level — single-parent case:**
-
-```julia
-add_child(
-    parent     :: Nothing,
-    label      :: AbstractString,
-    edgelength :: Union{EdgeLenT, Nothing},
-    data       :: D,
-) :: NodeT   # root creation; called exactly once per tree
-
-add_child(
-    parent     :: NodeT,
-    label      :: AbstractString,
-    edgelength :: Union{EdgeLenT, Nothing},
-    data       :: D,
-) :: NodeT   # non-root node
-```
-
-`parent = nothing` signals root creation. The returned `NodeT` is the library's
-only handle on the tree; all subsequent calls receive it or a descendant as
-`parent`.
-
-**Network level — multi-parent case:**
+**Network level — general case (baseline):**
 
 ```julia
 add_child(
     parents     :: AbstractVector{NodeT},
+    node_idx    :: Int,
     label       :: AbstractString,
     edgelengths :: AbstractVector{Union{EdgeLenT, Nothing}},
     data        :: D,
@@ -242,41 +223,71 @@ add_child(
 
 `parents` and `edgelengths` are parallel vectors: `edgelengths[i]` is the length
 of the edge from `parents[i]` to the new node. An empty `parents` vector signals
-root creation, consistent with the tree-level protocol. This overload handles
-reticulate and hybrid nodes whose genealogy requires multiple incoming edges.
+entry-point node creation (the traversal origin). This overload is the baseline:
+it handles directed and undirected graphs, rooted and unrooted, including
+reticulate and hybrid nodes with multiple incoming edges.
+
+**Single-parent level — restricted case:**
+
+```julia
+add_child(
+    parent     :: Nothing,
+    node_idx   :: Int,
+    label      :: AbstractString,
+    edgelength :: Union{EdgeLenT, Nothing},
+    data       :: D,
+) :: NodeT   # entry-point node creation; called exactly once per graph
+
+add_child(
+    parent     :: NodeT,
+    node_idx   :: Int,
+    label      :: AbstractString,
+    edgelength :: Union{EdgeLenT, Nothing},
+    data       :: D,
+) :: NodeT   # subsequent node
+```
+
+`parent = nothing` signals entry-point node creation. The returned `NodeT` is the
+library's only handle on the graph; all subsequent calls receive it or a descendant
+as `parent`. This overload applies when every node has at most one parent — the
+restricted case that includes all rooted trees.
 
 ### Protocol determination
 
 The library determines which dispatch level will be used **once, before any
 `add_child` call is made**. Per-call dispatch based on `length(parents)` at call
 time is explicitly rejected: it creates two unacceptable failure modes — a
-tree-protocol user whose methods are bypassed mid-parse when a hybrid node appears,
-and a network-protocol user whose vector overload is never reached when a file
-happens to contain only single-parent nodes.
+single-parent-protocol user whose methods are bypassed mid-parse when a multi-parent
+node appears, and a general-protocol user whose vector overload is never reached
+when a file happens to contain only single-parent nodes.
 
 The determination proceeds in two steps:
 
 **A — Format declaration (primary source).** Every format parser declares the
 structural complexity it can produce. Formats capable of encoding hybrid or
 reticulate nodes (extended Newick, NEXUS network blocks, `format"LineageNetwork"`)
-declare network protocol. Formats that encode only rooted trees (plain Newick,
-`format"LineageGraphML"`) declare tree protocol. This declaration is made before
-parsing begins and is authoritative.
+declare general (network) protocol. Formats that encode only single-parent graphs
+(plain Newick, `format"LineageGraphML"`) declare single-parent protocol. This
+declaration is made before parsing begins and is authoritative.
 
 **B — Builder validation (gate before first call).** Once the format has declared
 its protocol tier, the library validates that the user's builder is compatible
-before starting the parse. If the format declares network protocol and the user's
+before starting the parse. If the format declares general protocol and the user's
 builder does not define the vector-parent overload, the library raises an
-informative error at load time — not mid-parse, not on the first hybrid node
-encountered. If the format declares tree protocol, the library calls only
-tree-level methods even if network-level methods are also defined.
+informative error at load time — not mid-parse, not on the first multi-parent node
+encountered. If the format declares single-parent protocol, the library calls only
+single-parent-level methods even if general-level methods are also defined.
 
 This design guarantees: at the moment `load` begins emitting `add_child` calls,
 the user knows exactly which method signature will be called throughout the entire
-parse. There are no surprises mid-tree.
+parse. There are no surprises mid-parse.
 
 ### Semantics
 
+* `node_idx` is a 1-based sequential integer assigned by the library for each node
+  during parsing. It is the primary key of the node table and the foreign key used
+  in the edge table (`src_node_idx`, `dst_node_idx`). The library assigns it; the
+  user stores it on their `NodeT` to enable joins against the tables.
 * `label` is the raw node label from the source file, possibly empty.
 * `edgelength` / `edgelengths` is `nothing` when the source does not supply a
   value for that edge.
@@ -285,7 +296,7 @@ parse. There are no surprises mid-tree.
   format-supplied and may differ across formats.
 * The returned `NodeT` is passed as `parent` in all subsequent `add_child` calls
   for that node's children. It is the library's only stored handle; the user must
-  retain any subtree reference they need.
+  retain any graph-structure reference they need.
 
 ### Parse order
 
@@ -295,55 +306,131 @@ completes tokenization and builds full internal state before emitting any
 `add_child` calls. At every `add_child` call, all ancestor nodes have already
 been created and their handles are in scope.
 
-### Multi-tree files
+### Multi-graph sources
 
-For formats containing multiple trees (NEXUS, multi-Newick), the full `add_child`
-sequence is invoked once per tree, yielding a separate root handle for each. The
-lazy iteration layer exposes these as an iterator over root handles.
+For formats containing multiple graphs (NEXUS, multi-Newick, tskit `TreeSequence`),
+the full `add_child` sequence is invoked once per graph. The lazy iteration layer
+exposes these as an iterator of `GraphParseResult` values (see **Return types**).
 
 ## Metadata architecture
 
-Format files carry annotation data of varying depth — branch lengths, bootstrap
-support values, gamma (inheritance proportions), NHX key-value pairs, GraphML
-data elements, tskit table columns, and arbitrary free-form comments. The
-package exposes this through a **three-layer** architecture:
+Format files carry annotation data across four structural levels. The package
+exposes all four through a unified hierarchy, designed from the most complex case
+(multi-source network files) down to the restricted cases (single rooted tree).
 
-### Layer 1 — Parametric `data::D` in the builder protocol
+### Level 1 — Node metadata
 
-The `data::D` argument passed to `add_child` is a parametric type defined by
-the format submodule. The user's builder function is parameterized on `D`; the
-format supplies it, the user manages its storage. This layer imposes no
-constraint on metadata storage: the user's type and dispatch determine
-everything.
+The `data :: D` argument passed to `add_child` is a format-specific `NamedTuple`
+carrying metadata for the node being created. `D` is defined by the format
+submodule; the user's method is parameterized on it.
 
-### Layer 2 — Format-specific typed `NamedTuple`
+Each format submodule defines `D` with:
 
-Each format submodule defines a `NamedTuple` type for the promoted, commonly-used
-fields it can supply. The tuple carries:
-
-* Named, typed fields for well-known annotations (e.g. `bootstrap`,
+* Named, typed fields for well-known per-node annotations (e.g. `bootstrap`,
   `gamma`, `comment`, `support`) as `Union{T, Nothing}`
 * A `Dict{Symbol, Any}` overflow field for arbitrary key-value annotations
-  (NHX comments, GraphML data elements) whose key set is not known at
-  compile time
+  (NHX comments, GraphML data elements) whose key set is not known at compile time
 
-The named fields are fully type-stable (the `NamedTuple` field types are fixed
-per format at compile time); the overflow dict provides open extensibility
-without polluting the stable interface.
+The node table (see **Return types**) materializes these per-node fields as columns,
+with `node_idx` as the primary key.
 
-### Layer 3 — Tables.jl-compliant node table
+### Level 2 — Edge metadata
 
-Every `load` call that produces a graph also produces a companion
-**Tables.jl-compliant node table** with one row per node and one column per
-metadata field the format can supply. The return from `load` is therefore a
-named pair: `(graph = <built by builder>, nodes = <Tables.jl table>)`.
+Edge-level metadata is required for network graphs where a node can have multiple
+incoming edges, each with its own length and format-specific properties (e.g. `gamma`
+for hybrid edges). An edge table accompanies every `GraphParseResult`, with one row
+per directed edge:
 
-LineagesIO.jl takes `Tables.jl` as a dependency (it is a lightweight pure-interface
-package). It does **not** depend on `DataFrames.jl`. Users who want a DataFrame
-call `DataFrame(result.nodes)` — one line, no LineagesIO dependency required.
+| Column | Type | Description |
+|---|---|---|
+| `src_node_idx` | `Int` | parent node index (traversal-order predecessor for unrooted graphs) |
+| `dst_node_idx` | `Int` | child node index |
+| `edgelength` | `Union{Float64, Nothing}` | edge weight/length |
+| format-specific columns | — | e.g. `gamma` for hybrid edge inheritance proportions |
 
-The node table is the materialization target for users who want flat, tabular
-access to metadata without writing a builder.
+For graphs with a single parent per node, `edgelength` is redundantly available as
+a column on the node table — but the edge table is always present regardless of
+graph type.
+
+### Level 3 — Graph-level metadata
+
+Metadata about a single graph as a unit: name/identifier (e.g. NEXUS `tree PAUP_1`),
+weight or posterior probability in a sample, rooting declaration, graph-level
+comments. This is carried in the `graph_label` and related fields of
+`GraphParseResult` (see **Return types**).
+
+### Level 4 — Collection-level and file-level metadata
+
+Metadata shared across multiple graphs within a collection (e.g. NEXUS TRANSLATE
+block, MCMC sample size, burnin count) or across a whole source file (provenance,
+format version, source program). For `format"TskitTrees"`, the file level carries
+the entire population, individual, site, and migration tables from the tskit
+`TreeSequence` model.
+
+These are carried in the `collection_table` and `source_table` of `LoadResult`
+(see **Return types**).
+
+LineagesIO.jl takes `Tables.jl` as a dependency (lightweight pure-interface package).
+It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
+`DataFrame(result.graphs[1].node_table)` — one line, no LineagesIO dependency required.
+
+## Return types
+
+### GraphParseResult
+
+`GraphParseResult{NodeT}` is the single-graph result struct yielded by the lazy
+graph iterator and collected in `LoadResult.graphs`. It carries the complete parse
+output for one graph together with the index coordinates needed to locate it within
+a multi-source, multi-collection load.
+
+```julia
+struct GraphParseResult{NodeT}
+    index                :: Int                      # overall 1-based index across entire load
+    source_idx           :: Int                      # 1-based index of source file
+    collection_idx       :: Int                      # 1-based index of collection within source
+    collection_graph_idx :: Int                      # 1-based index of graph within collection
+    collection_label     :: Union{String, Nothing}   # e.g. NEXUS tree block name
+    graph_label          :: Union{String, Nothing}   # e.g. NEXUS individual graph name
+    node_table           :: <Tables.jl compliant>    # one row per node; node_idx as primary key
+    edge_table           :: <Tables.jl compliant>    # one row per edge; src_node_idx, dst_node_idx
+    graph_rootnode       :: NodeT                    # entry-point handle returned by add_child([],...);
+                                                     # semantic root for directed rooted graphs,
+                                                     # traversal origin for unrooted graphs
+    source_path          :: Union{String, Nothing}
+end
+```
+
+### LoadResult
+
+`LoadResult{NodeT}` is always returned by `load` — callers cannot assume a source
+contains only one graph. The nesting structure (source → collection → graph) is
+expressed as index coordinates on each record, not as nested containers.
+
+```julia
+struct LoadResult{NodeT}
+    source_table     :: <Tables.jl compliant>    # one row per source file
+    collection_table :: <Tables.jl compliant>    # one row per collection within sources
+    graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
+    graphs           :: <lazy iterator of GraphParseResult{NodeT}>
+end
+```
+
+`source_table` columns: `source_idx`, `source_path`, format-specific file-level
+metadata. `collection_table` columns: `source_idx`, `collection_idx`, `label`,
+`graph_count`, collection-level metadata (e.g. NEXUS TRANSLATE table encoding).
+`graph_table` mirrors the index coordinates and label fields of `GraphParseResult`
+without the node/edge table payloads.
+
+### Convenience wrappers
+
+| Function | Behaviour |
+|---|---|
+| `load(src, NodeT)` | `LoadResult{NodeT}` via dispatch extension |
+| `load(src; builder = fn)` | `LoadResult{NodeT}` via callback |
+| `load(src)` | `LoadResult` with node/edge tables only (no builder) |
+| `loadfirst(src, ...)` | First `GraphParseResult`; no error on multiple |
+| `loadone(src, ...)` | Single `GraphParseResult`; errors if count ≠ 1 |
+| `load([f1, f2], ...)` | Multi-source; `source_idx` distinguishes origins |
 
 ## FileIO contract
 
@@ -362,8 +449,9 @@ It must support:
 
 The package must provide:
 
-* lazy iterators over lineage graph collections (multi-tree files)
-* parameterized views over parsed content
+* lazy iterators over multi-graph sources, yielding `GraphParseResult{NodeT}` values
+* `LoadResult.graphs` as the primary lazy iteration surface
+* multi-source loading via `load([f1, f2, ...], ...)`
 
 ## Format support
 
@@ -457,18 +545,19 @@ Registration itself is out of scope.
 
 The package is successful when:
 
-* `load("file.nwk", MyNode)` works via FileIO and returns the user's graph type
-  via dispatch extension
-* `load("file.nwk"; builder = my_builder)` works via FileIO and returns the
-  user's graph type via callback
-* `load("file.nwk")` returns a Tables.jl-compliant node table usable with zero
+* `load("file.nwk", MyNode)` returns `LoadResult{MyNode}` via dispatch extension
+* `load("file.nwk"; builder = fn)` returns `LoadResult{NodeT}` via callback
+* `load("file.nwk")` returns `LoadResult` with node/edge tables usable with zero
   builder code
+* `loadone` and `loadfirst` convenience wrappers return `GraphParseResult` correctly
+* multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
 * explicit format override works
-* lazy iteration is available for multi-tree files
-* builder output is type-stable
-* user-supplied builders integrate cleanly for Newick and LineageGraphML
-* hybrid/reticulate node files round-trip correctly through the multi-parent
-  builder protocol
+* lazy iteration over `LoadResult.graphs` is available for all multi-graph sources
+* builder output is type-stable; `GraphParseResult{NodeT}` is fully parameterized
+* `node_idx` in `add_child` enables lossless joins between graph structure and
+  node/edge tables
+* network graph files with hybrid/reticulate nodes parse correctly through the
+  general `add_child(parents::AbstractVector{NodeT}, ...)` protocol
 * loaded graphs are immediately consumable by LineagesMakie via its accessor
   protocol without additional transformation
 
