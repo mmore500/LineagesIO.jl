@@ -155,9 +155,6 @@ When this work is complete:
   Tables.jl interface contracts.
 - **External breaking changes:** Not applicable — this is a v2 redesign of a
   package not yet in public use.
-- **Required migration / compatibility obligations:** None — v1 brief is
-  superseded. The old brief is archived at
-  `.workflow-docs/logs/log.20260424--superceded-brief.md`.
 - **Non-negotiable protections:** The package must remain a valid FileIO
   backend. It must not define any concrete domain graph type. It must not
   claim ownership of generic GraphML. It must be type-stable throughout.
@@ -618,8 +615,6 @@ This PRD synthesizes:
   PhyloNetworks.jl and Phylo.jl; extension architecture; resolved design
   decisions (edgedata, finalize_graph!, label disambiguation).
 - `STYLE-vocabulary.md` — controlled terminology (ratified 2026-04-24).
-- The superseded v1 brief archived at
-  `.workflow-docs/logs/log.20260424--superceded-brief.md`.
 
 All downstream tranche documents must cite `design/brief.md` and
 `design/brief--community-support-objectives.md` as primary design references
