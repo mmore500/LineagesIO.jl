@@ -400,33 +400,114 @@ struct PhyloNetworksNodeHandle
     node :: Node
 end
 
-# Root creation
+# Entry-point node creation (parents is empty)
+# edgelengths and nodedata are anonymous (::) — structurally inapplicable to the
+# entry-point node: no parent edges exist, and HybridNetwork/Node has no generic
+# metadata dict. nodedata fields (e.g. bootstrap) are stored on incoming Edge.y
+# in the non-entry-point overload below.
 function LineagesIO.add_child(
-    parents  :: AbstractVector{PhyloNetworksNodeHandle},
-    _        :: Int,             # node_idx
-    label    :: AbstractString,
-    _        :: AbstractVector,  # edgelengths
-    _        :: R,               # nodedata
+    parents     :: AbstractVector{PhyloNetworksNodeHandle},
+    node_idx    :: Int,
+    label       :: AbstractString,
+    :: AbstractVector,    # edgelengths — empty for entry-point; no parent edges
+    :: R,                 # nodedata — no metadata store on root Node; see below
 ) where {R}
     @assert isempty(parents)
     net = HybridNetwork()
-    root = Node(-1, false)
-    root.name = label
+    root = Node(node_idx, false)
+    root.name = isempty(label) ? "node_$node_idx" : label
     pushNode!(net, root)
     net.rooti = 1
     return PhyloNetworksNodeHandle(net, root)
 end
 
-# Non-root node (stub — full implementation uses all args)
+# Non-entry-point node. For hybrid nodes (length(parents) > 1): one Edge per parent.
+# Gamma values are assigned post-build from GraphParseResult.edge_table (two-phase).
 function LineagesIO.add_child(
-    _ :: AbstractVector{PhyloNetworksNodeHandle},
-    _ :: Int,
-    _ :: AbstractString,
-    _ :: AbstractVector,
-    _ :: R,
+    parents     :: AbstractVector{PhyloNetworksNodeHandle},
+    node_idx    :: Int,
+    label       :: AbstractString,
+    edgelengths :: AbstractVector,
+    nodedata    :: R,
 ) where {R}
-    # ... create Node + Edges, push into parents[1].net (or all parents for hybrid)
+    @assert !isempty(parents)
+    net = parents[1].net
+    is_hybrid = length(parents) > 1
+    child = Node(node_idx, is_hybrid)
+    child.name = isempty(label) ? "node_$node_idx" : label
+    pushNode!(net, child)
+    bootstrap = hasproperty(nodedata, :bootstrap) ? something(nodedata.bootstrap, -1.0) : -1.0
+    for (par, elen) in zip(parents, edgelengths)
+        e = Edge(length(net.edge) + 1, isnothing(elen) ? -1.0 : elen)
+        e.y = bootstrap    # bootstrap support stored on incoming Edge.y
+        e.hybrid = is_hybrid
+        pushEdge!(net, e)
+        setNode!(e, [par.node, child])
+        setEdge!(par.node, e)
+        setEdge!(child, e)
+    end
+    return PhyloNetworksNodeHandle(net, child)
 end
+
+function LineagesIO.finalize_graph!(handle :: PhyloNetworksNodeHandle)
+    storeHybrids!(handle.net)
+    checkNumHybEdges!(handle.net)
+    directedges!(handle.net)
+    return handle
+end
+
+end # module
+```
+
+```julia
+# ext/PhyloExt.jl
+module PhyloExt
+
+using LineagesIO
+using Phylo: RootedTree, createnode!, createbranch!
+
+struct PhyloNodeRef
+    tree     :: RootedTree
+    nodename :: String
+end
+
+# Entry-point node creation (parent is nothing)
+# parent and edgelength are anonymous (::) — dispatch-only and structurally
+# inapplicable: the entry-point node has no parent and no incoming edge.
+function LineagesIO.add_child(
+    :: Nothing,                   # parent — dispatch-only; entry-point has no parent
+    node_idx   :: Int,
+    label      :: AbstractString,
+    :: Union{Float64, Nothing},   # edgelength — no incoming edge for entry-point node
+    nodedata   :: R,
+) where {R}
+    tree = RootedTree(; name = "tree_$node_idx")
+    nodename = isempty(label) ? "node_$node_idx" : label
+    createnode!(tree, nodename; data = Dict{String,Any}(pairs(nodedata)))
+    return PhyloNodeRef(tree, nodename)
+end
+
+# Non-entry-point node creation
+function LineagesIO.add_child(
+    parent     :: PhyloNodeRef,
+    node_idx   :: Int,
+    label      :: AbstractString,
+    edgelength :: Union{Float64, Nothing},
+    nodedata   :: R,
+) where {R}
+    tree = parent.tree
+    nodename = isempty(label) ? "node_$node_idx" : label
+    # Store node_idx in node data so callers can join to LineagesIO node_table
+    data = Dict{String,Any}(pairs(nodedata))
+    data["node_idx"] = node_idx
+    createnode!(tree, nodename; data = data)
+    # Phylo branch length is Union{Float64,Missing}; convert Nothing → missing
+    phylo_len = isnothing(edgelength) ? missing : edgelength
+    createbranch!(tree, parent.nodename, nodename, phylo_len)
+    return PhyloNodeRef(tree, nodename)
+end
+
+# No finalize_graph! override needed — Phylo validates lazily
 
 end # module
 ```
