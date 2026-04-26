@@ -161,9 +161,9 @@ function LineagesIO.add_child(
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{Float64, Nothing},
-    data       :: D,
-) where {D}
-    return MyNode(node_idx, label, edgelength, data.bootstrap)   # entry-point node
+    nodedata   :: R,
+) where {R}
+    return MyNode(node_idx, label, edgelength, nodedata.bootstrap)   # entry-point node
 end
 
 function LineagesIO.add_child(
@@ -171,9 +171,9 @@ function LineagesIO.add_child(
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{Float64, Nothing},
-    data       :: D,
-) where {D}
-    return add_node_to_graph!(parent, node_idx, label, edgelength, data.bootstrap)
+    nodedata   :: R,
+) where {R}
+    return add_node_to_graph!(parent, node_idx, label, edgelength, nodedata.bootstrap)
 end
 
 # Node type passed as positional argument — no kwarg needed:
@@ -197,7 +197,7 @@ Users pass an `add_child`-compatible function as the `builder` keyword argument 
 always takes precedence over any extended `LineagesIO.add_child` methods in scope.
 
 ```julia
-result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, data) -> ...)
+result = load("file.nwk"; builder = (parent, node_idx, label, edgelength, nodedata) -> ...)
 ```
 
 This style is preferred for ad-hoc or scripting contexts, for cases where a user
@@ -212,12 +212,13 @@ phylogenetic files.
 **Network level — general case (baseline):**
 
 ```julia
+# R = row type of node_table, fixed by discovery pass; parameterize with where {R}
 add_child(
     parents     :: AbstractVector{NodeT},
     node_idx    :: Int,
     label       :: AbstractString,
     edgelengths :: AbstractVector{Union{EdgeLenT, Nothing}},
-    data        :: D,
+    nodedata    :: R,
 ) :: NodeT
 ```
 
@@ -230,12 +231,13 @@ reticulate and hybrid nodes with multiple incoming edges.
 **Single-parent level — restricted case:**
 
 ```julia
+# R = row type of node_table, fixed by discovery pass; parameterize with where {R}
 add_child(
     parent     :: Nothing,
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
-    data       :: D,
+    nodedata   :: R,
 ) :: NodeT   # entry-point node creation; called exactly once per graph
 
 add_child(
@@ -243,7 +245,7 @@ add_child(
     node_idx   :: Int,
     label      :: AbstractString,
     edgelength :: Union{EdgeLenT, Nothing},
-    data       :: D,
+    nodedata   :: R,
 ) :: NodeT   # subsequent node
 ```
 
@@ -291,9 +293,10 @@ parse. There are no surprises mid-parse.
 * `label` is the raw node label from the source file, possibly empty.
 * `edgelength` / `edgelengths` is `nothing` when the source does not supply a
   value for that edge.
-* `data :: D` is the format-specific metadata `NamedTuple` (see **Metadata
-  architecture**). The user's method is parameterized on `D`; `D` is
-  format-supplied and may differ across formats.
+* `nodedata :: R` is a single row of the node table for this node (see **Metadata
+  architecture**). `R` is the row type of `node_table` — a `NamedTuple` type
+  established by the discovery pass before any `add_child` calls are made. Fields
+  are the promoted table column names; optional fields are `Union{T, Nothing}`.
 * The returned `NodeT` is passed as `parent` in all subsequent `add_child` calls
   for that node's children. It is the library's only stored handle; the user must
   retain any graph-structure reference they need.
@@ -316,30 +319,36 @@ exposes these as an iterator of `GraphParseResult` values (see **Return types**)
 
 Format files carry annotation data across four structural levels. The package
 exposes all four through a unified hierarchy, designed from the most complex case
-(multi-source network files) down to the restricted cases (single rooted tree).
+(multi-source network files) down to the restricted cases (single rooted graph).
+
+All metadata is fully promoted: every annotation key present in a source file
+becomes a proper typed column. There are no overflow dictionaries anywhere in
+the design.
 
 ### Level 1 — Node metadata
 
-The `data :: D` argument passed to `add_child` is a format-specific `NamedTuple`
-carrying metadata for the node being created. `D` is defined by the format
-submodule; the user's method is parameterized on it.
+Before any `add_child` calls the parser performs a **discovery pass** over the
+full source, collecting every annotation key name present across all nodes.
+Every discovered key is promoted to a typed column. Column types are inferred
+from the values seen during the discovery pass (or from format-specific rules for
+well-known keys). For keys absent on some nodes the column type is
+`Union{T, Nothing}` and those rows carry `nothing`.
 
-Each format submodule defines `D` with:
+The row type `R` — a fixed `NamedTuple` type — is constructed from this schema
+after the discovery pass completes. It is stable for the entire load of a source.
 
-* Named, typed fields for well-known per-node annotations (e.g. `bootstrap`,
-  `gamma`, `comment`, `support`) as `Union{T, Nothing}`
-* A `Dict{Symbol, Any}` overflow field for arbitrary key-value annotations
-  (NHX comments, GraphML data elements) whose key set is not known at compile time
-
-The node table (see **Return types**) materializes these per-node fields as columns,
-with `node_idx` as the primary key.
+`nodedata :: R` is passed as the final argument to every `add_child` call. It is
+a single row of `node_table` for the node being created. The user accesses fields
+as `nodedata.bootstrap`, `nodedata.gamma`, etc. Field names are the promoted table
+column names, discovered from the file — not hardcoded from format-specific type
+definitions. Format submodules do not define a bespoke `D` type; the row schema
+is produced by the parser from the source.
 
 ### Level 2 — Edge metadata
 
-Edge-level metadata is required for network graphs where a node can have multiple
-incoming edges, each with its own length and format-specific properties (e.g. `gamma`
-for hybrid edges). An edge table accompanies every `GraphParseResult`, with one row
-per directed edge:
+Edge annotation keys are discovered in the same discovery pass and promoted to
+typed columns in the edge table. The edge table accompanies every `GraphParseResult`,
+with one row per directed edge:
 
 | Column | Type | Description |
 |---|---|---|
@@ -348,16 +357,15 @@ per directed edge:
 | `edgelength` | `Union{Float64, Nothing}` | edge weight/length |
 | format-specific columns | — | e.g. `gamma` for hybrid edge inheritance proportions |
 
-For graphs with a single parent per node, `edgelength` is redundantly available as
-a column on the node table — but the edge table is always present regardless of
-graph type.
+The edge table is always present regardless of graph type. For single-parent
+graphs it contains one row per node (excluding the entry-point node).
 
 ### Level 3 — Graph-level metadata
 
 Metadata about a single graph as a unit: name/identifier (e.g. NEXUS `tree PAUP_1`),
 weight or posterior probability in a sample, rooting declaration, graph-level
-comments. This is carried in the `graph_label` and related fields of
-`GraphParseResult` (see **Return types**).
+comments. Carried in the `graph_label` and related fields of `GraphParseResult`
+(see **Return types**).
 
 ### Level 4 — Collection-level and file-level metadata
 
@@ -367,7 +375,7 @@ format version, source program). For `format"TskitTrees"`, the file level carrie
 the entire population, individual, site, and migration tables from the tskit
 `TreeSequence` model.
 
-These are carried in the `collection_table` and `source_table` of `LoadResult`
+Carried in the `collection_table` and `source_table` of `LoadResult`
 (see **Return types**).
 
 LineagesIO.jl takes `Tables.jl` as a dependency (lightweight pure-interface package).
