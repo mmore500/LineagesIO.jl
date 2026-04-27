@@ -105,9 +105,14 @@ Tranche 2 is complete and merged. Confirmed current state:
 Tranche 3 establishes the core owner for:
 
 - the extension module `MetaGraphsNextIO` under `ext/MetaGraphsNextIO.jl`
-- an extension-owned handle wrapper type that carries the `MetaGraph`, the
-  current node's label (as `StructureKeyType`), and any extension-local
-  lookup structures needed for directed construction
+- an extension-owned non-integer label wrapper type (provisionally `LineageNodeID`,
+  exact ratified name to be confirmed before export) that wraps a
+  `StructureKeyType` value without being an integer, satisfying MetaGraphsNext's
+  hard requirement that the `Label` type parameter not be an integer type
+- an extension-owned handle wrapper type that carries the `MetaGraph` (typed
+  with the non-integer label wrapper as its `Label` parameter), the current
+  node's label value (a `LineageNodeID` wrapping its `nodekey`), and any
+  extension-local lookup structures needed for directed construction
 - `add_child` methods for library-created-root and single-parent construction
   into MetaGraphsNext
 - `bind_rootnode!` methods for supplied-root construction into MetaGraphsNext
@@ -242,10 +247,13 @@ End green with `julia --project=test test/runtests.jl`.
 ### 3. Design and implement the extension-owned handle wrapper type
 
 **Type**: WRITE
-**Output**: an extension-owned handle wrapper type exists in `ext/MetaGraphsNextIO.jl`;
-its fields are concrete; it carries the `MetaGraph`, the current node's
-`StructureKeyType` label, and any extension-local state needed for child lookup
-and edge insertion during directed construction
+**Output**: an extension-owned non-integer label wrapper type (e.g. `LineageNodeID`)
+is defined in `ext/MetaGraphsNextIO.jl` and wraps a `StructureKeyType` value
+without being an integer; an extension-owned handle wrapper type also exists in
+`ext/MetaGraphsNextIO.jl`; all fields are concrete; the handle carries the
+`MetaGraph` (parameterized with the non-integer label type), the current node's
+label value, and any extension-local state needed for child lookup and edge
+insertion during directed construction
 **Depends on**: 2
 
 Read `MetaGraphsNext.jl/src/metagraph.jl` and `MetaGraphsNext.jl/test/tutorial/1_basics.jl`
@@ -255,16 +263,38 @@ source:
 
 - each vertex is added with a user-supplied label; the label is the stable
   identity across the lifetime of incremental construction
-- the note that integer labels are "generally discouraged" because they conflict
-  with vertex codes applies here — read the upstream note carefully and decide
-  whether using `StructureKeyType` (which is `Int`) as the MetaGraph label is
-  safe for incremental directed construction where no vertex is deleted
+- the upstream note that integer label types are discouraged because they
+  conflict with vertex codes is a hard constraint, not a preference to weigh.
+  `StructureKeyType` is `Int`, the same underlying type as the vertex `Code`.
+  Using it as the MetaGraph `Label` parameter would conflate the stable
+  user-supplied label identity with the mutable internal vertex code — exactly
+  the confusion MetaGraphsNext's design exists to prevent. The extension must
+  define a thin non-integer wrapper type so that `Label` and `Code` remain
+  distinct types.
 
-The wrapper type must carry at minimum:
+Define a non-integer label wrapper type. The provisional name is `LineageNodeID`;
+confirm the exact ratified name with the project owner before any export. A
+minimal definition:
 
-- the `MetaGraph{Int, SimpleDiGraph{Int}, StructureKeyType, ...}` being
-  constructed (or a reference to a shared graph object)
-- the `StructureKeyType` label for the current node (its `nodekey`)
+```julia
+struct LineageNodeID
+    nodekey::LineagesIO.StructureKeyType
+end
+```
+
+This type is not an integer. It wraps the unique `nodekey` and serves as the
+stable vertex label. The concrete `MetaGraph` type parameter becomes
+`MetaGraph{Int, SimpleDiGraph{Int}, LineageNodeID, ...}` where `Int` is the
+vertex CODE type and `LineageNodeID` is the LABEL type. These are distinct, as
+MetaGraphsNext requires. Vertex labels are set with `LineageNodeID(nodekey)`;
+they never change once added. Vertex codes (assigned by `Graphs.add_vertex!`)
+are distinct integers managed internally.
+
+The handle wrapper type must carry at minimum:
+
+- the `MetaGraph{Int, SimpleDiGraph{Int}, LineageNodeID, ...}` being
+  constructed (or a reference to a shared mutable graph object)
+- the `LineageNodeID` label for the current node (wrapping its `nodekey`)
 - any additional extension-local state needed to look up parent handles by
   `nodekey` during `add_child` calls
 
@@ -286,8 +316,8 @@ lands). End green with `julia --project=test test/runtests.jl`.
 **Output**: `add_child` methods for the extension wrapper type handle both
 root creation (parent is `Nothing`) and single-parent descendant construction
 (parent is the extension wrapper); the `MetaGraph` is incrementally constructed
-by each `add_child` call; the returned wrapper carries the new node's `nodekey`
-as its label
+by each `add_child` call; the returned wrapper carries the new node's `LineageNodeID` label
+(wrapping its `nodekey`)
 **Depends on**: 3
 
 Read `MetaGraphsNext.jl/src/graphs.jl` in full before implementing. The
@@ -305,17 +335,21 @@ from the MetaGraphsNext source).
 
 For the root-creation `add_child` call (parent `Nothing`):
 - create a new empty `MetaGraph` with `SimpleDiGraph{Int}` as the underlying
-  graph, with `StructureKeyType` as the label type
-- add the root vertex with `nodekey` as its label
-- return a wrapper holding this `MetaGraph` and the root's `nodekey`
+  graph, with the non-integer label wrapper type (e.g. `LineageNodeID`) as the
+  `Label` type parameter — never `StructureKeyType` (`Int`), which would
+  conflict with the vertex `Code` type
+- add the root vertex with `LineageNodeID(nodekey)` as its label
+- return a wrapper holding this `MetaGraph` and the root's `LineageNodeID` label
 
 For single-parent descendant construction:
-- add the child vertex with `nodekey` as its label to the existing `MetaGraph`
-  in the parent wrapper
-- add the directed edge from `src_nodekey` to `dst_nodekey`
+- add the child vertex with `LineageNodeID(nodekey)` as its label to the
+  existing `MetaGraph` in the parent wrapper
+- add the directed edge from `LineageNodeID(src_nodekey)` to
+  `LineageNodeID(dst_nodekey)`
 - store `edgeweight` using the `weight_function` or edge data, as verified
   from upstream
-- return a new wrapper holding the same shared `MetaGraph` and the child's `nodekey`
+- return a new wrapper holding the same shared `MetaGraph` and the child's
+  `LineageNodeID` label
 
 The parent wrapper's `MetaGraph` must be shared (not copied) across all
 `add_child` calls for one graph so that the final `MetaGraph` is built
@@ -485,7 +519,8 @@ annotations are not yet supported), verify at the field level:
   name)
 - the `MetaGraph` constructed during load has the correct number of vertices and
   edges
-- vertex labels match the expected `nodekey` values
+- vertex labels are `LineageNodeID` (or the ratified wrapper type) instances
+  wrapping the expected `nodekey` values — not bare `StructureKeyType` integers
 - directed edges from `src_nodekey` to `dst_nodekey` exist in the `MetaGraph`
 - `edgeweight` values are stored correctly (verify from `MetaGraph` edge data
   or weight function, as implemented in task 4)
