@@ -1,61 +1,147 @@
 ---
-date-created: 2026-04-25T00:00:00
-version: 2.0
-supersedes: .workflow-docs/logs/log.20260424--superceded-brief.md
+date-created: 2026-04-26T00:00:00
+status: authoritative
 ---
 
-# LineagesIO.jl — Design Brief v2.0
+# LineagesIO.jl — Core design brief
+
+## Authority
+
+This document is the primary design authority for the core architecture,
+public contracts, ownership boundaries, terminology, and verification
+expectations of LineagesIO.jl.
+
+All downstream planning documents, tranche files, tasking files, audit scopes,
+review instructions, implementation work, and extension work must conform to
+this document.
+
+If any companion or downstream document conflicts with this document, this
+document governs the core package design. Companion and downstream documents
+must be revised to match it.
+
+`design/brief--community-support-objectives.md` remains a mandatory companion
+document for extension architecture, upstream parse-stack reference, and target
+ecosystem support. It must be read alongside this document. It does not relax,
+replace, or override any core contract stated here.
+
+## Governance and policy transmission mandates
+
+All implementers, reviewers, tranche authors, downstream agents, and community
+contributors must read the following governance documents line by line before
+planning, implementing, reviewing, delegating, or ratifying any work derived
+from this brief.
+
+| Document | Relevance |
+|---|---|
+| `STYLE-architecture.md` | Ownership boundaries; anti-fix prohibition; green-state discipline |
+| `STYLE-docs.md` | Documentation formatting standards |
+| `STYLE-git.md` | Commit style and branching model |
+| `STYLE-julia.md` | Functional design; naming; type annotations; mutation contract; struct field concreteness; codebase curation |
+| `STYLE-makie.md` | Makie integration contracts; LineagesMakie interoperability constraints |
+| `STYLE-upstream-contracts.md` | Host-framework contract reading; divergence authorization; primary-source verification |
+| `STYLE-verification.md` | Verification artifact standards; weak-proxy prohibition; field-level verification |
+| `STYLE-vocabulary.md` | Controlled terminology; proscribed terms; compound-word rules; canonical identifier table |
+| `STYLE-workflow-docs.md` | Workflow document structure; revalidation rule; pass-forward obligations |
+| `STYLE-writing.md` | Prose style for documentation |
+| `CONTRIBUTING.md` | Contribution process and expectations |
+
+This obligation must be passed forward explicitly into every downstream
+artifact. It is not sufficient to link a parent document and assume the next
+reader will infer the mandates.
+
+Passing these mandates forward means:
+
+- naming the required governance documents explicitly
+- restating the applicable terminology constraints explicitly
+- naming the required upstream primary sources explicitly
+- restating the ownership boundary and authorization boundary explicitly
+- restating the verification gates explicitly
+
+No downstream plan, tranche, task, review scope, or delegated work description
+is valid if it silently drops these obligations.
+
+Community compliance is mandatory. This document is not only an internal design
+note for one implementation pass. It is the anchor text for repeated
+contributor and agent cycles. Downstream work must continue to cite it and
+continue to propagate its mandates.
+
+## Upstream primary sources
+
+The following upstream primary sources materially constrain the design of the
+package and must be read line by line before implementing the relevant parts of
+the system.
+
+Available at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/`:
+
+| Source | Relevance |
+|---|---|
+| `fileio.jl/` | FileIO backend contract; `DataFormat`; `File` and `Stream`; `add_format`; private `load` and `save`; dispatch and detection semantics |
+| `NewickTree.jl/` | Julia Newick parsing reference |
+| `DendroPy/` | Builder-oriented parsing architecture reference |
+| `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target |
+| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes; extension target |
+| `AbstractTrees.jl/` | Traversal traits and iteration interface; LineagesMakie interoperability |
+| `Phylogenies.jl/` | Minimal Julia ecosystem context |
+| `tskit` | Mandatory context for future genealogical-table formats |
+| `../../LineagesMakie.jl/` | Local companion package; accessor protocol that loaded graphs must fit once the user supplies the required accessors |
+
+When upstream behavior matters, verified source text governs. Memory,
+secondary summaries, and plausible recollection do not.
 
 ## Purpose
 
-This Julia package provides FileIO-compatible loading and saving of phylogenetic
-graph (tree or network) data together with package-native lazy readers, behaving
-as a proper FileIO backend for a range of phylogenetic graph data formats.
+LineagesIO.jl provides FileIO-compatible loading and saving of phylogenetic
+graph data together with package-native lazy access to graph collections.
 
-It serves as:
+It serves three roles:
 
-* a **FileIO backend** for lineage graph formats
-* a **format parsing and detection layer**
-* an **orchestration layer** that maps parsed data into user-specified or default
-  representations via a principled builder protocol
+- a FileIO backend for lineage graph formats
+- a parsing and format-detection layer
+- an orchestration layer that maps parsed structure into user-specified graph
+  or node representations through a principled builder protocol
+
+The package does not define the user's graph model. It defines how parsed
+structure and format-owned payload are presented to user code.
 
 ## Design objectives
 
-The package must satisfy the following goals:
+The package must satisfy all of the following objectives.
 
 It must provide idiomatic FileIO integration for supported phylogenetic formats
-through `load`, `save`, explicit `File{format"..."}(...)`, and stream-based entry
-points.
+through `load`, `save`, explicit `File{format"..."}(...)`, and stream-based
+entry points.
 
-It must support multiple phylogenetic file formats under one coherent package,
-with each format implemented as a bundled submodule rather than as a completely
-separate package.
+It must support multiple phylogenetic formats within one coherent package, with
+each format implemented as a package-owned parser module rather than as an
+ad hoc bundle of unrelated helpers.
 
-It must support lazy iteration over phylogenetic graph collections.
+It must support lazy iteration over graph collections and multi-source loads.
 
-Using idiomatic Julia mechanisms for generics — parameterized types and functions,
-multiple dispatch, callback/builder functions — this package will not itself
-provide any concrete domain types. All graph construction and materialization is
-performed by the user either implicitly (via type parameterization, methods on
-their types) or explicitly (via builder functions passed as arguments).
+It must remain transparent to user domain types. All graph construction and
+materialization is performed by user code either through normal Julia method
+extension on `add_child` or through an explicit builder callback.
 
-The package conforms to FileIO's backend conventions: FileIO remains the public
-dispatcher, while this package supplies the actual parsers, serializers, format
-detectors, and internal loader/saver methods.
+It must separate structural contract from metadata contract. Structural graph
+facts are owned by the core protocol and tables. Metadata semantics are owned
+by each format module.
 
-It must distinguish between the **FileIO contract** and **package-native
-convenience APIs**, rather than overloading FileIO terms for non-FileIO
-semantics.
+It must remain type-stable at the public package boundary by avoiding any core
+contract that requires runtime inference of field names from source annotations.
 
-Through use of idiomatic Julia mechanisms and practices — parameterization,
-multiple dispatch, keyword-argument function-based access — the base layer must
-be transparent to particular types yet remain type-stable with all types known
-at compile time (see `STYLE-julia.md`).
+It must preserve FileIO's ownership model. FileIO remains the public
+dispatcher. LineagesIO provides the actual parser, format detector, serializer,
+and backend methods.
 
-A core mission is to provide broad-spectrum file format deserialization and 
-(eventually) serialization support for phylogenetic, and more generally, biological and mathematical domain-centered packages and applications such as PhyloNetworks and Phylo. 
+It must give users and ecosystem packages direct access to structural tables
+and format-owned payload without forcing a particular in-memory graph type.
 
-Community developers and users can then focus efforts on domain side abstraction and implementation, relying on deserialization/serialization of their data as just part of existing infrastructure without worrying about file format parsing or composition, namespace mapping, data coversion, or graph construction.
+It must scale to:
+
+- huge trees and networks
+- many graphs in one source
+- many huge graphs across many sources
+
+while keeping metadata handling concrete, stable, and format-owned.
 
 ## Non-goals
 
@@ -63,595 +149,748 @@ The package will not implement phylogenetic inference, reconciliation,
 comparative methods, plotting, or analysis algorithms as primary
 responsibilities.
 
-The package will not attempt, in Phase 1, to solve every dialect or
-ecosystem-specific annotation convention for every tree-producing program.
+The package will not define a default concrete domain graph type in core. If a
+shared normalized graph type is ever needed, that responsibility belongs to a
+separate package.
 
-The package will not require FileIO registry inclusion in order to be considered
-complete for the purposes of this PRD, though it must be engineered so that
-registration can be done later with minimal redesign.
+The package will not treat every arbitrary annotation key in every source file
+as a generic core-level schema design problem.
 
-The package will not define any concrete domain graph type. If a default
-normalized in-memory representation is ever needed, that is the responsibility
-of `LineageGraphs.jl`, to which `LineagesIO.jl` may relate via a package
-extension.
+The package will not require FileIO registry inclusion in order to be
+considered complete, though it must be engineered so that later registration
+requires minimal redesign.
 
-## Ecosystem and interface constraints
+The package will not claim ownership of generic GraphML. Only the
+package-ratified phylogeny-specific profile belongs here.
 
-### FileIO contract constraints
+## Core architectural commitments
 
-FileIO requires backend packages to implement **private** loader/saver functions
-inside the package module, rather than extending `FileIO.load` or `FileIO.save`
-directly.
+The package is built around the following non-negotiable commitments.
 
-FileIO identifies formats through `DataFormat`s such as `format"PNG"`, and a
-package may expose explicit format forcing through forms like
-`load(File{format"PNG"}(filename))` and stream forcing through
-`Stream{fmt}(io)`. The package therefore must support both implicit detection
-and explicit override.
+### Structure first
 
-A new FileIO format is registered by
-`add_format(fmt, magic, extension, libraries...)`, where the package UUID is
-part of the registration data. FileIO's registration docs also note that `fmt`
-is just an internal identifier chosen by the implementer.
+The core package owns graph structure and structural identity. Structural facts
+are not treated as ordinary metadata.
 
-### Julia graph/tree ecosystem constraints
+### Format-owned metadata
 
-Graphs.jl defines the `AbstractGraph` ecosystem, and GraphIO already provides
-graph-format persistence for Graphs.jl, including GraphML support. This matters
-because generic GraphML handling already exists in the Julia graph ecosystem and
-should not be semantically appropriated as though all `.graphml` files are
-phylogenetic trees.
+Each format module owns its own stable metadata schema, payload representation,
+and preservation decisions beyond the distinguished structural properties.
 
-## Product architecture
+### No core runtime field-name inference
 
-The package is divided into the following layers. Each layer has a single
-well-defined responsibility and a stable interface boundary.
+The core package does not infer metadata field names from runtime annotation
+keys and does not derive public row types from per-source key discovery.
 
-### Parsing layer
+### Stable public tables
 
-* Format-specific parsers (one submodule per format)
-* No required output data structure — parsers emit events
-* Source-location tracking for error reporting
+Each `LineageGraphAsset` returns concrete Tables.jl-compliant companion tables.
+Their schemas are determined by format design, not by the specific runtime
+annotation key set encountered in one source file.
 
-### Builder protocol layer
+### Builder freedom
 
-* Receives parser events and constructs the user's preferred graph type
-* Defined by a single generic function (see **Builder protocol** below)
-* User-supplied (see **Builder protocol**)
+Builders may consume payload eagerly during `add_child`, ignore it, or store a
+handle for deferred lookup later.
 
-### Metadata layer
+### Single owner per invariant
 
-* Three-layer system for format-supplied node/edge annotations (see
-  **Metadata architecture** below)
-* Tables.jl-compliant node table as companion return alongside the graph
+Parsers own format semantics. The orchestration layer owns protocol routing,
+builder validation, key assignment, and asset assembly. Extensions own only the
+translation from core protocol calls into target-package graph construction.
 
-### FileIO adapter layer
+## Structural contract
 
-* Private `load`, `save` implementations
-* Format detection and dispatch
-* Explicit format override support
+The structural contract is the core package's stable, format-independent model
+of graph identity and graph edges.
 
-### View layer
+### Node identity
 
-* Lazy iterators over lineage graph collections
+`nodekey` is the distinguished node identity key.
+
+Its contract is:
+
+- type: `Int`
+- scope: unique within one graph
+- ownership: assigned by the orchestration layer
+- semantics: primary key of the node table; foreign key target of all node
+  references in returned tables and format-owned payload
+
+`nodekey` is assigned sequentially in traversal order, starting at `1` for each
+graph.
+
+### Edge identity
+
+`edgekey` is the distinguished edge identity key.
+
+Its contract is:
+
+- type: `Int`
+- scope: unique within one graph
+- ownership: assigned by the orchestration layer
+- semantics: primary key of the edge table; stable structural key for edge
+  lookup and payload lookup
+
+`edgekey` is assigned sequentially within each graph.
+
+### Label
+
+`label` is a distinguished structural node property.
+
+Its contract is:
+
+- type: `AbstractString` at the builder boundary; stored as `String` in core
+  tables
+- semantics: raw source label, passed through unchanged
+- missing label rule: parsers pass `""`
+
+The core package performs no label disambiguation and no synthetic label
+generation.
+
+### Edge weight
+
+`edgeweight` is a distinguished structural edge property.
+
+Its contract is:
+
+- type at builder boundary: `Union{EdgeUnitT, Nothing}`
+- stored form in core edge table: `Union{Float64, Nothing}` for phase 1 formats
+  that model numeric edge weights
+- semantics: absent when the source does not supply a value
+
+`edgeweight` is not ordinary metadata. It is part of the structural contract in
+the same sense as `nodekey`, `edgekey`, and `label`.
+
+### Edge endpoints
+
+The core edge table always stores:
+
+- `src_nodekey`
+- `dst_nodekey`
+
+These are structural join columns. They are not optional metadata.
 
 ## Builder protocol
 
-`add_child` is LineagesIO.jl's central exported generic function and the primary
-public interface through which parsed structure is communicated to user code.
-Everything in the library's parsing pipeline converges on calls to `add_child`.
-Users supply the implementation; the library calls it.
+`add_child` is the central exported generic function through which parsed
+structure is communicated to user code.
+
+Everything in the parsing pipeline converges on calls to `add_child`.
+LineagesIO calls it. User code or extension code implements it.
+
+`finalize_graph!` is the post-build protocol function invoked once after the
+last `add_child` call for a graph and before `LineageGraphAsset` assembly.
 
 ### Invocation styles
 
-Two invocation styles are supported and may coexist within the same project. They
-share identical call signatures; only the provisioning mechanism differs.
+Two invocation styles are supported and may coexist.
 
-**Style 1 — Method extension (multiple dispatch)**
+**Style 1 — Method extension**
 
-Users extend `LineagesIO.add_child` for their concrete node type and pass the
-type as a positional argument to `load`. The library dispatches all builder calls
-through normal Julia multiple dispatch, specializing fully on `NodeT` at compile
-time.
+Users extend `LineagesIO.add_child` for their concrete node-handle type and
+pass that type positionally to `load`.
 
-This follows the Tables.jl sink pattern used by CSV.jl (`CSV.read(src, DataFrame)`)
-and similar ecosystem interfaces. Making the node type explicit at the call site
-eliminates any ambiguity about which methods to dispatch to and allows the compiler
-to specialize the entire parse on `NodeT` without runtime lookup.
+**Style 2 — Builder callback**
 
-```julia
-# User extends LineagesIO.add_child for MyNode:
-function LineagesIO.add_child(
-    :: Nothing,                           # parent — dispatch-only; entry-point has no parent
-    node_idx   :: Int,
-    label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing};          # edgeweight
-    nodedata   = nothing,
-    kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
-) :: MyNode where {EdgeUnitT}
-    bootstrap = hasproperty(nodedata, :bootstrap) ? nodedata.bootstrap : nothing
-    return MyNode(node_idx, label, bootstrap)
-end
+Users pass an explicit `builder` callback to `load`.
 
-function LineagesIO.add_child(
-    parent     :: MyNode,
-    node_idx   :: Int,
-    label      :: AbstractString,
-    edgeweight :: Union{EdgeUnitT, Nothing};
-    nodedata   = nothing,
-    kwargs...,                                   # absorbs edgedata; MyNode stores no edge-level metadata
-) :: MyNode where {EdgeUnitT}
-    bootstrap = hasproperty(nodedata, :bootstrap) ? nodedata.bootstrap : nothing
-    return add_node_to_graph!(parent, node_idx, label, edgeweight, bootstrap)
-end
-
-# Node type passed as positional argument — no kwarg needed:
-result = load("file.nwk", MyNode)
-```
-
-The three calling patterns for `load` are therefore:
-
-| Call | Returns |
-|---|---|
-| `load("file.nwk")` | `LineageGraphStore` with node/edge tables only (no builder) |
-| `load("file.nwk", MyNode)` | `LineageGraphStore{MyNode}` via dispatch extension |
-| `load("file.nwk"; builder = fn)` | `LineageGraphStore{NodeT}` via callback |
-
-An explicit `builder` kwarg always takes precedence over extended methods.
-
-**Style 2 — Builder callback (keyword argument)**
-
-Users pass an `add_child`-compatible function as the `builder` keyword argument to
-`load`. The library calls this function directly. An explicit `builder` kwarg
-always takes precedence over any extended `LineagesIO.add_child` methods in scope.
-
-```julia
-result = load("file.nwk"; builder = (parent, node_idx, label, edgeweight; edgedata=nothing, nodedata=nothing) -> ...)
-```
-
-This style is preferred for ad-hoc or scripting contexts, for cases where a user
-wants multiple different builder strategies for the same node type, or when
-disambiguation between several extended methods is impractical.
+An explicit `builder` keyword argument always takes precedence over extended
+`LineagesIO.add_child` methods in scope.
 
 ### Dispatch levels
 
-The protocol defines two levels, corresponding to the two structural families of
-phylogenetic files.
+The protocol has two structural levels.
 
-**Network level — general case (baseline):**
+**Network level**
 
-```julia
-# NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge weight element type (unconstrained; Nothing for absent lengths)
-function add_child(
-    :: AbstractVector{NodeT},
-    :: Int,                                        # node_idx
-    :: AbstractString,                             # label
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
-    kwargs...,                                     # edgedata = nothing, nodedata = nothing
-) :: NodeT where {NodeT, EdgeUnitT} end
-```
-
-`parents`, `edgeweights`, and `edgedata` are parallel vectors: `edgeweights[i]`
-and `edgedata[i]` describe the edge from `parents[i]` to the new node. An empty
-`parents` vector (with correspondingly empty `edgeweights` and `edgedata`) signals
-entry-point node creation (the traversal origin). This overload is the baseline:
-it handles directed and undirected graphs, rooted and unrooted, including
-reticulate and hybrid nodes with multiple incoming edges.
-
-**Single-parent level — restricted case:**
+Used for formats that may produce nodes with multiple incoming edges.
 
 ```julia
-# NodeT     = node handle type; dispatch target for user extensions
-# EdgeUnitT = edge weight element type (unconstrained; Nothing for absent lengths)
 function add_child(
-    :: Nothing,                        # parent — entry-point; called exactly once per graph
-    :: Int,                            # node_idx
-    :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgeweight
-    kwargs...,                         # edgedata = nothing, nodedata = nothing
-) :: NodeT where {NodeT, EdgeUnitT} end
-
-function add_child(
-    :: NodeT,                          # parent
-    :: Int,                            # node_idx
-    :: AbstractString,                 # label
-    :: Union{EdgeUnitT, Nothing};      # edgeweight
-    kwargs...,                         # edgedata = nothing, nodedata = nothing
-) :: NodeT where {NodeT, EdgeUnitT} end
+    ::AbstractVector{NodeT},
+    ::Int,                                        # nodekey
+    ::AbstractString,                             # label
+    ::AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
+    kwargs...,                                    # edgedata, nodedata
+)::NodeT where {NodeT, EdgeUnitT}
+end
 ```
 
-`parent = nothing` (with `edgedata = nothing`) signals entry-point node creation.
-The returned `NodeT` is the library's only handle on the graph; all subsequent
-calls receive it or a descendant as `parent`. This overload applies when every
-node has at most one parent — the restricted case that includes all rooted trees.
+**Single-parent level**
+
+Used for formats in which every node has at most one parent.
+
+```julia
+function add_child(
+    ::Nothing,
+    ::Int,                           # nodekey
+    ::AbstractString,                # label
+    ::Union{EdgeUnitT, Nothing};     # edgeweight
+    kwargs...,                       # edgedata, nodedata
+)::NodeT where {NodeT, EdgeUnitT}
+end
+
+function add_child(
+    ::NodeT,
+    ::Int,                           # nodekey
+    ::AbstractString,                # label
+    ::Union{EdgeUnitT, Nothing};     # edgeweight
+    kwargs...,                       # edgedata, nodedata
+)::NodeT where {NodeT, EdgeUnitT}
+end
+```
+
+### Builder semantics
+
+The builder contract is:
+
+- `nodekey` is the library-assigned structural node key
+- `label` is the raw source label, possibly `""`
+- `edgeweight` or `edgeweights` is the distinguished structural incoming edge
+  weight or weights
+- `nodedata` carries the format-owned node payload handle or value for the node
+  being created
+- `edgedata` carries the format-owned incoming edge payload handle or handles
+
+For the single-parent entry-point call:
+
+- `parent === nothing`
+- `edgedata === nothing`
+
+For the network entry-point call:
+
+- `parents` is empty
+- `edgeweights` is empty
+- `edgedata` is empty or `nothing`, depending on the concrete helper path
+
+At every non-entry-point `add_child` call, all ancestor handles already exist
+and are in scope.
+
+The returned `NodeT` is the library's stored handle for that node in all
+subsequent builder calls.
 
 ### Protocol determination
 
-The library determines which dispatch level will be used **once, before any
-`add_child` call is made**. Per-call dispatch based on `length(parents)` at call
-time is explicitly rejected: it creates two unacceptable failure modes — a
-single-parent-protocol user whose methods are bypassed mid-parse when a multi-parent
-node appears, and a general-protocol user whose vector overload is never reached
-when a file happens to contain only single-parent nodes.
+The library determines the protocol tier once, before any `add_child` call.
 
-The determination proceeds in two steps:
+This determination is owned by the format declaration, not by per-node runtime
+inspection.
 
-**A — Format declaration (primary source).** Every format parser declares the
-structural complexity it can produce. Formats capable of encoding hybrid or
-reticulate nodes (extended Newick, NEXUS network blocks, `format"LineageNetwork"`)
-declare general (network) protocol. Formats that encode only single-parent graphs
-(plain Newick, `format"LineageGraphML"`) declare single-parent protocol. This
-declaration is made before parsing begins and is authoritative.
+Formats capable of hybrid or reticulate structure declare the network tier.
+Formats that encode only single-parent structure declare the single-parent tier.
 
-**B — Builder validation (gate before first call).** Once the format has declared
-its protocol tier, the library validates that the user's builder is compatible
-before starting the parse. If the format declares general protocol and the user's
-builder does not define the vector-parent overload, the library raises an
-informative error at load time — not mid-parse, not on the first multi-parent node
-encountered. If the format declares single-parent protocol, the library calls only
-single-parent-level methods even if general-level methods are also defined.
+### Builder validation
 
-This design guarantees: at the moment `load` begins emitting `add_child` calls,
-the user knows exactly which method signature will be called throughout the entire
-parse. There are no surprises mid-parse.
+Once the format declares its tier, the orchestration layer validates builder
+compatibility before parsing begins.
 
-### Semantics
-
-* `node_idx` is a 1-based sequential integer assigned by the library for each node
-  during parsing. It is the primary key of the node table and the foreign key used
-  in the edge table (`src_node_idx`, `dst_node_idx`). The library assigns it; the
-  user stores it on their `NodeT` to enable joins against the tables.
-* `label` is the raw node label from the source file, possibly empty. 
-* `edgeweight` / `edgeweights` is `nothing` when the source does not supply a
-  value for that edge.
-* `edgedata` (keyword, default `nothing`) carries the edge table row(s) for the
-  incoming edge(s) to this node. The orchestration always passes a real value: an
-  `EdgeRow` NamedTuple for single-parent non-entry-point nodes, an
-  `AbstractVector{EdgeRow}` for network-level nodes, and `nothing` for entry-point
-  nodes (no incoming edge). `EdgeRow` is fixed by the discovery pass. Fields include
-  `edgeweight`, format-specific columns (`gamma`, `support`, etc.), all as
-  `Union{T, Nothing}` when optional.
-* `nodedata :: NodeRow` is a single row of the node table for this node (see **Metadata
-  architecture**). `NodeRow` is the row type of `node_table` — a `NamedTuple` type
-  established by the discovery pass before any `add_child` calls are made. Fields
-  are the promoted table column names; optional fields are `Union{T, Nothing}`.
-* The returned `NodeT` is passed as `parent` in all subsequent `add_child` calls
-  for that node's children. It is the library's only stored handle; the user must
-  retain any graph-structure reference they need.
+If the format declares the network tier and the supplied builder is not
+compatible with it, the library raises an informative error before any parse
+work begins.
 
 ### Parse order
 
-Parsers call `add_child` in top-down (pre-order) traversal after completing
-internal format parsing. For inside-out formats such as plain Newick, the parser
-completes tokenization and builds full internal state before emitting any
-`add_child` calls. At every `add_child` call, all ancestor nodes have already
-been created and their handles are in scope.
+Parsers emit `add_child` calls in top-down pre-order traversal after completing
+whatever structural analysis the format requires.
 
-### Multi-graph sources
+The package does not define a generic source-wide metadata discovery pass.
+A parser may still pre-scan or fully parse a source before emission if the
+format requires it for structural correctness, collection handling, payload
+storage setup, or error reporting.
 
-For formats containing multiple graphs (NEXUS, multi-Newick, tskit `TreeSequence`),
-the full `add_child` sequence is invoked once per graph. The lazy iteration layer
-exposes these as an iterator of `LineageGraphAsset` values (see **Return types**).
+## Metadata contract
 
-## Metadata architecture
+Metadata in this package means format-owned payload beyond the distinguished
+structural properties:
 
-Format files carry annotation data across four structural levels. The package
-exposes all four through a unified hierarchy, designed from the most complex case
-(multi-source network files) down to the restricted cases (single rooted graph).
+- `nodekey`
+- `edgekey`
+- `label`
+- `src_nodekey`
+- `dst_nodekey`
+- `edgeweight`
 
-All metadata is fully promoted: every annotation key present in a source file
-becomes a proper typed column. There are no overflow dictionaries anywhere in
-the design.
+Everything outside that set is format-owned payload.
 
-### Level 1 — Node metadata
+### Ownership
 
-Before any `add_child` calls the parser performs a **discovery pass** over the
-full source, collecting every annotation key name present across all nodes.
-Every discovered key is promoted to a typed column. Column types are inferred
-from the values seen during the discovery pass (or from format-specific rules for
-well-known keys). For keys absent on some nodes the column type is
-`Union{T, Nothing}` and those rows carry `nothing`.
+The metadata contract is split as follows.
 
-The row type `NodeRow` — a fixed `NamedTuple` type — is constructed from this schema
-after the discovery pass completes. It is stable for the entire load of a source.
+- Core package owns transport, tables, stable handles, and builder plumbing.
+- Each format module owns the payload schema, payload preservation policy, and
+  payload access conventions.
+- User and extension code own interpretation and materialization into their
+  domain types.
 
-`nodedata :: NodeRow` is passed as the final argument to every `add_child` call. It is
-a single row of `node_table` for the node being created. The user accesses fields
-as `nodedata.bootstrap`, `nodedata.gamma`, etc. Field names are the promoted table
-column names, discovered from the file — not hardcoded from format-specific type
-definitions. Format submodules do not define a bespoke `D` type; the row schema
-is produced by the parser from the source.
+### Stable format schemas
 
-### Level 2 — Edge metadata
+Each format module defines explicit stable node and edge schemas in code.
 
-Edge annotation keys are discovered in the same discovery pass and promoted to
-typed columns in the edge table. The edge table accompanies every `LineageGraphAsset`,
-with one row per directed edge:
+These schemas may include:
 
-| Column | Type | Description |
+- zero format-specific node payload columns
+- zero format-specific edge payload columns
+- any ratified format-specific payload columns needed for that format
+
+These schemas are not derived from runtime key discovery in one source file.
+
+### Payload representation at build time
+
+`nodedata` and `edgedata` are type-stable format-owned payload handles or
+values.
+
+Valid representations include:
+
+- lightweight row-reference objects into the authoritative node and edge tables
+- lightweight wrapper structs around tables and keys
+- small typed payload structs
+- another format-owned concrete representation with equivalent stable semantics
+
+The core contract does not require payload to be exposed as promoted fields.
+Direct syntax such as `nodedata.bootstrap` is allowed only if that format's
+implementation chooses to provide it. It is not a package-wide guarantee.
+
+### Payload behavior
+
+Builders may:
+
+- read payload immediately during `add_child`
+- ignore payload
+- store payload handles for deferred lookup later
+
+Deferred lookup is a first-class design use case.
+
+### Unknown or open-ended annotations
+
+The core package does not impose a single generic preservation strategy for
+unknown annotations.
+
+Each format may choose one of the following, provided the behavior is concrete,
+documented, and stable:
+
+- ignore unsupported annotations
+- normalize them into explicit auxiliary tables
+- preserve them in another stable format-owned store
+
+The package does not require a format to preserve every arbitrary source
+annotation.
+
+## Companion table contract
+
+Every `LineageGraphAsset` exposes concrete Tables.jl-compliant tables.
+
+### Node table
+
+The node table is authoritative for node-level structure and any node-level
+format payload columns retained by the format.
+
+Required columns:
+
+| Column | Type | Meaning |
 |---|---|---|
-| `src_node_idx` | `Int` | parent node index (traversal-order predecessor for unrooted graphs) |
-| `dst_node_idx` | `Int` | child node index |
-| `edgeweight` | `Union{Float64, Nothing}` | edge weight/length |
-| format-specific columns | — | e.g. `gamma` for hybrid edge inheritance proportions |
+| `nodekey` | `Int` | primary key within the graph |
+| `label` | `String` | raw source label, possibly empty |
 
-The edge table is always present regardless of graph type. For single-parent
-graphs it contains one row per node (excluding the entry-point node).
+Additional node columns are format-owned.
 
-### Level 3 — Graph-level metadata
+### Edge table
 
-Metadata about a single graph as a unit: name/identifier (e.g. NEXUS `tree PAUP_1`),
-weight or posterior probability in a sample, rooting declaration, graph-level
-comments. Carried in the `graph_label` and related fields of `LineageGraphAsset`
-(see **Return types**).
+The edge table is authoritative for edge-level structure and any edge-level
+format payload columns retained by the format.
 
-### Level 4 — Collection-level and file-level metadata
+Required columns:
 
-Metadata shared across multiple graphs within a collection (e.g. NEXUS TRANSLATE
-block, MCMC sample size, burnin count) or across a whole source file (provenance,
-format version, source program). For `format"TskitTrees"`, the file level carries
-the entire population, individual, site, and migration tables from the tskit
-`TreeSequence` model.
+| Column | Type | Meaning |
+|---|---|---|
+| `edgekey` | `Int` | primary key within the graph |
+| `src_nodekey` | `Int` | source node structural key |
+| `dst_nodekey` | `Int` | destination node structural key |
+| `edgeweight` | `Union{Float64, Nothing}` | distinguished structural edge weight |
 
-Carried in the `collection_table` and `source_table` of `LineageGraphStore`
-(see **Return types**).
+Additional edge columns are format-owned.
 
-LineagesIO.jl takes `Tables.jl` as a dependency (lightweight pure-interface package).
-It does **not** depend on `DataFrames.jl`. Users who want a DataFrame call
-`DataFrame(result.graphs[1].node_table)` — one line, no LineagesIO dependency required.
+### Graph table
+
+The graph table is authoritative for graph-level summary and graph-level
+metadata retained by the load.
+
+Required summary columns mirror the graph coordinates carried on
+`LineageGraphAsset`.
+
+### Collection table
+
+The collection table is authoritative for collection-level summary and any
+collection-level metadata retained by the load.
+
+### Source table
+
+The source table is authoritative for source-level summary and any source-level
+metadata retained by the load.
+
+### Table design rule
+
+All companion tables must be:
+
+- Tables.jl-compliant
+- concretely typed or concretized through type parameters
+- valid for direct user-space retention after loading
+
+## Post-load access contract
+
+Users and extension packages must be able to retain and use the returned
+tables directly after loading.
+
+They are not required to hold the full `LineageGraphAsset` for the lifetime of
+their work if they have already retained the graph handle they need together
+with the relevant tables.
+
+### Generic lookup helpers
+
+The package may provide generic convenience helpers such as:
+
+```julia
+node_property(node_table, nodekey, propertykey)
+edge_property(edge_table, edgekey, propertykey)
+```
+
+These helpers are package-native convenience APIs, not the primary type-stable
+builder contract.
+
+When the lookup key is a runtime `Symbol`, the convenience lookup may be
+dynamically typed. That is acceptable for user-space convenience. It is not the
+recommended hot-path access pattern for performance-critical code.
+
+### Format-specific accessors
+
+Format modules, client packages, and extensions are encouraged to provide
+typed convenience accessors over retained tables or payload handles, for
+example:
+
+```julia
+clade_posterior_probability(node_table, nodekey)
+hybrid_gamma(edge_table, edgekey)
+```
+
+or package-specific wrappers such as:
+
+```julia
+clade_posterior_probability(lgraph::TheirGraphType, node::TheirNodeType)
+```
+
+These wrappers belong to the format-specific or consumer-specific layer, not to
+the core structural contract.
+
+### Direct field access is not a core guarantee
+
+The package does not guarantee `node.fieldname`, `nodedata.fieldname`, or
+`edgedata.fieldname` as a generic metadata access contract.
+
+If a format-specific implementation wants to provide field-like sugar, it may.
+The core package does not require it.
 
 ## Return types
 
 ### LineageGraphAsset
 
-`LineageGraphAsset{NodeT}` is the single-graph result struct yielded by the lazy
-graph iterator and collected in `LineageGraphStore.graphs`. It carries the complete parse
-output for one graph together with the index coordinates needed to locate it within
-a multi-source, multi-collection load.
+`LineageGraphAsset{NodeT}` is the single-graph result struct.
 
-```julia
-struct LineageGraphAsset{NodeT}
-    index                :: Int                      # overall 1-based index across entire load
-    source_idx           :: Int                      # 1-based index of source file
-    collection_idx       :: Int                      # 1-based index of collection within source
-    collection_graph_idx :: Int                      # 1-based index of graph within collection
-    collection_label     :: Union{String, Nothing}   # e.g. NEXUS tree block name
-    graph_label          :: Union{String, Nothing}   # e.g. NEXUS individual graph name
-    node_table           :: <Tables.jl compliant>    # one row per node; node_idx as primary key
-    edge_table           :: <Tables.jl compliant>    # one row per edge; src_node_idx, dst_node_idx
-    graph_rootnode       :: NodeT                    # entry-point handle returned by add_child([],...);
-                                                     # semantic root for directed rooted graphs,
-                                                     # traversal origin for unrooted graphs
-    source_path          :: Union{String, Nothing}
-end
-```
+It must carry:
+
+- `index`
+- `source_idx`
+- `collection_idx`
+- `collection_graph_idx`
+- `collection_label`
+- `graph_label`
+- `node_table`
+- `edge_table`
+- `graph_rootnode`
+- `source_path`
+
+`graph_rootnode` is the handle returned by the entry-point builder call.
+
+When the caller does not supply a builder and no default materialization path is
+requested, `NodeT` may be `Nothing` and `graph_rootnode` may therefore be
+`nothing`.
 
 ### LineageGraphStore
 
-`LineageGraphStore{NodeT}` is always returned by `load` — callers cannot assume a source
-contains only one graph. The nesting structure (source → collection → graph) is
-expressed as index coordinates on each record, not as nested containers.
+`LineageGraphStore{NodeT}` is always returned by `load`.
 
-```julia
-struct LineageGraphStore{NodeT}
-    source_table     :: <Tables.jl compliant>    # one row per source file
-    collection_table :: <Tables.jl compliant>    # one row per collection within sources
-    graph_table      :: <Tables.jl compliant>    # one row per graph (index + label summary)
-    graphs           :: <lazy iterator of LineageGraphAsset{NodeT}>
-end
-```
+It must carry:
 
-`source_table` columns: `source_idx`, `source_path`, format-specific file-level
-metadata. `collection_table` columns: `source_idx`, `collection_idx`, `label`,
-`graph_count`, collection-level metadata (e.g. NEXUS TRANSLATE table encoding).
-`graph_table` mirrors the index coordinates and label fields of `LineageGraphAsset`
-without the node/edge table payloads.
+- `source_table`
+- `collection_table`
+- `graph_table`
+- `graphs`
 
-### Convenience wrappers
+`graphs` is a lazy iterator of `LineageGraphAsset{NodeT}`.
 
-| Function | Behaviour |
-|---|---|
-| `load(src, NodeT)` | `LineageGraphStore{NodeT}` via dispatch extension |
-| `load(src; builder = fn)` | `LineageGraphStore{NodeT}` via callback |
-| `load(src)` | `LineageGraphStore` with node/edge tables only (no builder) |
-| `loadfirst(src, ...)` | First `LineageGraphAsset`; no error on multiple |
-| `loadone(src, ...)` | Single `LineageGraphAsset`; errors if count ≠ 1 |
-| `load([f1, f2], ...)` | Multi-source; `source_idx` distinguishes origins |
+### Multi-source coordinates
 
-## FileIO contract
+`nodekey` and `edgekey` are unique within a graph, not globally across a
+multi-source load.
 
-The package must implement:
+Cross-graph and cross-source identity is expressed by:
 
-* private `load` methods
-* private `save` methods
+- `source_idx`
+- `collection_idx`
+- `collection_graph_idx`
+- `index`
+
+## FileIO and package-native APIs
+
+The package must distinguish FileIO contract from package-native convenience
+APIs.
+
+### FileIO contract
+
+The package must implement private backend methods inside the `LineagesIO`
+module rather than extending `FileIO.load` or `FileIO.save` directly.
 
 It must support:
 
-* format auto-detection
-* explicit format override
-* stream-based I/O
+- format auto-detection where safe
+- explicit format override through `File{format"..."}(...)`
+- stream-based I/O through `Stream{fmt}(io)`
 
-## Lazy access design
+### Package-native convenience APIs
 
-The package must provide:
+The package may provide convenience wrappers such as:
 
-* lazy iterators over multi-graph sources, yielding `LineageGraphAsset{NodeT}` values
-* `LineageGraphStore.graphs` as the primary lazy iteration surface
-* multi-source loading via `load([f1, f2, ...], ...)`
+- `loadfirst`
+- `loadone`
+- generic property lookup helpers
+- multi-source loading helpers
+
+These are package-owned APIs layered on top of the FileIO backend contract.
+
+## View layer
+
+The package must provide lazy access to graph collections.
+
+`LineageGraphStore.graphs` is the primary lazy iteration surface.
+
+The package must support:
+
+- first-graph convenience access
+- exactly-one-graph convenience access
+- multi-source load with source coordinates retained on each graph asset
+
+The view layer owns convenience semantics. It does not own parsing, key
+assignment, or graph construction.
 
 ## Format support
 
+Formats are implemented as package-owned parser modules with clear ownership of
+their schemas and semantics.
+
 ### Phase 1
 
-* `format"Newick"` — standard parenthetical tree notation
-* `format"LineageGraphML"` — GraphML with a ratified phylogeny-specific
-  attribute scheme
-* `format"LineageNetwork"` — extended Newick with hybrid/reticulate node
-  notation as used by PhyloNetworks
+- `format"Newick"`
+- `format"LineageNetwork"`
+- `format"LineageGraphML"`
 
 ### Phase 2
 
-* `format"Nexus"` — NEXUS tree blocks with TRANSLATE tables
-* `format"TskitTrees"` — tskit native HDF5 binary genealogical table format
-  (distinct from and not collapsible with tree-format Newick/Nexus exports)
-* Additional formats as specified
+- `format"Nexus"`
+- `format"TskitTrees"`
+- additional ratified formats
 
-Formats must be implemented as submodules.
+### Format schema rule
+
+Each format must define:
+
+- its structural protocol tier
+- its stable node schema
+- its stable edge schema
+- its payload preservation policy for non-structural data
+- any format-specific convenience accessors it chooses to expose
 
 ## GraphML policy
 
-GraphML must be treated as:
+Generic GraphML is not owned by this package.
 
-* a general graph format
-* used by LineagesIO only via a phylogeny-specific profile (`LineageGraphML`)
+Only the package-ratified phylogeny-specific GraphML profile belongs to
+`format"LineageGraphML"`.
 
-The package must not claim ownership of generic GraphML.
+The package must not treat every `.graphml` file as LineageGraphML merely
+because the extension matches.
 
 ## Detection policy
 
 Each format must define:
 
-* supported extensions
-* detection logic
-* auto-detection safety
+- supported extensions
+- magic-byte or content-sniffing rules when needed
+- whether auto-detection is safe
+- whether explicit override is required for ambiguous cases
 
-Ambiguous formats must require explicit override.
+Ambiguous formats must raise informative errors that request explicit format
+override rather than silently guessing.
 
 ## Parameterization requirements
 
-All APIs must support:
+The package must support:
 
-* user-supplied builders — either extended `LineagesIO.add_child` methods or
-  explicit `builder` callback functions — parameterized on `NodeT`, `EdgeUnitT`, `D`
-* parameterized return types driven by builder return type
-* configurable parsing modes per format
+- method-extension builders through `load(src, NodeT)`
+- explicit builder callbacks through `load(src; builder = fn)`
+- return type parameterization driven by `NodeT`
+- concrete format-owned node and edge table types
+- concrete format-owned payload-handle types
+
+The package must not require public row-type inference from source-specific
+annotation keys in order to remain type-stable.
 
 ## Error handling
 
 The package must distinguish:
 
-* parse errors
-* unsupported constructs
-* ambiguous formats
-* lossy conversions
+- parse errors
+- unsupported constructs
+- ambiguous formats
+- lossy conversions
 
 Errors must include source location where possible.
 
+Builder compatibility errors must be raised before parse work begins.
+
+Property lookup convenience helpers must raise informative errors for missing
+keys, missing columns, or invalid lookups rather than silently fabricating
+values.
+
 ## Registration readiness
 
-The package must be designed to support FileIO registration:
+The package must be designed so that later FileIO registration requires:
 
-* stable format identifiers
-* documented extensions
-* detection mechanisms
-* loader/saver ownership
+- no redesign of public format identifiers
+- no redesign of private loader ownership
+- no redesign of explicit override semantics
+- no redesign of stream support
 
-Registration itself is out of scope.
-
-## Phase plan
-
-### Phase 1
-
-* FileIO integration
-* Newick support
-* LineageNetwork (hybrid/reticulate extended Newick via PhyloNetworks semantics)
-* builder protocol implementation
-* Tables.jl node table companion return
-* lazy iterators
-
-### Phase 2
-
-* NEXUS support
-* TskitTrees (HDF5 genealogical table format)
-* richer metadata preservation
-* conversion matrix
-* compliance suite
+Registration itself is out of scope for this document.
 
 ## Success criteria
 
-The package is successful when:
+The package is successful when all of the following are true.
 
-* `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` via dispatch extension
-* `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeT}` via callback
-* `load("file.nwk")` returns `LineageGraphStore` with node/edge tables usable with zero
-  builder code
-* `loadone` and `loadfirst` convenience wrappers return `LineageGraphAsset` correctly
-* multi-source `load([f1, f2], ...)` works with `source_idx` distinguishing origins
-* explicit format override works
-* lazy iteration over `LineageGraphStore.graphs` is available for all multi-graph sources
-* builder output is type-stable; `LineageGraphAsset{NodeT}` is fully parameterized
-* `node_idx` in `add_child` enables lossless joins between graph structure and
-  node/edge tables
-* network graph files with hybrid/reticulate nodes parse correctly through the
-  general `add_child(parents::AbstractVector{NodeT}, ...)` protocol
-* loaded graphs are immediately consumable by LineagesMakie via its accessor
-  protocol without additional transformation
+- `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` via method
+  extension on `add_child`
+- `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeT}` via
+  callback
+- `load("file.nwk")` returns a `LineageGraphStore` whose graphs expose
+  authoritative node and edge tables even when no builder is used
+- `LineageGraphAsset.node_table` and `LineageGraphAsset.edge_table` are
+  directly useful in user space after loading
+- `nodekey` enables stable node lookup within a graph
+- `edgekey` enables stable edge lookup within a graph
+- network-format graphs with hybrid nodes parse through the network builder
+  protocol correctly
+- loaded graphs are immediately compatible with LineagesMakie's accessor
+  protocol once the user supplies the required accessors for their chosen
+  `NodeT`
+- the public package boundary remains type-stable without deriving row field
+  names from runtime source annotations
 
-## Companion design documents
+## Removed concepts and stipulations
 
-**`design/brief--community-support-objectives.md`** is a **mandatory companion
-to this document** and must be read alongside it. It specifies:
+The following concepts and stipulations are intentionally removed from the core
+design and must not be reintroduced downstream without explicit approval.
 
-* the parse stack and type structure of every focal ecosystem package
-  (PhyloNetworks.jl, Phylo.jl, and Phase 2 additions) derived from line-by-line
-  reading of upstream source
-* the extension architecture (`PhyloNetworksExt`, `PhyloExt`, and future
-  extensions), including concrete `add_child` stubs and the `finalize_graph!`
-  hook contract
-* open design questions and their resolutions as they are decided
+### Removed generic metadata discovery pass
 
-All implementers, reviewers, and downstream tranche authors must read both
-documents. Neither document is complete without the other.
+The package no longer defines a generic core-level discovery pass that scans a
+source file to discover arbitrary metadata field names and uses that discovery
+to derive public row types.
 
----
+### Removed source-derived public row schemas
 
-## Fundamental mandates
+The package no longer defines public node or edge row schemas by inspecting the
+actual annotation key set present in one runtime source.
 
-Where "reading" means line-by-line, without summarization or assuming:
+There is no core contract that the field names of `nodedata` or `edgedata`
+depend on the specific source file being loaded.
 
-* Reading of **`design/brief--community-support-objectives.md`** is
-  **MANDATED** alongside this document. See **Companion design documents** above.
+### Removed package-wide requirement that every encountered key becomes a core column
 
-* Reading and compliance with — and ensuring downstream community reading and
-  compliance with — **GOVERNANCE DOCUMENTS** (`STYLE-*.md` files) are
-  **MANDATED** and must be incorporated into every stage of the process, from
-  design to final product.
-  
-* In particular, note terminological policies in `STYLE-vocabulary.md`.
+The package no longer requires that every metadata key encountered in a source
+file be promoted into a core companion-table column.
 
-* Reading of **KEY TECHNOLOGICAL CONTEXT** is mandated for the project, and
-  downstream/community reading of all of the following is required:
+Formats, not the core package, decide which non-structural fields are retained,
+how they are retained, and whether additional auxiliary structures are used.
 
-  **Core framework:**
-  - `fileio.jl` — FileIO backend contract (implementing, registering, dispatch)
+### Removed package-wide guarantee of promoted-field access
 
-  **Parsing reference implementations:**
-  - `DendroPy` — Python reference for Newick/NEXUS parsing architecture,
-    builder pattern, tokenizer design
-  - `NewickTree.jl` — Julia Newick parser (stack-based)
-  - `Phylo.jl` — Julia Newick/NEXUS parser (combinator-based) with NHX
-    metadata
+The package no longer guarantees syntax such as:
 
-  **Network/reticulate phylogenetics:**
-  - `PhyloNetworks.jl` — extended Newick with hybrid nodes; `HybridNetwork`
-    type; `readnewick`/`writenewick` architecture; NEXUS/PHYLIP/FASTA support
+- `nodedata.bootstrap`
+- `nodedata.some_runtime_key`
+- `edgedata.gamma`
 
-  **Tabular genealogy format:**
-  - `tskit` — `.trees` HDF5 binary format, `TreeSequence` tabular model;
-    mandatory context for `format"TskitTrees"` design
+across all formats merely because a source file happened to contain those
+annotation names.
 
-  **Visualization interoperability:**
-  - `LineagesMakie.jl` — accessor protocol (`children`, `edgeweight`,
-    `branchingtime`, `coalescenceage`, `nodevalue`, `nodecoordinates`,
-    `nodepos`); loaded graphs must be immediately consumable
+Any such field access is now format-owned sugar, not a package-wide promise.
 
-  **Abstract tree interface:**
-  - `AbstractTrees.jl` — traversal traits and iteration interface
+### Removed core prohibition framed as “no overflow dictionaries anywhere”
 
-  **Additional context (user-facing ecosystem):**
-  - `Phylogenies.jl` — minimal Julia core type reference
+The core package no longer frames metadata preservation as a universal
+package-level prohibition on all auxiliary or normalized preservation
+structures.
 
-[1]: https://juliaio.github.io/FileIO.jl/stable/implementing/
-[2]: https://juliaio.github.io/FileIO.jl/stable/registering/
-[3]: https://juliaio.github.io/FileIO.jl/stable/reference/
+If a format needs explicit auxiliary tables or another stable preservation
+structure for non-structural payload, that is a format-owned design decision.
+
+### Removed generic shared schema-builder requirement
+
+The core design no longer requires a package-wide generic schema-builder layer
+whose job is to infer public node and edge row types from runtime annotation
+records.
+
+### Removed requirement that format modules avoid bespoke payload types
+
+Format modules are now explicitly allowed to define stable format-owned payload
+types, payload-handle types, row-reference types, and accessors when those are
+the correct representation.
+
+### Removed `node_idx` naming from the core contract
+
+`node_idx` is removed from the core contract and replaced by `nodekey`.
+
+### Removed `edge_idx` naming from the core contract
+
+`edge_idx` is removed from the core contract and replaced by `edgekey`.
+
+### Removed `src_node_idx` and `dst_node_idx` naming from the core contract
+
+`src_node_idx` and `dst_node_idx` are removed from the core contract and
+replaced by `src_nodekey` and `dst_nodekey`.
+
+### Removed key-discovery-driven justification for type stability
+
+The package no longer claims that type stability is achieved by discovering
+runtime annotation keys first and then freezing source-specific row types.
+
+The package now achieves type stability by making schemas and payload
+representations format-owned and explicit.
+
+## Fundamental implementation mandates
+
+Reading of `design/brief--community-support-objectives.md` is mandated alongside
+this document.
+
+Reading and compliance with all applicable `STYLE-*.md` files and
+`CONTRIBUTING.md` are mandated and must be passed forward into all downstream
+work.
+
+In particular, note terminological policies in `STYLE-vocabulary.md`, together
+with the LineagesIO-specific core identifiers ratified by this document:
+
+- `nodekey`
+- `edgekey`
+- `src_nodekey`
+- `dst_nodekey`
+
+Reading of the key technological context named above is mandated for this
+project, and downstream community reading of those sources is required
+whenever their contracts are in scope.
