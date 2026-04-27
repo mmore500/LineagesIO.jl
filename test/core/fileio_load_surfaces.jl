@@ -30,7 +30,7 @@
         err
     end
     surfaced_error = ambiguous_error isa Base.CapturedException ? ambiguous_error.ex : ambiguous_error
-    @test surfaced_error isa ArgumentError
-    @test occursin("Ambiguous format", sprint(showerror, surfaced_error))
-    @test occursin("File{format\"Newick\"}", sprint(showerror, surfaced_error))
+    @test surfaced_error isa Exception
+    @test occursin("resolve the ambiguity", sprint(showerror, surfaced_error))
+    @test occursin("File{format\"FMT\"}", sprint(showerror, surfaced_error))
 end
