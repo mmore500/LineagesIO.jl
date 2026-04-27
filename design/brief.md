@@ -204,13 +204,29 @@ translation from core protocol calls into target-package graph construction.
 The structural contract is the core package's stable, format-independent model
 of graph identity and graph edges.
 
+### Structural key type
+
+The package defines:
+
+```julia
+const StructureKeyType = Int
+```
+
+`StructureKeyType` is the canonical public key type for all distinguished
+structural keys in phase 1.
+
+All public contracts, tables, helper APIs, and format-owned payload handles
+that traffic in package-assigned structural keys must use
+`StructureKeyType` semantically, even when the concrete underlying type remains
+`Int`.
+
 ### Node identity
 
 `nodekey` is the distinguished node identity key.
 
 Its contract is:
 
-- type: `Int`
+- type: `StructureKeyType`
 - scope: unique within one graph
 - ownership: assigned by the orchestration layer
 - semantics: primary key of the node table; foreign key target of all node
@@ -225,7 +241,7 @@ graph.
 
 Its contract is:
 
-- type: `Int`
+- type: `StructureKeyType`
 - scope: unique within one graph
 - ownership: assigned by the orchestration layer
 - semantics: primary key of the edge table; stable structural key for edge
@@ -290,6 +306,19 @@ Two invocation styles are supported and may coexist.
 Users extend `LineagesIO.add_child` for their concrete node-handle type and
 pass that type positionally to `load`.
 
+**Style 1b — Pre-supplied entry point**
+
+Users may pre-create a graph object and pass its graph entry point handle
+positionally to `load`.
+
+This style is for consumers that want LineagesIO to populate descendants into a
+pre-existing graph structure instead of asking LineagesIO to create the graph
+entry point itself.
+
+This style is valid only for loads that are expected to yield exactly one
+graph. A single supplied entry-point handle is not sufficient to represent an
+arbitrary multi-graph source.
+
 **Style 2 — Builder callback**
 
 Users pass an explicit `builder` callback to `load`.
@@ -308,8 +337,9 @@ Used for formats that may produce nodes with multiple incoming edges.
 ```julia
 function add_child(
     ::AbstractVector{NodeT},
-    ::Int,                                        # nodekey
+    ::StructureKeyType,                           # nodekey
     ::AbstractString,                             # label
+    ::AbstractVector{StructureKeyType},           # edgekeys
     ::AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
     kwargs...,                                    # edgedata, nodedata
 )::NodeT where {NodeT, EdgeUnitT}
@@ -323,19 +353,21 @@ Used for formats in which every node has at most one parent.
 ```julia
 function add_child(
     ::Nothing,
-    ::Int,                           # nodekey
-    ::AbstractString,                # label
-    ::Union{EdgeUnitT, Nothing};     # edgeweight
-    kwargs...,                       # edgedata, nodedata
+    ::StructureKeyType,                         # nodekey
+    ::AbstractString,                          # label
+    ::Union{StructureKeyType, Nothing},        # edgekey
+    ::Union{EdgeUnitT, Nothing};               # edgeweight
+    kwargs...,                                 # edgedata, nodedata
 )::NodeT where {NodeT, EdgeUnitT}
 end
 
 function add_child(
     ::NodeT,
-    ::Int,                           # nodekey
-    ::AbstractString,                # label
-    ::Union{EdgeUnitT, Nothing};     # edgeweight
-    kwargs...,                       # edgedata, nodedata
+    ::StructureKeyType,                         # nodekey
+    ::AbstractString,                          # label
+    ::StructureKeyType,                        # edgekey
+    ::Union{EdgeUnitT, Nothing};               # edgeweight
+    kwargs...,                                 # edgedata, nodedata
 )::NodeT where {NodeT, EdgeUnitT}
 end
 ```
@@ -345,6 +377,8 @@ end
 The builder contract is:
 
 - `nodekey` is the library-assigned structural node key
+- `edgekey` or `edgekeys` is the library-assigned structural incoming edge key
+  or keys
 - `label` is the raw source label, possibly `""`
 - `edgeweight` or `edgeweights` is the distinguished structural incoming edge
   weight or weights
@@ -355,11 +389,13 @@ The builder contract is:
 For the single-parent entry-point call:
 
 - `parent === nothing`
+- `edgekey === nothing`
 - `edgedata === nothing`
 
 For the network entry-point call:
 
 - `parents` is empty
+- `edgekeys` is empty
 - `edgeweights` is empty
 - `edgedata` is empty or `nothing`, depending on the concrete helper path
 
@@ -368,6 +404,49 @@ and are in scope.
 
 The returned `NodeT` is the library's stored handle for that node in all
 subsequent builder calls.
+
+### Pre-supplied entry-point contract
+
+When the caller supplies an `entry_point` handle positionally to `load`,
+LineagesIO does not create the graph entry point through
+`add_child(parent::Nothing, ...)`.
+
+Instead, the package binds the parsed graph entry node onto the supplied handle
+through a dedicated protocol hook:
+
+```julia
+function bind_entry_point!(
+    entry_point::NodeT,
+    nodekey::StructureKeyType,
+    label::AbstractString;
+    nodedata,
+)::NodeT where {NodeT}
+end
+```
+
+The contract of `bind_entry_point!` is:
+
+- it is called exactly once for each graph loaded through the pre-supplied
+  entry-point interface
+- it binds the distinguished structural node properties of the parsed graph
+  entry node onto the supplied handle
+- it may mutate the supplied handle, validate it, or return an equivalent
+  handle
+- it does not fabricate an incoming edge, because the entry node has none
+- it is valid only for exactly-one-graph loads unless and until the package
+  ratifies a separate entry-point factory contract
+
+After `bind_entry_point!` returns, all descendant construction proceeds through
+the normal `add_child` protocol, with the bound entry-point handle used as the
+parent handle where appropriate.
+
+`add_child` alone is not sufficient to define this interface cleanly, because a
+pre-supplied entry-point handle prevents LineagesIO from creating the graph
+entry node through the ordinary root-construction path.
+
+The pre-supplied entry-point interface is mutually exclusive with an explicit
+`builder = ...` callback. They express competing graph-construction ownership
+models and must not be combined implicitly.
 
 ### Protocol determination
 
@@ -488,7 +567,7 @@ Required columns:
 
 | Column | Type | Meaning |
 |---|---|---|
-| `nodekey` | `Int` | primary key within the graph |
+| `nodekey` | `StructureKeyType` | primary key within the graph |
 | `label` | `String` | raw source label, possibly empty |
 
 Additional node columns are format-owned.
@@ -502,9 +581,9 @@ Required columns:
 
 | Column | Type | Meaning |
 |---|---|---|
-| `edgekey` | `Int` | primary key within the graph |
-| `src_nodekey` | `Int` | source node structural key |
-| `dst_nodekey` | `Int` | destination node structural key |
+| `edgekey` | `StructureKeyType` | primary key within the graph |
+| `src_nodekey` | `StructureKeyType` | source node structural key |
+| `dst_nodekey` | `StructureKeyType` | destination node structural key |
 | `edgeweight` | `Union{Float64, Nothing}` | distinguished structural edge weight |
 
 Additional edge columns are format-owned.
@@ -607,7 +686,8 @@ It must carry:
 - `graph_rootnode`
 - `source_path`
 
-`graph_rootnode` is the handle returned by the entry-point builder call.
+`graph_rootnode` is the handle returned by the entry-point construction or
+entry-point binding call.
 
 When the caller does not supply a builder and no default materialization path is
 requested, `NodeT` may be `Nothing` and `graph_rootnode` may therefore be
@@ -734,8 +814,12 @@ override rather than silently guessing.
 The package must support:
 
 - method-extension builders through `load(src, NodeT)`
+- pre-supplied entry-point loading through `load(src, entry_point)` for
+  exactly-one-graph loads
 - explicit builder callbacks through `load(src; builder = fn)`
 - return type parameterization driven by `NodeT`
+- `StructureKeyType` as the semantic key type for all package-assigned
+  structural keys
 - concrete format-owned node and edge table types
 - concrete format-owned payload-handle types
 
@@ -776,6 +860,9 @@ The package is successful when all of the following are true.
 
 - `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` via method
   extension on `add_child`
+- `load("file.nwk", entry_point)` returns a `LineageGraphStore` for an
+  exactly-one-graph source whose parsed graph is bound onto the supplied
+  entry-point handle through `bind_entry_point!`
 - `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeT}` via
   callback
 - `load("file.nwk")` returns a `LineageGraphStore` whose graphs expose
@@ -886,6 +973,7 @@ work.
 In particular, note terminological policies in `STYLE-vocabulary.md`, together
 with the LineagesIO-specific core identifiers ratified by this document:
 
+- `StructureKeyType`
 - `nodekey`
 - `edgekey`
 - `src_nodekey`
