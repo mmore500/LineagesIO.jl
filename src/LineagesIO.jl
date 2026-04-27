@@ -3,10 +3,26 @@ module LineagesIO
 import FileIO
 import Tables
 
-#-- Temp structures to get 
-#-- clean scaffolding through 
-#-- in-place Aqua harness
-_FILEIO_REF = FileIO
-_TABLES_REF = Tables
+export CollectionTable
+export EdgeTable
+export GraphTable
+export LineageGraphAsset
+export LineageGraphStore
+export NodeTable
+export SourceTable
+export StructureKeyType
+export edge_property
+export node_property
+
+include("core_types.jl")
+include("tables.jl")
+include("views.jl")
+include("newick_format.jl")
+include("fileio_integration.jl")
+
+function __init__()::Nothing
+    register_newick_format!()
+    return nothing
+end
 
 end
