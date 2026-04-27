@@ -431,65 +431,141 @@ The minimum requirement is:
 
 `MetaGraphsNext.jl` is the primary phase 1 graph construction target.
 
-Its importance comes from being able to represent any graph structure with arbitrary node metadata and edge types.
-If we can support this package's abstractions, we can support any phylogenetic structure.
-If we need to constrain scope of graph types due to design or architecture or development issues, we can discuss subset, though I think our core ones of should be no issue: the reticulations of hybrid networks (PhyloNetworks) and rooted and unrooted trees (most of phylogenetics, PhyloNetworks, Phylo, etc.).
+Its importance comes from:
 
+* ability to represent arbitrary graph structure (trees, DAGs, general graphs)
+* separation of structural graph from metadata
+* stable node labeling independent of internal graph codes
+* compatibility with the `Graphs.jl` ecosystem
+
+If this extension is correct, it forms the reference implementation for all
+general graph materialization in LineagesIO.
+
+If we can support this package's abstractions, we can support any phylogenetic structure.
+
+### Concrete target types
+
+The extension must support construction into the following concrete types:
+
+* `MetaGraph{...}` (the sole concrete graph container type)
+
+This includes, by parameterization:
+
+* underlying graph types (from `Graphs.jl`):
+
+  * `SimpleDiGraph{Int}` — required (primary target for rooted trees and networks)
+  * `SimpleGraph{Int}` — required (unrooted trees)
+  * other `AbstractGraph{Int}` subtypes — supported if compatible with construction protocol
+
+So concretely, the extension must handle:
+
+* `MetaGraph{Int, SimpleDiGraph{Int}, ...}` — primary directed construction target
+* `MetaGraph{Int, SimpleGraph{Int}, ...}` — undirected construction target
+
+The extension must not assume any fixed metadata types:
+
+* `Label` type is user-defined
+* `VertexData`, `EdgeData`, `GraphData` are user-defined or `Nothing`
+* weight handling is optional and may be absent or custom
 
 ### Construction tier
 
-`MetaGraphsNext.jl` support may use either the multi-parent construction tier or the single parent support tier.
+`MetaGraphsNext.jl` support must implement:
 
-In all cases, we will assume a single entry-point node, `rootnode`.
-(a "distinguished node" for unrooted trees).
-This will correspond to the root in rooted trees and rooted phylogenetic networks (such as PhyloNetworks.jl), or more generally to the "distiguished node" or arbitary root in unrooted trees.
-We will assume that all graphs still have one entry-point node `rootnode`. 
-Hybrid or reticulate interior nodes are constructed through multi-parent `add_child` calls, not through multiple roots.
+* single-parent construction tier (trees)
+* multi-parent construction tier (networks)
+
+In all cases:
+
+* exactly one `rootnode` is used as the entry point
+* unrooted trees are treated as rooted at a distinguished node
+* reticulate nodes are constructed via multi-parent `add_child` calls
+
+No multiple-root semantics are permitted.
 
 ### Extension wrapper responsibility
 
 The extension must define a wrapper or handle type that is sufficient to carry:
 
-The wrapper design must preserve concrete field types and follow
-`STYLE-julia.md`.
+* the target `MetaGraph`
+* the current node identity (label or internal code)
+* a mapping between `nodekey` and target graph node identity
+* any extension-local lookup structures required for:
+
+  * node resolution
+  * edge resolution (if needed)
+  * parent tracking (for directed construction)
+
+The wrapper design must:
+
+* preserve concrete field types
+* avoid abstract fields
+* follow `STYLE-julia.md`
 
 ### Structural mapping expectations
 
 The extension must map:
 
-- `nodekey` to stable node identity in its wrapper and any needed lookup path
-- `edgekey` to stable edge identity in any extension-local edge lookup path
-- `label` to target-package node naming as appropriate
-- `edgeweight` to target-package edge-length storage as appropriate
+* `nodekey`
+  → stable node identity (typically via label or internal mapping)
 
-If `MetaGraphsNext.jl` requires unique node names for internal mechanics, any
-extension-local name normalization is the extension's responsibility. Such
-normalization does not change the authoritative `label` preserved by LineagesIO.
+* `edgekey`
+  → stable edge identity (must be tracked extension-locally; MetaGraphsNext does not provide intrinsic edge IDs)
+
+* `label`
+  → node label in `MetaGraph` (using label system or metadata)
+
+* `edgeweight`
+  → edge weight storage (either:
+
+  * Graphs.jl weight system, or
+  * edge metadata field)
+
+If `MetaGraphsNext.jl` requires unique labels:
+
+* the extension must normalize names
+* normalization must be internal only
+* authoritative `label` from LineagesIO must remain unchanged
 
 ### Annotation interpretation expectations
 
-None: the metadata can be passed through as a downstream consumer responsibility after structural parsing and materialization is done by package.
+None required.
+
+The extension may:
+
+* store annotation text directly in node/edge metadata, or
+* ignore annotation projection and rely entirely on authoritative tables
+
+Interpretation is downstream responsibility.
 
 ### Finalization expectations
 
-If `MetaGraphsNext.jl` requires post-build normalization or validation after
-incremental construction, the extension must implement `finalize_graph!`.
+If required by construction mechanics:
 
-Any required post-build actions must be verified against upstream source and
-documented in the extension test plan.
+* the extension must implement `finalize_graph!`
+
+Possible responsibilities include:
+
+* ensuring all nodes exist before edge insertion (if deferred)
+* resolving label → vertex-code mappings
+* validating graph invariants (e.g. no missing endpoints)
+
+All behavior must be verified against upstream `MetaGraphsNext.jl` contracts.
 
 ### Format support expectations
 
 Phase 1 `MetaGraphsNext.jl` extension support must cover:
 
-- `format"Newick"`
-- `format"LineageNetwork"`
-- unrooted-network-capable Newick support as ratified by core format policy
-- rooted-network-capable Newick support as ratified by core format policy
+* `format"Newick"`
+* `format"LineageNetwork"`
+* unrooted-tree Newick
+* rooted-tree Newick
+* rooted-network Newick (extended)
+* unrooted-network-compatible Newick (as ratified)
 
 Phase 2 work may extend this to:
 
-- `format"Nexus"` where ratified and implemented in core
+* `format"Nexus"`
 
 ## PhyloNetworks.jl support objectives
 
