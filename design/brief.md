@@ -165,8 +165,6 @@ It must be engineered so that later FileIO registration requires minimal
 It must remain type-stable through-out, and yet avoid or defer downstream as far as possible
 any narrowing or constraining of types unless this breaks good design in a particular case.
 
-redesign.
-
 ## Non-goals
 
 The package will not implement phylogenetic inference, reconciliation,
@@ -1130,6 +1128,15 @@ downstream without explicit approval.
 - semantic coercion of retained non-structural annotation values in core
 - a positional `load(src, FormatType())` override surface
 - any assumption that rooted networks require multiple roots
+
+## Community support through package extensions
+
+The document `brief--community-support-objectives` describes product features that build on the core package described here to provide organic materialization of supported data source formats into representations from the following consumer packages: 
+
+- MetaGraphsNext.jl
+    - This is considered a **reference-standard** consumer that we will target for support and domain modeling. 
+- PhyloNetworks.jl
+- Phylo.jl 
 
 ## Fundamental implementation mandates
 
