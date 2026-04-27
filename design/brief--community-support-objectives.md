@@ -515,7 +515,9 @@ No multiple-root semantics are permitted.
 The extension must define a wrapper or handle type that is sufficient to carry:
 
 * the target `MetaGraph`
-* the current node identity (label or internal code)
+* the current node identity as a non-integer label value — an extension-defined
+  wrapper type that holds a `StructureKeyType` value; never `StructureKeyType`
+  directly (see the structural mapping note below)
 * a mapping between `nodekey` and target graph node identity
 * any extension-local lookup structures required for:
 
@@ -534,7 +536,18 @@ The wrapper design must:
 The extension must map:
 
 * `nodekey`
-  → stable node identity (typically via label or internal mapping)
+  → stable node identity via a non-integer label wrapper type
+
+  **Hard constraint**: `StructureKeyType = Int`. MetaGraphsNext's internal vertex
+  code type is also `Code<:Integer`. The MetaGraphsNext source explicitly states
+  that integer types must not be used as the `Label` type parameter because vertex
+  labels (stable, user-supplied) and vertex codes (mutable internal integers) must
+  be distinct types. Using `StructureKeyType` directly as `Label` is prohibited —
+  even for incremental construction where no vertex is deleted, the type-system
+  distinction is the requirement. The extension must define a thin non-integer
+  wrapper type (e.g. `struct LineageNodeID; nodekey::StructureKeyType; end`) and
+  use it as the `Label` type parameter. Confirm the exact ratified type name with
+  the project owner before export.
 
 * `edgekey`
   → stable edge identity (must be tracked extension-locally; MetaGraphsNext does not provide intrinsic edge IDs)
