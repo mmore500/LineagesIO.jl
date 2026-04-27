@@ -124,13 +124,13 @@ Julia, while following STYLE-julia.md for design principles and
 mechanics, or the various tasking instructions.
 Defer narrowing of types or avoid it if you can if not needed.
 
-In we want to target loading very large trees or networks and 
-maybe even very large collections of very large trees or networks.
-Node-level and edge-level metadata needs in these cases can be minimal 
-to none.
+We want not to allow fast and economical loading of very large trees or networks (at the lazy iterator level) and 
+also very large collections of very large trees or networks (at both file and iterator level).
+
 At the same time, the data can always be dereferenced at any client-side end 
 point by dereferencing the references and we can have some nice idiomatic usability by providing syntactic sugars or wrappers (e.g. getproperty overrides, `node_property(graph, node, :fieldname)`
-So we do not try to promote metadata to fieldnames or store them locally in the nodes by use the tables which can be part of the graph if we own it in our data model or otherwise returned to the client.
+So we do not try to promote metadata to fieldnames or store them locally in the nodes.
+Instead we can the tables which can be part of the graph if we own it in our data model and/or by that can somehow be returned to and used by the client, using wrappers, shims, methods, etc.
 
 Read the primary brief, `brief.md` to confirm, and confirm 
 code implementation conforms to this, and evaluate that this is a good design.
