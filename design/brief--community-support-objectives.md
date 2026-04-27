@@ -425,6 +425,85 @@ The minimum requirement is:
 | `TskitTrees` | source-format and ecosystem expansion | Phase 2 |
 | additional ratified packages | extension or consumer compatibility | Future |
 
+## MetaGraphsNext.jl support objectives
+
+### Role
+
+`MetaGraphsNext.jl` is the primary phase 1 graph construction target.
+
+Its importance comes from being able to represent any graph structure with arbitrary node metadata and edge types.
+If we can support this package's abstractions, we can support any phylogenetic structure.
+If we need to constrain scope of graph types due to design or architecture or development issues, we can discuss subset, though I think our core ones of should be no issue: the reticulations of hybrid networks (PhyloNetworks) and rooted and unrooted trees (most of phylogenetics, PhyloNetworks, Phylo, etc.).
+
+
+### Construction tier
+
+`MetaGraphsNext.jl` support may use either the multi-parent construction tier or the single parent support tier.
+
+In all cases, we will assume by contract a single entry-point node, `rootnode`.
+This will correspond to the 
+
+
+We can assume a rooted network still has one `rootnode`. 
+Hybrid or reticulate interior nodes are constructed through multi-parent `add_child` calls, not through multiple roots.
+
+### Extension wrapper responsibility
+
+The extension must define a wrapper or handle type that is sufficient to carry:
+
+- the target `HybridNetwork`
+- the current target `Node`
+- any additional extension-local state needed to satisfy the construction
+  protocol cleanly
+
+The wrapper design must preserve concrete field types and follow
+`STYLE-julia.md`.
+
+### Structural mapping expectations
+
+The extension must map:
+
+- `nodekey` to stable node identity in its wrapper and any needed lookup path
+- `edgekey` to stable edge identity in any extension-local edge lookup path
+- `label` to target-package node naming as appropriate
+- `edgeweight` to target-package edge-length storage as appropriate
+
+If `MetaGraphsNext.jl` requires unique node names for internal mechanics, any
+extension-local name normalization is the extension's responsibility. Such
+normalization does not change the authoritative `label` preserved by LineagesIO.
+
+### Annotation interpretation expectations
+
+The extension should interpret important retained fields when they are needed by
+`MetaGraphsNext.jl` itself.
+
+Typical examples include:
+
+- `gamma`
+- support-like values when projected onto target-package edge or node fields
+
+The extension may interpret those values during construction directly from row
+references.
+
+### Finalization expectations
+
+If `MetaGraphsNext.jl` requires post-build normalization or validation after
+incremental construction, the extension must implement `finalize_graph!`.
+
+Any required post-build actions must be verified against upstream source and
+documented in the extension test plan.
+
+### Format support expectations
+
+Phase 1 `MetaGraphsNext.jl` extension support must cover:
+
+- `format"LineageNetwork"`
+- rooted-network-capable Newick support as ratified by core format policy
+
+Phase 2 work may extend this to:
+
+- `format"Nexus"` where ratified and implemented in core
+
 ## PhyloNetworks.jl support objectives
 
 ### Role
