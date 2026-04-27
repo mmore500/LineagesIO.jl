@@ -69,6 +69,7 @@ material to a tranche:
 - `AbstractTrees.jl/`
 - `PhyloNetworks.jl/`
 - `Phylo.jl/`
+- `Tables.jl/`
 
 The following additional upstream sources are required by this tranche plan and
 were missing from the governing briefs:

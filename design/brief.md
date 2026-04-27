@@ -90,6 +90,7 @@ Core technologies:
 | `AbstractTrees.jl/` | Traversal traits and iteration interface; to be supported by wrapping appropriate `MetaGraphsNext.jl` types in the package extension |
 | `PhyloNetworks.jl/` | Extended Newick with hybrid nodes parsing reference; Domain consumer support target; extension target to be provided with native support like  `MetaGraphsNext.jl`|
 | `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
+| `Tables.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
 
 When upstream behavior matters, verified source text governs. Memory,
 secondary summaries, and plausible recollection do not.
