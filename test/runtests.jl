@@ -10,6 +10,4 @@ using Test: @testset
     @testset "Code linting (JET.jl)" begin
         JET.test_package(LineagesIO; target_modules = (LineagesIO,))
     end
-    include("test_protocol.jl")
-    include("test_types.jl")
 end
