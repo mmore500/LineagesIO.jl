@@ -440,21 +440,15 @@ If we need to constrain scope of graph types due to design or architecture or de
 
 `MetaGraphsNext.jl` support may use either the multi-parent construction tier or the single parent support tier.
 
-In all cases, we will assume by contract a single entry-point node, `rootnode`.
-This will correspond to the 
-
-
-We can assume a rooted network still has one `rootnode`. 
+In all cases, we will assume a single entry-point node, `rootnode`.
+(a "distinguished node" for unrooted trees).
+This will correspond to the root in rooted trees and rooted phylogenetic networks (such as PhyloNetworks.jl), or more generally to the "distiguished node" or arbitary root in unrooted trees.
+We will assume that all graphs still have one entry-point node `rootnode`. 
 Hybrid or reticulate interior nodes are constructed through multi-parent `add_child` calls, not through multiple roots.
 
 ### Extension wrapper responsibility
 
 The extension must define a wrapper or handle type that is sufficient to carry:
-
-- the target `HybridNetwork`
-- the current target `Node`
-- any additional extension-local state needed to satisfy the construction
-  protocol cleanly
 
 The wrapper design must preserve concrete field types and follow
 `STYLE-julia.md`.
@@ -474,16 +468,7 @@ normalization does not change the authoritative `label` preserved by LineagesIO.
 
 ### Annotation interpretation expectations
 
-The extension should interpret important retained fields when they are needed by
-`MetaGraphsNext.jl` itself.
-
-Typical examples include:
-
-- `gamma`
-- support-like values when projected onto target-package edge or node fields
-
-The extension may interpret those values during construction directly from row
-references.
+None: the metadata can be passed through as a downstream consumer responsibility after structural parsing and materialization is done by package.
 
 ### Finalization expectations
 
@@ -497,7 +482,9 @@ documented in the extension test plan.
 
 Phase 1 `MetaGraphsNext.jl` extension support must cover:
 
+- `format"Newick"`
 - `format"LineageNetwork"`
+- unrooted-network-capable Newick support as ratified by core format policy
 - rooted-network-capable Newick support as ratified by core format policy
 
 Phase 2 work may extend this to:
