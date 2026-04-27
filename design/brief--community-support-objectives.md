@@ -23,6 +23,13 @@ ecosystem support or package integration must conform to this document and to
 If any extension-specific plan or task conflicts with the core brief or with
 this companion, the documents must be revised before implementation begins.
 
+`design/brief--community-support-user-stories.md` is the authoritative
+user-story annex to this document. It must be read alongside this document when
+planning tranches, tasking, verification, or consumer-facing syntax examples.
+It anchors intended ecosystem support through numbered user stories and Julia
+syntax examples. It does not relax, replace, or override any contract stated
+in either governing brief.
+
 ## Governance and policy transmission mandates
 
 All implementers, reviewers, tranche authors, downstream agents, and community
@@ -142,6 +149,26 @@ LineagesIO is not a competing graph-model package. It is the package that
 loads rooted lineage graph sources, preserves authoritative structure and
 retained annotations, and makes that content available to target packages
 through stable public protocols.
+
+## User story annex
+
+`design/brief--community-support-user-stories.md` is the authoritative
+user-story annex for this companion brief.
+
+Its purpose is to anchor:
+
+- the intended early deliverable for simple Newick trees
+- the priority of `MetaGraphsNext.jl` as the reference-standard consumer
+- the consumer-facing syntax shapes that tranche plans should target
+- extension-specific verification expectations and rejection behavior
+
+All downstream tranche and tasking documents derived from this brief must cite
+the relevant numbered user stories from that annex when those stories are in
+scope.
+
+If a code example in that annex conflicts with a ratified contract in this
+document or in `design/brief.md`, the governing brief or briefs govern and the
+annex must be revised.
 
 ## Community support objectives
 
@@ -826,6 +853,15 @@ introduced downstream without explicit approval.
 ## Fundamental implementation mandates
 
 Reading of `design/brief.md` is mandated alongside this document.
+
+Reading of `design/brief--community-support-user-stories.md` is mandated
+alongside this document whenever planning or implementing extension-facing
+behavior, early deliverables, consumer-package verification, or tranche
+boundaries for ecosystem support.
+
+Reading of `design/brief--user-stories.md` is also mandated whenever the work
+touches shared core-loading behavior, authoritative table usage, or public
+loading syntax that spans the core and extension boundary.
 
 Reading and compliance with all applicable `STYLE-*.md` files and
 `CONTRIBUTING.md` are mandated and must be passed forward into all downstream

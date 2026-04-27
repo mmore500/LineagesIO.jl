@@ -24,6 +24,12 @@ document for extension architecture, upstream parse-stack reference, and target
 ecosystem support. It must be read alongside this document. It does not relax,
 replace, or override any core contract stated here.
 
+`design/brief--user-stories.md` is the authoritative user-story annex to this
+document. It must be read alongside this document when planning tranches,
+tasking, verification, or public API examples. It anchors intended use through
+numbered user stories and Julia syntax examples. It does not relax, replace,
+or override any core contract stated here.
+
 ## Governance and policy transmission mandates
 
 All implementers, reviewers, tranche authors, downstream agents, and community
@@ -106,6 +112,25 @@ It serves four roles:
 The package does not define the user's graph model. It defines how parsed
 structure, retained source annotations, and optional graph construction are
 delivered to user code.
+
+## User story annex
+
+`design/brief--user-stories.md` is the authoritative user-story annex for this
+brief.
+
+Its purpose is to anchor:
+
+- intended public usage patterns
+- tranche decomposition and dependency planning
+- verification targets and failure-mode coverage
+- public syntax examples for core loading, tables, and construction protocol
+
+All downstream tranche and tasking documents derived from this brief must cite
+the relevant numbered user stories from that annex when those stories are in
+scope.
+
+If a code example in the annex conflicts with a ratified core contract in this
+document, this document governs and the annex must be revised.
 
 ## Design objectives
 
@@ -1137,10 +1162,22 @@ The document `brief--community-support-objectives` describes product features th
 - PhyloNetworks.jl
 - Phylo.jl 
 
+The document `design/brief--community-support-user-stories.md` is the
+community-support user-story annex for that companion brief and must be read
+alongside it when trancheing or verifying extension-facing work.
+
 ## Fundamental implementation mandates
 
 Reading of `design/brief--community-support-objectives.md` is mandated alongside
 this document.
+
+Reading of `design/brief--user-stories.md` is mandated alongside this document
+whenever planning or implementing user-facing behavior, verification coverage,
+or tranche boundaries that derive from the core package contract.
+
+Reading of `design/brief--community-support-user-stories.md` is also mandated
+whenever the work touches ecosystem integration, extension behavior, or shared
+success criteria that cross the core and community-support boundary.
 
 Reading and compliance with all applicable `STYLE-*.md` files and
 `CONTRIBUTING.md` are mandated and must be passed forward into all downstream
