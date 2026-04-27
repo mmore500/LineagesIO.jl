@@ -366,6 +366,10 @@ txt = edge_property(edgedata, :gamma)
 gamma = txt === nothing ? nothing : parse(Float64, txt)
 ```
 
+As noted above, data can also be dereferenced from graph-level tables, and 
+should be preferred if it does not break other design principles for 
+scaling to large trees.
+
 ### Deferred interpretation after construction
 
 An extension may also choose not to store a semantic value on the target graph
@@ -378,11 +382,16 @@ bootstrap(asset.node_table, node.nodekey)
 hybrid_gamma(asset.edge_table, edge.edgekey)
 ```
 
+This is the preferred mechanism for performance reasons. 
+We can layer in convenience wrappers, delegates, dispatches, etc. as needed to improve client experience based on how the ownership and semantic boundaries and constructed between LineagesIO and the consumer package.
+We would like to structure in the node and edge table data into data model using various idiomatic mechanisms (e.g if we owned it or the consumer package architecture allowed some sort of field addition or property annex).
+Review implementation with lead developer before committing.
+(HIL)
+
 ### Projection into target-package metadata stores
 
 If a target package exposes its own node or edge metadata storage, an extension
-may project retained annotations into that storage.
-
+may provide an option for projecting retained annotations into that storage; but this should default to the more performant mechanism described above to keep nodes lightweight.
 This projection is optional and target-specific. The authoritative preserved
 store remains the LineagesIO tables.
 
@@ -403,9 +412,10 @@ The minimum requirement is:
 
 | Package | Support type | Structural tier | Priority |
 |---|---|---|---|
-| `Phylo.jl` | direct construction extension | single-parent | Phase 1 |
-| `PhyloNetworks.jl` | direct construction extension | multi-parent | Phase 1 |
+| `MetaGraphsNext.jl` | direct construct extension | single-parent, multi-parent, general graph | Phase 1 |
 | `AbstractTrees.jl` | downstream traversal compatibility target | consumer-facing | Phase 1 |
+| `PhyloNetworks.jl` | direct construction extension | multi-parent | Phase 1 |
+| `Phylo.jl` | direct construction extension | single-parent | Phase 1 |
 
 ### Phase 2
 
