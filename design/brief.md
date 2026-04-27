@@ -141,10 +141,11 @@ the authoritative tables under their source field names by default.
 
 It must deliver retained node and edge annotation rows to builders through
 small row-reference objects rather than through copied per-node or per-edge
-bags.
+bags (for generic type stability, performance, and scalability).
 
-It must preserve retained non-structural annotations without semantic coercion
-in core. Interpretation and coercion belong to format-specific and
+It must preserve retained non-structural annotations with no responsibility
+for semantic coercion in core. 
+Interpretation and coercion belong to format-specific and
 consumer-specific layers.
 
 It must scale to:
