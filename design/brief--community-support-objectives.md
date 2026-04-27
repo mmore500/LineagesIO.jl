@@ -75,33 +75,59 @@ Available at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-
 | Source | Relevance |
 |---|---|
 | `fileio.jl/` | FileIO backend contract; `DataFormat`; `File` and `Stream`; `add_format`; private `load` and `save`; dispatch and detection semantics |
-| `Graphs.jl/` | Phase 1 target: `SimpleGraph`, `SimpleDiGraph`, and other concrete types for users. Standard traversal traits and iteration interfaces; downstream tree and graph traversal compatibility |
-| `AbstractTrees.jl/` | Phase 1 target: Traversal traits and iteration interface; downstream tree and graph traversal compatibility |
-| `Phylo.jl/` | Phase 1 tree-construction target; native type structure; constructors; metadata handling; NEXUS support target |
-| `PhyloNetworks.jl/` | Phase 1 network-construction target; hybrid-edge semantics; post-build normalization requirements |
-| `NewickTree.jl/` | Julia Newick parsing reference and ecosystem context |
-| `DendroPy/` | Builder-oriented parsing architecture reference and ecosystem context |
-| `Phylogenies.jl/` | Minimal Julia ecosystem context |
-| `tskit` | Mandatory context for future genealogical-table support and future ecosystem integration planning |
+| `Graphs.jl/` | Key consumer domain ecosystem, providing common abstractions, interfaces, etc. |
+| `MetaGraphsNext.jl/` | Key consumer support target package with concrete types for which we will provide first-class support for using the package extension mechanism |
+| `AbstractTrees.jl/` | Traversal traits and iteration interface; to be supported by wrapping appropriate `MetaGraphsNext.jl` types in the package extension |
+| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes parsing reference; Domain consumer support target; extension target to be provided with native support like  `MetaGraphsNext.jl`|
+| `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
 
 When upstream behavior matters, verified source text governs. Memory,
 secondary summaries, and plausible recollection do not.
 
 ## Purpose
 
-This document defines how LineagesIO.jl supports the Julia phylogenetics
-community as an interoperability layer.
+The core LineagesIO.jl package will be extended (using Julia's package extension mechanism) to provide supported for **DESERIALIZATION**:
 
-It defines:
+- `MetaGraphsNextIO`
+    - Triggered on `MetaGraphsNext`, will provide native materialization of concrete `MetaGraphsNext.jl` types from support data source formatted-files.
+    - `AbstractTrees.jl` interface will be added through wrapper functions on appropriate `MetaGraphsNextIO.jl` types.
+- `PhyloNetworksIO`
+    - Triggered on `PhyloNetworks.jl`, as above for native object materialization from any supported data source.
+- `PhyloIO`
+    - Triggered on `Phylo.jl`, as above for native object materialization from any supported data source.
 
-- which ecosystem packages receive first-class extension support
-- what kind of support each package receives
+- which ecosystem packages receive first-class extension support, as reference examples of how consumer packages can black-box wide-spectrum deserialization and materialize custom native phylogenetic data types
+- what kind of support each package receives in terms of data
 - what responsibilities belong to LineagesIO core and what responsibilities
   belong to extension packages
 - how authoritative tables and row references are used at the extension
   boundary
 - what verification is required before community support can be considered
   complete
+
+(Note: we may discuss serialization or aspects of serialization in this or other documents in this workflow, but that should not be taken to mean that these are production target or are in scope for current development. 
+
+We of course need to design for them, and that is why they are part 
+of the discussion. 
+
+When designing implementations, focus on robust best-practices idiomatic 
+Julia, while following STYLE-julia.md for design principles and 
+mechanics, or the various tasking instructions.
+Defer narrowing of types or avoid it if you can if not needed.
+
+In we want to target loading very large trees or networks and 
+maybe even very large collections of very large trees or networks.
+Node-level and edge-level metadata needs in these cases can be minimal 
+to none.
+At the same time, the data can always be dereferenced at any client-side end 
+point by dereferencing the references and we can have some nice idiomatic usability by providing syntactic sugars or wrappers (e.g. getproperty overrides, `node_property(graph, node, :fieldname)`
+So we do not try to promote metadata to fieldnames or store them locally in the nodes by use the tables which can be part of the graph if we own it in our data model or otherwise returned to the client.
+
+Read the primary brief, `brief.md` to confirm, and confirm 
+code implementation conforms to this, and evaluate that this is a good design.
+If there are any problems or logical issues, we need to discuss and revise.
+
+At time of implementation, it would be good to review current architecture and code and understanding to confirm that this is all a good fit.
 
 LineagesIO is not a competing graph-model package. It is the package that
 loads rooted lineage graph sources, preserves authoritative structure and
@@ -112,7 +138,7 @@ through stable public protocols.
 
 The package must satisfy all of the following community-facing objectives.
 
-It must support first-class construction into focal Julia phylogenetics
+It must support first-class construction into focal consumer ackages
 packages through Julia package extensions rather than by embedding those
 packages as hard dependencies in core.
 
@@ -150,8 +176,10 @@ without requiring LineagesIO core to own those semantics.
 It must provide organic idiomatic support for seamless downstream 
 interoperability with domain-standard ecosystem packages and traversers:
 
-- `Graphs.jl`
-- `AbstractTrees.jl`
+- `MetaGraphsNext.jl`, `PhyloNetworks.jl`, `Phylo.jl`
+    - Building from parser directly into (appropriate) native concrete types from (appropriate) data sources of (supported) data formats
+- `AbstractTrees.jl` 
+    - Add wrappers around `MetaGraphsNext.jl` concrete types to provide `AbstractTree` interface
 
 ## Scope of community support
 
