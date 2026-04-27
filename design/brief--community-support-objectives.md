@@ -64,6 +64,15 @@ Community compliance is mandatory. This document is an anchor text for repeated
 contributor and agent cycles and must continue to be cited and propagated in
 downstream work.
 
+### Vocabulary mapping
+
+As this production involves interfacing with third-party packages, there will no doubt be conflict in terminological and vocabulary.
+Internally, we will continue to use to LineagesIO terminology and concepts and names for variables etc., until final hand-off.
+Of course, we will use consumer/client terms when needed by their API.
+In most cases, the interface boundary is clear. 
+In all cases, confirm with me.
+If there is a conflict or confusion, discuss with me.
+
 ## Upstream primary sources
 
 The following upstream primary sources materially constrain the community and
@@ -181,7 +190,7 @@ interoperability with domain-standard ecosystem packages and traversers:
 - `AbstractTrees.jl` 
     - Add wrappers around `MetaGraphsNext.jl` concrete types to provide `AbstractTree` interface
 
-## Scope of community support
+## Scope of community support (Integrated "consumer packages")
 
 Community support in this project is divided into three categories.
 
@@ -192,7 +201,7 @@ through package extensions.
 
 Phase 1 focal graph-construction targets:
 
-- `Graphs.jl` (`
+- `MetaGraphsNext.jl`
 - `PhyloNetworks.jl`
 - `Phylo.jl`
 
@@ -224,7 +233,7 @@ Phase 2 and future targets include:
 First-class ecosystem integrations must be implemented as Julia package
 extensions.
 
-Core `LineagesIO` must not depend hard on `Phylo.jl` or `PhyloNetworks.jl`.
+Core `LineagesIO` must not depend hard on `MetaGraphsNext.jl`, `Phylo.jl` or `PhyloNetworks.jl`.
 
 The extension loading model is:
 
@@ -239,6 +248,7 @@ Extension modules live under `ext/`.
 
 Phase 1 extension modules are:
 
+- `ext/MetaGraphsNextIO.jl`
 - `ext/PhyloExt.jl`
 - `ext/PhyloNetworksExt.jl`
 
