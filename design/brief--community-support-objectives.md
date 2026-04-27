@@ -570,7 +570,7 @@ Phase 2 work may extend this to:
 
 - `format"Nexus"` where ratified and implemented in core
 
-## AbstractTrees.jl and Graphs.jl objectives
+## AbstractTrees.jl
 
 ### AbstractTrees.jl
 
@@ -627,9 +627,18 @@ annotation interpretation behavior.
 
 Community support is successful when all of the following are true.
 
-- `PhyloExt` constructs rooted trees from phase 1 supported formats through the
+- `MetaGraphsNextIO` constructs 
+    - rooted trees 
+    - unrooted trees
+    - rooted networks
+    - structures isomorphic to `PhyloNetworks.jl` reticulation networks
+- `AbstractTreesIO` constructs
+    - rooted trees
+    - unrooted trees with a "distinguished node" serving as a head node
+  from phase 1 supported formats through the public core protocol
+- `PhyloIO` constructs rooted trees from phase 1 supported formats through the
   public core protocol
-- `PhyloNetworksExt` constructs rooted networks from phase 1 supported formats
+- `PhyloNetworksIO` constructs rooted networks from phase 1 supported formats
   through the public core protocol
 - users can choose library-created-root construction or supplied-root binding
   where the extension supports both
