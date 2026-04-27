@@ -37,7 +37,6 @@ from this brief.
 | `STYLE-docs.md` | Documentation formatting standards |
 | `STYLE-git.md` | Commit style and branching model |
 | `STYLE-julia.md` | Functional design; naming; type annotations; mutation contract; struct field concreteness; codebase curation |
-| `STYLE-makie.md` | Makie integration contracts; LineagesMakie interoperability constraints |
 | `STYLE-upstream-contracts.md` | Host-framework contract reading; divergence authorization; primary-source verification |
 | `STYLE-verification.md` | Verification artifact standards; weak-proxy prohibition; field-level verification |
 | `STYLE-vocabulary.md` | Controlled terminology; proscribed terms; compound-word rules; canonical identifier table |
@@ -75,17 +74,17 @@ the system.
 
 Available at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/`:
 
+Core technologies:
+
 | Source | Relevance |
 |---|---|
 | `fileio.jl/` | FileIO backend contract; `DataFormat`; `File` and `Stream`; `add_format`; private `load` and `save`; dispatch and detection semantics |
-| `NewickTree.jl/` | Julia Newick parsing reference |
-| `DendroPy/` | Builder-oriented parsing architecture reference |
+| `Graphs.jl/` | Key consumer domain ecosystem, providing common abstractions, interfaces, etc. |
+| `AbstractTrees.jl/` | Traversal traits and iteration interface |
+| `MetaGraphsNext.jl/` | Key consumer package with concrete types for which we will provide first-class support for using the package extension mechanism |
+| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes; extension target to be supported like `MetaGraphs|
 | `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target |
-| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes; extension target |
-| `AbstractTrees.jl/` | Traversal traits and iteration interface; LineagesMakie interoperability |
-| `Phylogenies.jl/` | Minimal Julia ecosystem context |
-| `tskit` | Mandatory context for future genealogical-table formats |
-| `../../LineagesMakie.jl/` | Local companion package; accessor protocol that loaded graphs must fit once the user supplies the required accessors |
+| `NewickTree.jl/` | Julia Newick parsing reference |
 
 When upstream behavior matters, verified source text governs. Memory,
 secondary summaries, and plausible recollection do not.
@@ -162,6 +161,10 @@ dispatcher. LineagesIO provides the actual parser, format detector, serializer,
 and backend methods.
 
 It must be engineered so that later FileIO registration requires minimal
+
+It must remain type-stable through-out, and yet avoid or defer downstream as far as possible
+any narrowing or constraining of types unless this breaks good design in a particular case.
+
 redesign.
 
 ## Non-goals

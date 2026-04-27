@@ -1,617 +1,656 @@
 ---
-date-created: 2026-04-25T00:00:00
-version: 1.0
+date-created: 2026-04-26T00:00:00
+status: authoritative-companion
 ---
 
-# LineagesIO.jl — Community Support Objectives
+# LineagesIO.jl — Community support objectives
+
+## Authority
+
+This document is the authoritative companion design brief for community-facing
+integration, extension ownership, ecosystem support priorities, and extension
+verification requirements in LineagesIO.jl.
+
+`design/brief.md` is the primary core-design authority. This document must be
+read alongside it. It does not relax, replace, or override any core contract
+stated there.
+
+All downstream planning documents, tranche files, tasking files, audit scopes,
+review instructions, implementation work, and extension work that concern
+ecosystem support or package integration must conform to this document and to
+`design/brief.md`.
+
+If any extension-specific plan or task conflicts with the core brief or with
+this companion, the documents must be revised before implementation begins.
+
+## Governance and policy transmission mandates
+
+All implementers, reviewers, tranche authors, downstream agents, and community
+contributors must read the following governance documents line by line before
+planning, implementing, reviewing, delegating, or ratifying any work derived
+from this brief.
+
+| Document | Relevance |
+|---|---|
+| `STYLE-architecture.md` | Ownership boundaries; anti-fix prohibition; green-state discipline |
+| `STYLE-docs.md` | Documentation formatting standards |
+| `STYLE-git.md` | Commit style and branching model |
+| `STYLE-julia.md` | Functional design; naming; type annotations; mutation contract; struct field concreteness; codebase curation |
+| `STYLE-upstream-contracts.md` | Host-framework contract reading; divergence authorization; primary-source verification |
+| `STYLE-verification.md` | Verification artifact standards; weak-proxy prohibition; field-level verification |
+| `STYLE-vocabulary.md` | Controlled terminology; proscribed terms; compound-word rules; canonical identifier table |
+| `STYLE-workflow-docs.md` | Workflow document structure; revalidation rule; pass-forward obligations |
+| `STYLE-writing.md` | Prose style for documentation |
+| `CONTRIBUTING.md` | Contribution process and expectations |
+
+This obligation must be passed forward explicitly into every downstream
+artifact. It is not sufficient to link a parent document and assume the next
+reader will infer the mandates.
+
+Passing these mandates forward means:
+
+- naming the required governance documents explicitly
+- restating the applicable terminology constraints explicitly
+- naming the required upstream primary sources explicitly
+- restating the ownership boundary and authorization boundary explicitly
+- restating the verification gates explicitly
+- restating the integration contract directly and completely enough for a new
+  reader to apply it correctly without consulting separate explanatory context
+
+No downstream plan, tranche, task, review scope, or delegated work description
+is valid if it silently drops these obligations.
+
+Community compliance is mandatory. This document is an anchor text for repeated
+contributor and agent cycles and must continue to be cited and propagated in
+downstream work.
+
+## Upstream primary sources
+
+The following upstream primary sources materially constrain the community and
+extension design of the package and must be read line by line before
+implementing the relevant parts of the system.
+
+Available at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/`:
+
+| Source | Relevance |
+|---|---|
+| `fileio.jl/` | FileIO backend contract; `DataFormat`; `File` and `Stream`; `add_format`; private `load` and `save`; dispatch and detection semantics |
+| `Graphs.jl/` | Phase 1 target: `SimpleGraph`, `SimpleDiGraph`, and other concrete types for users. Standard traversal traits and iteration interfaces; downstream tree and graph traversal compatibility |
+| `AbstractTrees.jl/` | Phase 1 target: Traversal traits and iteration interface; downstream tree and graph traversal compatibility |
+| `Phylo.jl/` | Phase 1 tree-construction target; native type structure; constructors; metadata handling; NEXUS support target |
+| `PhyloNetworks.jl/` | Phase 1 network-construction target; hybrid-edge semantics; post-build normalization requirements |
+| `NewickTree.jl/` | Julia Newick parsing reference and ecosystem context |
+| `DendroPy/` | Builder-oriented parsing architecture reference and ecosystem context |
+| `Phylogenies.jl/` | Minimal Julia ecosystem context |
+| `tskit` | Mandatory context for future genealogical-table support and future ecosystem integration planning |
+
+When upstream behavior matters, verified source text governs. Memory,
+secondary summaries, and plausible recollection do not.
 
 ## Purpose
 
-This document defines LineagesIO.jl's community and ecosystem integration
-objectives. It identifies focal packages for which LineagesIO will provide
-first-class integrated support via Julia's package extension mechanism, documents
-the parse stack and type structure of each target package (as determined by
-line-by-line reading), and specifies the architecture and API for the extension
-layer.
+This document defines how LineagesIO.jl supports the Julia phylogenetics
+community as an interoperability layer.
 
-The table in §2 is the authoritative design reference for extension work and will
-be expanded as additional packages are targeted.
-
-## Primary design authority
-
-**`design/brief.md`** is the primary design document for LineagesIO.jl and must
-be read before or alongside this document. This document extends and specialises
-`brief.md` for community integration; it does not supersede any of its decisions.
+It defines:
 
-All `add_child` signatures in this document use the full protocol defined in
-`brief.md`, including:
-
-* the `node_idx :: Int` sequential join key
-* `edgedata = nothing` and `nodedata = nothing` as optional keyword arguments;
-  the orchestration layer always passes real values at call time
-
-All `LineageGraphStore` and `LineageGraphAsset` return types used here are as
-defined in `brief.md §Return types`. Any change to the primary protocol in
-`brief.md` must be reflected here, and vice versa.
-
----
-
----
-
-## Focal packages (Phase 1)
-
-| Package | Role | Integration priority |
-|---|---|---|
-| **PhyloNetworks.jl** | Phylogenetic networks; primary Julia package for reticulate evolution | Phase 1 |
-| **Phylo.jl** | Parametric rooted/unrooted trees; Tables.jl and DataFrames.jl integration | Phase 1 |
-
----
-
-## Parse stack reference table
-
-One section per package. Each section answers: what files does it read, how does
-it parse them, what concrete types does it produce, what metadata fields exist,
-and what does the extension need to do.
-
----
-
-### PhyloNetworks.jl
-
-#### Supported formats
-
-| Format | File extensions | Notes |
-|---|---|---|
-| Extended Newick | `.nwk`, `.tre`, `.newick` | Hybrid/reticulate notation `#H1`; gamma on 3rd colon field |
-| NEXUS | `.nex`, `.nexus` | TREES block; TRANSLATE table; gamma in `[&gamma=x]` or `[&relSize=x]` comments |
-
-#### Entry points
-
-| Function | Signature | Returns |
-|---|---|---|
-| `readnewick` | `readnewick(input::AbstractString)` | `HybridNetwork` |
-| `readnewick` | `readnewick(s::IO)` | `HybridNetwork` |
-| `readmultinewick` | `readmultinewick(file::AbstractString, fast=true)` | `Vector{HybridNetwork}` |
-| `readnexus_treeblock` | `readnexus_treeblock(file, treereader=readnewick; reticulate=true)` | `Vector{HybridNetwork}` |
-
-#### Parse approach
-
-Single-pass recursive descent, character-by-character (no formal tokenizer).
-Builds `HybridNetwork` directly during traversal. Hybrid nodes are identified
-by `#` prefix in node names; the parser deduplicates them (first occurrence
-creates the node; second merges into it). Post-parse cleanup is mandatory:
-
-| Step | Function | What it does |
-|---|---|---|
-| 1 | `storeHybrids!(net)` | Scans node array, populates `net.hybrid` |
-| 2 | `checkNumHybEdges!(net)` | Validates each hybrid has ≥2 incoming hybrid edges |
-| 3 | `directedges!(net)` | Sets `ischild1`, `containroot`, `net.isrooted = true` |
-
-**NEXUS extras**: TRANSLATE table decoded post-parse (leaf names replaced from
-numeric IDs). Gamma extracted from comment blocks **before** passing to
-`readnewick`, then assigned via `readnexus_assigngammas!` after building.
-
-#### Endpoint type: `HybridNetwork`
-
-```julia
-mutable struct HybridNetwork <: Network
-    numtaxa   :: Int
-    numnodes  :: Int
-    numedges  :: Int
-    node      :: Array{Node,1}       # all nodes (1-based index)
-    edge      :: Array{Edge,1}       # all edges (1-based index)
-    rooti     :: Int                 # index of root in node array
-    names     :: Array{String,1}     # taxon + hybrid node names
-    hybrid    :: Array{Node,1}       # pointers to hybrid nodes
-    numhybrids:: Int
-    leaf      :: Array{Node,1}       # pointers to leaf nodes
-    isrooted  :: Bool
-    # ... plus algorithm scratch fields (vec_int*, vec_bool, etc.)
-end
-```
-
-#### Node type: `Node`
-
-| Field | Type | Meaning | Missing sentinel |
-|---|---|---|---|
-| `number` | `Int` | unique identifier | negative during parse |
-| `name` | `AbstractString` | taxon or hybrid name | `""` |
-| `leaf` | `Bool` | is leaf/tip | — |
-| `hybrid` | `Bool` | has ≥2 parent edges | — |
-| `edge` | `Vector{Edge}` | incident edges | — |
-| `booln1` | `Bool` | incident to any hybrid edge | — |
-
-#### Edge type: `Edge`
-
-| Field | Type | Meaning | Missing sentinel |
-|---|---|---|---|
-| `length` | `Float64` | branch length | `-1.0` |
-| `y` | `Float64` | bootstrap / support value | `-1.0` |
-| `z` | `Float64` | `1 - y` (SNaQ internal) | `-1.0` |
-| `gamma` | `Float64` | inheritance proportion | `-1.0` (hybrid) / `1.0` (tree) |
-| `hybrid` | `Bool` | is hybrid edge | — |
-| `ismajor` | `Bool` | `gamma > 0.5` | — |
-| `ischild1` | `Bool` | `node[1]` is child | — |
-| `containroot` | `Bool` | can root here | `true` until hybrid |
-
-#### Metadata flow: file → `HybridNetwork`
-
-| Source (file) | Field in Newick | Parsed by | Stored on | Field |
-|---|---|---|---|---|
-| Branch length | `:length` | `parsenewick_edgedata!` (1st colon) | `Edge` | `.length` |
-| Bootstrap/support | `:length:support` | `parsenewick_edgedata!` (2nd colon) | `Edge` | `.y` |
-| Gamma (hybrid) | `:length:support:gamma` | `parsenewick_edgedata!` (3rd colon) + `synchronizepartnersdata!` | `Edge` | `.gamma` |
-| Node label | `name` or `(...)name` | `readnewick_nodename` | `Node` | `.name` |
-| Hybrid marker | `#H1` prefix | `parsenewick_hybridnode!` | `Node` | `.hybrid = true` |
-| NEXUS gamma | `[&gamma=x]` or `[&relSize=x]` | `readnexus_extractgamma` + `readnexus_assigngammas!` | `Edge` | `.gamma` |
-
-#### Integration requirements for LineagesIO extension
-
-**Protocol level**: General (network) — hybrid nodes require
-`add_child(parents::AbstractVector{NodeT}, ...)`.
-
-**Wrapper type needed**: `HybridNetwork` is the graph container; `Node` is the
-node handle. The `add_child` protocol returns `NodeT` per call, but
-`HybridNetwork` holds all nodes and must persist across calls. The extension
-must bundle both:
-
-```julia
-# ext/PhyloNetworksExt.jl
-struct PhyloNetworksNodeHandle
-    net  :: PhyloNetworks.HybridNetwork
-    node :: PhyloNetworks.Node
-end
-```
-
-Root creation (`parents = []`) creates the `HybridNetwork`, creates the root
-`Node`, and returns a `PhyloNetworksNodeHandle`. Subsequent calls add nodes and
-edges to `handle.net` via PhyloNetworks' `pushNode!`, `pushEdge!`, `setNode!`,
-`setEdge!` API.
-
-**Post-build finalization** (called after all `add_child` for one graph):
-
-```julia
-PhyloNetworks.storeHybrids!(handle.net)
-PhyloNetworks.checkNumHybEdges!(handle.net)
-PhyloNetworks.directedges!(handle.net)
-```
-
-LineagesIO must expose a finalization hook (see **Open design questions**).
-
-**Gamma edge assignment problem**: In LineagesIO's current protocol, gamma is
-per-node metadata in `nodedata`. But in PhyloNetworks, gamma lives on each
-hybrid *edge* individually. For a hybrid node with two parent edges, each edge
-has its own gamma, requiring parallel edge-level metadata vectors at `add_child`
-call time.
-
-The LineagesIO edge table carries gamma at the correct level
-(`edge_table.gamma`). The extension can therefore:
-1. Build graph structure during `add_child` (edges created with `length` only)
-2. Post-build: iterate `LineageGraphAsset.edge_table`, locate hybrid edges by
-   `(src_node_idx, dst_node_idx)`, assign `.gamma` from the table row
-
-This is a two-phase approach. See **Open design questions** for the alternative
-of extending the network-level `add_child` signature with per-edge metadata.
-
-**`load` calling convention**:
-
-```julia
-using LineagesIO, PhyloNetworks
-
-# Single graph:
-result = loadone("file.nwk", PhyloNetworksNodeHandle)
-net = result.graph_rootnode.net   # :: HybridNetwork
-
-# Multiple graphs:
-for g in load("file.nex", PhyloNetworksNodeHandle).graphs
-    net = g.graph_rootnode.net
-end
-```
-
----
-
-### Phylo.jl
-
-#### Supported formats
-
-| Format | File extensions | Notes |
-|---|---|---|
-| Newick | `.nwk`, `.nwl`, `.newick` | NHX/beast metacomments `[&key=value]`; bootstrap as number before first branch |
-| NEXUS | `.nex`, `.nexus` | TAXA + TREES blocks with TRANSLATE |
-
-#### Entry points
-
-| Function | Signature | Returns |
-|---|---|---|
-| `parsenewick` | `parsenewick(inp::String, ::Type{TREE})` | `TREE <: AbstractTree` |
-| `parsenewick` | `parsenewick(io, ::Type{TREE})` | `TREE <: AbstractTree` |
-| `parsenewick` | `parsenewick(inp)` | `RootedTree` (default) |
-| `parsenexus` | `parsenexus(inp::String, ::Type{TREE})` | `TreeSet` or `TREE` |
-| `parsenexus` | `parsenexus(inp)` | `TreeSet` (default) |
-
-Note: `parsenewick` and `parsenexus` are Phylo.jl's native entry points; they
-are NOT FileIO `load` wrappers.
-
-#### Parse approach
-
-Token-based recursive descent using `Tokenize.jl`. Input is tokenized into a
-stream (LPAREN, RPAREN, COLON, COMMA, IDENTIFIER, FLOAT, LSQUARE, etc.) before
-parsing begins. Grammar is a standard Newick grammar extended with `[&key=value]`
-metacomments parsed by `parsedict`.
-
-NEXUS: processes TAXA block first (builds taxon set), then TREES block. TRANSLATE
-table maps short codes to full names during tree parsing. No post-build
-finalization required.
-
-#### Endpoint types
-
-| Alias | Full parameterized type | Use |
-|---|---|---|
-| `RootedTree` | `RecursiveTree{OneRoot, String, Dict{String,Any}, Dict{String,Any}, PolytomousBranching, Float64, Dict{String,Any}}` | Default single tree |
-| `BinaryRootedTree` | same with `BinaryBranching` | Strictly binary |
-| `UnrootedTree` | same with `Unrooted` | Unrooted |
-| `TreeSet{...}` | `TreeSet{String, OneRoot, String, RecursiveNode, RecursiveBranch, RootedTree}` | Multiple trees (NEXUS) |
-
-#### `RecursiveTree` fields
-
-| Field | Type | Meaning |
-|---|---|---|
-| `name` | `String` | tree name |
-| `nodedict` | `Dict{NL, Int}` | node name → index |
-| `roots` | `Vector{RecursiveNode}` | root nodes |
-| `nodes` | `Vector{RecursiveNode}` | all nodes by index |
-| `branches` | `Vector{RecursiveBranch}` | all branches by index |
-| `data` | `Dict{String, Any}` | tree-level metadata |
-| `tipdata` | `TD` | leaf info (Dict or DataFrame) |
-| `rootheight` | `Union{Float64, Missing}` | root height |
-| `cache` | `Dict{TraversalOrder, Vector{...}}` | traversal memoization |
-
-#### `RecursiveBranch` fields
-
-| Field | Type | Meaning | Missing sentinel |
-|---|---|---|---|
-| `length` | `Union{Float64, Missing}` | branch length | `missing` |
-| `data` | `Dict{String, Any}` | branch-level metadata | empty dict |
-
-#### Node data: `RecursiveNode`
-
-| Field | Type | Meaning |
-|---|---|---|
-| `name` | `Union{NL, Nothing}` | node label |
-| `in` | `Union{RecursiveBranch, Nothing}` | inbound branch |
-| `conns` | `Vector{RecursiveBranch}` | outbound branches |
-| `data` | `Dict{String, Any}` | per-node metadata (bootstrap, NHX keys, etc.) |
-
-Node metadata is accessed via `getnodedata(tree, nodename) → Dict{String,Any}`.
-
-#### Metadata flow: file → `RootedTree`
-
-| Source (file) | Format | Parsed by | Stored on | Field/access |
-|---|---|---|---|---|
-| Branch length | `:length` | `parsenode` (after `:` token) | `RecursiveBranch` | `.length` |
-| Metacomments | `[&key=value]` | `parsedict` | `RecursiveNode` | `.data["key"]` |
-| Bootstrap (number at internal node) | `(...)0.95` | `parsenewick!` — number after `)` treated as support | `RecursiveNode` | `.data` or node name |
-| NEXUS tree metadata | `TREE name [&key=val] = ...` | `parsetrees` | `TreeSet.treeinfo["name"]` | `treeinfo[name]["key"]` |
-| NEXUS taxon labels | TAXA block / TRANSLATE | `parsetaxa` + `parsetrees` | Node names in tree | — |
-
-Note: Phylo stores all NHX/metacomment keys in `Dict{String,Any}` — these are
-the raw keys from the file, not promoted to typed fields. This matches
-LineagesIO's `nodedata::NodeRow` row where the row type `NodeRow` is built from the
-discovery pass.
-
-#### Integration requirements for LineagesIO extension
-
-**Protocol level**: Single-parent (restricted) for standard Newick/NEXUS — Phylo
-does not handle hybrid/reticulate nodes.
-
-**Wrapper type needed**: Same pattern as PhyloNetworks — `RootedTree` is the
-container; node names (strings) are the handles. The extension bundles both:
-
-```julia
-# ext/PhyloExt.jl
-struct PhyloNodeRef
-    tree     :: Phylo.RootedTree
-    nodename :: String
-end
-```
-
-Root creation (`parent = nothing`) creates the `RootedTree` via Phylo's
-constructor, creates the root node via `createnode!(tree, name)`, returns a
-`PhyloNodeRef`. Subsequent calls use `createnode!` + `createbranch!` +
-`setnodedata!`.
-
-**No post-build finalization required** — Phylo builds incrementally and
-validates lazily.
-
-**Metadata flow from LineagesIO to Phylo**:
-
-| LineagesIO arg | Phylo API call | Result |
-|---|---|---|
-| `label` | `createnode!(tree, label)` | node created by name |
-| `edgeweight` | `createbranch!(tree, parent_name, child_name, length=edgeweight)` | branch with length |
-| `nodedata.*` | `setnodedata!(tree, child_name, Dict(pairs(nodedata)))` | all promoted fields as node data dict |
-| `node_idx` | Stored in node data: `"node_idx" => node_idx` | enables joins to LineagesIO node table |
-
-Note: Phylo stores node metadata as `Dict{String,Any}`. LineagesIO's `nodedata::NodeRow`
-(a `NamedTuple`) converts cleanly via `Dict(pairs(nodedata))`. Field names from
-the discovery-pass-promoted columns become the keys in Phylo's node data dict.
-
-**`load` calling convention**:
-
-```julia
-using LineagesIO, Phylo
-
-# Single tree:
-result = loadone("file.nwk", PhyloNodeRef)
-tree = result.graph_rootnode.tree   # :: RootedTree
-
-# Multiple trees (NEXUS):
-for g in load("file.nex", PhyloNodeRef).graphs
-    tree = g.graph_rootnode.tree
-end
-```
-
----
+- which ecosystem packages receive first-class extension support
+- what kind of support each package receives
+- what responsibilities belong to LineagesIO core and what responsibilities
+  belong to extension packages
+- how authoritative tables and row references are used at the extension
+  boundary
+- what verification is required before community support can be considered
+  complete
+
+LineagesIO is not a competing graph-model package. It is the package that
+loads rooted lineage graph sources, preserves authoritative structure and
+retained annotations, and makes that content available to target packages
+through stable public protocols.
+
+## Community support objectives
+
+The package must satisfy all of the following community-facing objectives.
+
+It must support first-class construction into focal Julia phylogenetics
+packages through Julia package extensions rather than by embedding those
+packages as hard dependencies in core.
+
+It must preserve a clean ownership boundary:
+
+- core owns parsing, detection, authoritative tables, structural keys, root
+  binding, descendant construction events, and row-reference delivery
+- extensions own translation into target-package graph structures
+- format-specific and consumer-specific code own semantic interpretation of
+  retained non-structural annotations
+
+It must preserve authoritative `node_table` and `edge_table` access even when a
+target package chooses not to store all retained annotation values on its own
+graph objects.
+
+It must support immediate annotation interpretation during construction and
+deferred interpretation after construction without forcing per-node or per-edge
+annotation copies.
+
+It must support rooted trees and rooted networks as distinct construction
+disciplines while preserving the same distinguished structural contract:
+
+- one `rootnode` per graph
+- `nodekey`
+- `edgekey`
+- `src_nodekey`
+- `dst_nodekey`
+- `label`
+- `edgeweight`
+
+It must make it straightforward for community packages to provide typed
+wrappers such as `bootstrap(...)`, `hybrid_gamma(...)`, and related accessors
+without requiring LineagesIO core to own those semantics.
+
+It must provide organic idiomatic support for seamless downstream 
+interoperability with domain-standard ecosystem packages and traversers:
+
+- `Graphs.jl`
+- `AbstractTrees.jl`
+
+## Scope of community support
+
+Community support in this project is divided into three categories.
+
+### Category 1 — Graph-construction targets
+
+These are packages into which LineagesIO constructs graph objects directly
+through package extensions.
+
+Phase 1 focal graph-construction targets:
+
+- `Graphs.jl` (`
+- `PhyloNetworks.jl`
+- `Phylo.jl`
+
+### Category 2 — Downstream consumer compatibility
+
+These are packages whose contracts shape the design of returned handles,
+wrappers, and accessors, even when LineagesIO does not construct their objects
+directly in core.
+
+Phase 1 focal downstream-consumer targets:
+
+- `AbstractTrees.jl`
+
+### Category 3 — Future integration targets
+
+These are important ecosystem contexts whose support is ratified as future work
+but not fully implemented in phase 1.
+
+Phase 2 and future targets include:
+
+- `Nexus` ingestion support through phase-appropriate construction targets
+- `TskitTrees` and related genealogical-table formats
+- additional ratified ecosystem packages as approved later
 
 ## Extension architecture
 
-### Triggering mechanism
+### Weak-dependency model
 
-Julia 1.9+ package extensions: the extension module is loaded automatically when
-both LineagesIO and the target package are loaded in the same Julia session.
+First-class ecosystem integrations must be implemented as Julia package
+extensions.
 
-In `LineagesIO/Project.toml`:
+Core `LineagesIO` must not depend hard on `Phylo.jl` or `PhyloNetworks.jl`.
 
-```toml
-[weakdeps]
-PhyloNetworks = "<uuid>"
-Phylo = "<uuid>"
+The extension loading model is:
 
-[extensions]
-PhyloNetworksExt = "PhyloNetworks"
-PhyloExt = "Phylo"
-```
-
-The extension modules live at:
-
-```
-LineagesIO.jl/
-  ext/
-    PhyloNetworksExt.jl
-    PhyloExt.jl
-```
-
-No hard dependency on either package. If the user loads only LineagesIO, neither
-extension is activated. If they load `using LineagesIO, PhyloNetworks`, Julia
-automatically loads `PhyloNetworksExt.jl`.
-
-### Dependency structure
-
-```
-LineagesIO (core)
-  ├── FileIO (dep)
-  ├── Tables (dep)
-  ├── [weak] PhyloNetworks → ext/PhyloNetworksExt.jl
-  └── [weak] Phylo         → ext/PhyloExt.jl
-```
-
-No version pinning on the weak deps — extensions are expected to work across
-a supported range, validated in the extension's own test suite.
+- LineagesIO core is always loadable by itself
+- an extension activates automatically only when both LineagesIO and the target
+  package are loaded in the same Julia session
+- the target package remains optional from the perspective of LineagesIO core
 
 ### Extension module layout
 
-Each extension module:
+Extension modules live under `ext/`.
 
-1. Defines the node-handle wrapper type
-2. Implements `LineagesIO.add_child` methods for the wrapper type
-3. Implements any finalization hooks (see **Open design questions**)
-4. Optionally exports convenience functions (e.g., `phylonetworks_result(g)`)
+Phase 1 extension modules are:
+
+- `ext/PhyloExt.jl`
+- `ext/PhyloNetworksExt.jl`
+
+Each extension module owns:
+
+- the target-package handle wrapper type or rootnode wrapper type
+- `bind_rootnode!` methods for supplied-root construction into that package
+- `add_child` methods for library-created-root and descendant construction into
+  that package
+- `finalize_graph!` methods when the target package requires post-build cleanup
+- optional package-specific convenience accessors
+
+### Extension ownership boundary
+
+Extensions may:
+
+- allocate and mutate target-package graph objects
+- parse retained annotation text values into richer semantic types for that
+  target package
+- choose which retained annotations to project into target-package node or edge
+  metadata stores
+- keep only structural information on target-package graph objects and rely on
+  authoritative LineagesIO tables for other annotations
+
+Extensions must not:
+
+- reimplement source parsing already owned by LineagesIO core
+- redefine the distinguished structural contract
+- invent alternative builder-boundary payload containers
+- rely on runtime-generated struct fields derived from retained annotation names
+- weaken the one-rootnode-per-graph contract
+
+## Core-to-extension contract
+
+All ecosystem extensions must consume the public core protocol defined in
+`design/brief.md`.
+
+At the extension boundary, the package guarantees:
+
+- `StructureKeyType` for all package-assigned structural keys
+- one `rootnode` per graph
+- authoritative package-owned `node_table` and `edge_table`
+- one row per node in `node_table`
+- one row per edge in `edge_table`
+- retained non-structural node annotations preserved in `node_table`
+- retained non-structural edge annotations preserved in `edge_table`
+- retained non-structural annotation values preserved as `Union{Nothing,String}`
+- row-reference delivery through `nodedata::NodeRowRef` and
+  `edgedata::EdgeRowRef` or vectors of edge row references
+
+The extension boundary does not guarantee:
+
+- semantic coercion of retained non-structural annotations in core
+- field-style annotation access such as `nodedata.bootstrap`
+- copied annotation dictionaries or source-shaped `NamedTuple` payloads
+- package-specific graph metadata semantics in core
+
+## Root binding, descendant construction, and finalization
+
+Every extension must be designed around the three public core protocol
+functions:
+
+- `bind_rootnode!`
+- `add_child`
+- `finalize_graph!`
+
+### `bind_rootnode!`
+
+An extension implements `bind_rootnode!` when the target package supports
+loading into a caller-supplied rootnode handle through `load(src, rootnode)`.
+
+This hook is for binding the parsed root node onto an already-existing graph
+entry point in the target package.
+
+### `add_child`
+
+An extension implements `add_child` for:
+
+- library-created root construction when the caller supplies `load(src, NodeT)`
+- single-parent descendant construction for rooted trees or rooted graphs whose
+  current node has one incoming edge
+- multi-parent descendant construction for rooted networks or rooted graphs
+  whose current node has multiple incoming edges
+
+### `finalize_graph!`
+
+An extension implements `finalize_graph!` only when the target package requires
+post-build cleanup or normalization after all root binding and descendant
+construction events are complete.
+
+## Annotation-handling expectations for extensions
+
+### Extension responsibility for annotation meaning
+
+LineagesIO core preserves retained non-structural annotation values as text.
+
+Extensions decide:
+
+- which retained fields they care about
+- when to interpret those fields
+- how to interpret those fields
+- whether to store interpreted values on target-package graph objects
+- whether to leave some or all annotation interpretation to later user-space
+  wrappers
+
+### Immediate interpretation during construction
+
+An extension may parse retained annotation values directly from row references
+during `bind_rootnode!` or `add_child`.
+
+Example shape:
 
 ```julia
-# ext/PhyloNetworksExt.jl
-module PhyloNetworksExt
-
-using LineagesIO
-using PhyloNetworks: HybridNetwork, Node, Edge, pushNode!, pushEdge!, setNode!, setEdge!,
-                     storeHybrids!, checkNumHybEdges!, directedges!
-
-struct PhyloNetworksNodeHandle
-    net  :: HybridNetwork
-    node :: Node
-end
-
-# Entry-point node creation (parents, edgeweights are empty vectors; edgedata/nodedata not used)
-# HybridNetwork/Node has no generic metadata dict, so nodedata is intentionally ignored.
-function LineagesIO.add_child(
-    parents     :: AbstractVector{PhyloNetworksNodeHandle},
-    node_idx    :: Int,
-    label       :: AbstractString,
-    :: AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights — empty for entry-point
-    kwargs...,                                     # edgedata, nodedata — not stored on HybridNetwork/Node
-) where {EdgeUnitT}
-    @assert isempty(parents)
-    net = HybridNetwork()
-    root = Node(node_idx, false)
-    root.name = isempty(label) ? "node_$node_idx" : label
-    pushNode!(net, root)
-    net.rooti = 1
-    return PhyloNetworksNodeHandle(net, root)
-end
-
-# Non-entry-point node. For hybrid nodes (length(parents) > 1): one Edge per parent.
-# edgedata[i].gamma is assigned directly to each incoming Edge — no two-phase pass needed.
-function LineagesIO.add_child(
-    parents     :: AbstractVector{PhyloNetworksNodeHandle},
-    node_idx    :: Int,
-    label       :: AbstractString,
-    edgeweights :: AbstractVector{Union{EdgeUnitT, Nothing}};
-    edgedata    = nothing,
-    nodedata    = nothing,
-) where {EdgeUnitT}
-    @assert !isempty(parents)
-    net = parents[1].net
-    is_hybrid = length(parents) > 1
-    child = Node(node_idx, is_hybrid)
-    child.name = isempty(label) ? "node_$node_idx" : label
-    pushNode!(net, child)
-    bootstrap = hasproperty(nodedata, :bootstrap) ? something(nodedata.bootstrap, -1.0) : -1.0
-    edgerows = isnothing(edgedata) ? fill(NamedTuple(), length(parents)) : edgedata
-    for (par, elen, erow) in zip(parents, edgeweights, edgerows)
-        e = Edge(length(net.edge) + 1, isnothing(elen) ? -1.0 : elen)
-        e.y     = bootstrap
-        e.gamma = hasproperty(erow, :gamma) ? something(erow.gamma, (is_hybrid ? -1.0 : 1.0)) :
-                                              (is_hybrid ? -1.0 : 1.0)
-        e.hybrid = is_hybrid
-        pushEdge!(net, e)
-        setNode!(e, [par.node, child])
-        setEdge!(par.node, e)
-        setEdge!(child, e)
-    end
-    return PhyloNetworksNodeHandle(net, child)
-end
-
-function LineagesIO.finalize_graph!(handle :: PhyloNetworksNodeHandle)
-    storeHybrids!(handle.net)
-    checkNumHybEdges!(handle.net)
-    directedges!(handle.net)
-    return handle
-end
-
-end # module
+txt = edge_property(edgedata, :gamma)
+gamma = txt === nothing ? nothing : parse(Float64, txt)
 ```
+
+### Deferred interpretation after construction
+
+An extension may also choose not to store a semantic value on the target graph
+object and instead rely on the authoritative LineagesIO tables later.
+
+Example shape:
 
 ```julia
-# ext/PhyloExt.jl
-module PhyloExt
-
-using LineagesIO
-using Phylo: RootedTree, createnode!, createbranch!
-
-struct PhyloNodeRef
-    tree     :: RootedTree
-    nodename :: String
-end
-
-# Entry-point node creation (parent is nothing, edgedata is nothing)
-# parent and edgeweight are anonymous — dispatch-only or inapplicable.
-function LineagesIO.add_child(
-    :: Nothing,                   # parent — dispatch-only; entry-point has no parent
-    node_idx   :: Int,
-    label      :: AbstractString,
-    :: Union{EdgeUnitT, Nothing};  # edgeweight — no incoming edge for entry-point
-    nodedata   = nothing,
-    kwargs...,                     # absorbs edgedata; no parent edge at entry-point
-) where {EdgeUnitT}
-    tree = RootedTree(; name = "tree_$node_idx")
-    nodename = isempty(label) ? "node_$node_idx" : label
-    # Store node_idx in node data for round-trip join to LineageGraphStore node_table
-    data = Dict{String,Any}(isnothing(nodedata) ? () : pairs(nodedata))
-    data["node_idx"] = node_idx
-    createnode!(tree, nodename; data = data)
-    return PhyloNodeRef(tree, nodename)
-end
-
-# Non-entry-point node creation
-# edgedata ignored — RecursiveBranch has no generic per-edge metadata field;
-# edge-level annotations from the LineagesIO edge_table are not forwarded in Phase 1.
-function LineagesIO.add_child(
-    parent     :: PhyloNodeRef,
-    node_idx   :: Int,
-    label      :: AbstractString,
-    edgeweight :: Union{EdgeUnitT, Nothing};
-    nodedata   = nothing,
-    kwargs...,                     # absorbs edgedata; not forwarded in Phase 1
-) where {EdgeUnitT}
-    tree = parent.tree
-    nodename = isempty(label) ? "node_$node_idx" : label
-    data = Dict{String,Any}(isnothing(nodedata) ? () : pairs(nodedata))
-    data["node_idx"] = node_idx
-    createnode!(tree, nodename; data = data)
-    # Phylo branch length is Union{Float64,Missing}; convert Nothing → missing
-    phylo_len = isnothing(edgeweight) ? missing : edgeweight
-    createbranch!(tree, parent.nodename, nodename, phylo_len)
-    return PhyloNodeRef(tree, nodename)
-end
-
-# No finalize_graph! override needed — Phylo validates lazily
-
-end # module
+bootstrap(asset.node_table, node.nodekey)
+hybrid_gamma(asset.edge_table, edge.edgekey)
 ```
 
-### Extension API surface
+### Projection into target-package metadata stores
 
-Each extension exports a single accessor for the target-package type from a
-`LineageGraphAsset`:
+If a target package exposes its own node or edge metadata storage, an extension
+may project retained annotations into that storage.
 
-| Extension | Function | Returns |
-|---|---|---|
-| `PhyloNetworksExt` | `get_hybridnetwork(g::LineageGraphAsset)` | `HybridNetwork` |
-| `PhyloExt` | `get_rootedtree(g::LineageGraphAsset)` | `RootedTree` |
+This projection is optional and target-specific. The authoritative preserved
+store remains the LineagesIO tables.
 
----
+### No obligation to project every retained field
 
-## Design decisions (resolved)
+An extension is not required to copy every retained field from the
+authoritative tables onto the target-package graph object.
 
-### 1. Post-build finalization hook
+The minimum requirement is:
 
-**Decision:** Option A — `LineagesIO.finalize_graph!` as a protocol function
-in LineagesIO's public API.
+- correct structural construction in the target package
+- authoritative tables still available to the user after load
+- documented package-specific accessors for any important interpreted fields
 
-`finalize_graph!(handle)` is called once per graph after the last `add_child`
-call and before `LineageGraphAsset` is assembled. The default implementation is
-a no-op. Extensions overload it for types that require cleanup.
-
-`PhyloNetworksExt` overloads it to call `storeHybrids!`, `checkNumHybEdges!`,
-and `directedges!` on `handle.net`. `PhyloExt` does not override it (Phylo
-validates lazily). See stubs above.
-
-### 2. Per-edge metadata at `add_child` call time
-
-**Decision:** Carry `edgedata` and `nodedata` as optional keyword arguments on all
-`add_child` overloads — the complex case is the baseline; simpler cases are
-specialisations of it.
-
-The orchestration always passes real values: `edgedata` is an `AbstractVector{EdgeRow}`
-(network level), an `EdgeRow` (single-parent non-entry-point), or `nothing`
-(entry-point — no incoming edge). `nodedata` is always a `NodeRow`. The `nothing`
-default enables simpler user extensions and manual call sites without requiring the
-full discovery pass.
-
-This eliminates the two-phase gamma workaround entirely: `PhyloNetworksExt`
-reads `edgedata[i].gamma` directly in the `add_child` call and sets `e.gamma`
-on each incoming edge in one pass. The stubs above reflect this decision.
-
-### 3. Node label passthrough and extension-local uniqueness
-
-**Decision:** The orchestration layer passes `label` to `add_child` unchanged.
-Parsers supply `""` for absent source labels. No disambiguation is performed in
-core. `node_idx` is the unique identifier within a graph and the sole join key
-to the LineagesIO node table. Two nodes may carry the same label; they are
-always distinguished by their distinct `node_idx` values.
-
-Extensions that require unique node names handle empty or colliding labels
-internally. `PhyloNetworksNodeHandle` sets `Node.name` using
-`isempty(label) ? "node_$node_idx" : label` — this is extension-local logic,
-not a core guarantee. `PhyloNodeRef` applies the same pattern for Phylo's
-`createnode!`, which uses node names as dictionary keys; collision handling
-within the `RootedTree` is also the extension's responsibility. In both
-extensions `node_idx` is stored in accessible metadata for round-trip joins to
-the LineagesIO node table.
-
----
-
-## Phase plan
+## Focal package support matrix
 
 ### Phase 1
 
-- `PhyloNetworksExt`: Newick (single-parent + network protocol), via
-  `format"Newick"` and `format"LineageNetwork"`
-- `PhyloNetworksExt`: Gamma two-phase assignment (or per-edge metadata protocol decision)
-- `PhyloExt`: Newick (single-parent protocol only), via `format"Newick"`
-- `finalize_graph!` hook implementation
-- Integration tests for round-trip: file → `HybridNetwork` / `RootedTree`
+| Package | Support type | Structural tier | Priority |
+|---|---|---|---|
+| `Phylo.jl` | direct construction extension | single-parent | Phase 1 |
+| `PhyloNetworks.jl` | direct construction extension | multi-parent | Phase 1 |
+| `AbstractTrees.jl` | downstream traversal compatibility target | consumer-facing | Phase 1 |
 
 ### Phase 2
 
-- NEXUS support for both extensions
-- `TreeSet` support for Phylo multi-tree NEXUS files
-- Additional focal packages (to be added to §2 table as identified)
+| Package or format context | Support type | Priority |
+|---|---|---|
+| `Nexus` | source-format expansion through phase-appropriate targets | Phase 2 |
+| `TskitTrees` | source-format and ecosystem expansion | Phase 2 |
+| additional ratified packages | extension or consumer compatibility | Future |
+
+## PhyloNetworks.jl support objectives
+
+### Role
+
+`PhyloNetworks.jl` is the primary phase 1 rooted-network construction target.
+
+Its importance comes from:
+
+- direct support for reticulate and hybrid evolutionary structures
+- explicit hybrid-edge semantics
+- established use in the Julia phylogenetics community
+
+### Construction tier
+
+`PhyloNetworks.jl` support must use the multi-parent construction tier.
+
+A rooted network still has one `rootnode`. Hybrid or reticulate interior nodes
+are constructed through multi-parent `add_child` calls, not through multiple
+roots.
+
+### Extension wrapper responsibility
+
+The extension must define a wrapper or handle type that is sufficient to carry:
+
+- the target `HybridNetwork`
+- the current target `Node`
+- any additional extension-local state needed to satisfy the construction
+  protocol cleanly
+
+The wrapper design must preserve concrete field types and follow
+`STYLE-julia.md`.
+
+### Structural mapping expectations
+
+The extension must map:
+
+- `nodekey` to stable node identity in its wrapper and any needed lookup path
+- `edgekey` to stable edge identity in any extension-local edge lookup path
+- `label` to target-package node naming as appropriate
+- `edgeweight` to target-package edge-length storage as appropriate
+
+If `PhyloNetworks.jl` requires unique node names for internal mechanics, any
+extension-local name normalization is the extension's responsibility. Such
+normalization does not change the authoritative `label` preserved by LineagesIO.
+
+### Annotation interpretation expectations
+
+The extension should interpret important retained fields when they are needed by
+`PhyloNetworks.jl` itself.
+
+Typical examples include:
+
+- `gamma`
+- support-like values when projected onto target-package edge or node fields
+
+The extension may interpret those values during construction directly from row
+references.
+
+### Finalization expectations
+
+If `PhyloNetworks.jl` requires post-build normalization or validation after
+incremental construction, the extension must implement `finalize_graph!`.
+
+Any required post-build actions must be verified against upstream source and
+documented in the extension test plan.
+
+### Format support expectations
+
+Phase 1 `PhyloNetworks.jl` extension support must cover:
+
+- `format"LineageNetwork"`
+- rooted-network-capable Newick support as ratified by core format policy
+
+Phase 2 work may extend this to:
+
+- `format"Nexus"` where ratified and implemented in core
+
+## Phylo.jl support objectives
+
+### Role
+
+`Phylo.jl` is the primary phase 1 rooted-tree construction target.
+
+Its importance comes from:
+
+- broad Julia ecosystem familiarity
+- native rooted-tree constructors
+- existing metadata handling conventions
+- relevance for ordinary rooted-tree workflows
+
+### Construction tier
+
+`Phylo.jl` support must use the single-parent construction tier for rooted-tree
+formats.
+
+The extension must reject or decline formats whose structure requires the
+multi-parent construction tier if the target package cannot represent them.
+
+### Extension wrapper responsibility
+
+The extension must define a wrapper or handle type that is sufficient to carry:
+
+- the target `RootedTree` or equivalent target tree object
+- the current target node reference or node identifier needed for incremental
+  construction
+- any additional extension-local state needed to satisfy the construction
+  protocol cleanly
+
+The wrapper design must preserve concrete field types and follow
+`STYLE-julia.md`.
+
+### Structural mapping expectations
+
+The extension must map:
+
+- `nodekey` to stable node identity in its wrapper and any needed lookup path
+- `edgekey` to stable edge identity in any extension-local edge lookup path
+- `label` to target-package node naming as appropriate
+- `edgeweight` to target-package branch-length storage as appropriate
+
+If `Phylo.jl` requires unique node names for internal mechanics, any
+extension-local name normalization is the extension's responsibility. Such
+normalization does not change the authoritative `label` preserved by LineagesIO.
+
+### Annotation interpretation expectations
+
+`Phylo.jl` support may choose either of the following strategies, provided the
+behavior is documented and verified:
+
+- project selected retained fields into `Phylo.jl` node or branch metadata
+  stores
+- keep target-package objects structurally minimal and rely primarily on the
+  authoritative LineagesIO tables for annotation access
+
+In either case, semantic interpretation of retained annotation text values
+belongs to the extension or to later user-space wrappers, not to core.
+
+### Finalization expectations
+
+If `Phylo.jl` construction does not require post-build cleanup, the extension
+may rely on the default no-op `finalize_graph!`.
+
+If upstream-verified cleanup is required, the extension must implement and
+verify it explicitly.
+
+### Format support expectations
+
+Phase 1 `Phylo.jl` extension support must cover:
+
+- `format"Newick"` for rooted-tree construction
+
+Phase 2 work may extend this to:
+
+- `format"Nexus"` where ratified and implemented in core
+
+## AbstractTrees.jl and Graphs.jl objectives
+
+### AbstractTrees.jl
+
+LineagesIO does not need to construct `AbstractTrees.jl` objects directly.
+
+Instead, the community objective is that target-package wrappers and loaded
+graph objects remain compatible with `AbstractTrees.jl` traversal patterns when
+the user or the extension supplies the required traversal methods.
+
+Core design choices that support this objective include:
+
+- one `rootnode` per graph
+- explicit child-construction semantics
+- stable node identity through `nodekey`
+
+## Verification requirements for community support
+
+No ecosystem integration may be considered complete without direct,
+package-specific verification.
+
+At minimum, each first-class extension must verify:
+
+- extension activation through Julia package extensions
+- root creation through `load(src, NodeT)`
+- root binding through `load(src, rootnode::NodeT)` when supported
+- single-parent descendant construction where applicable
+- multi-parent descendant construction where applicable
+- correct mapping of `label`
+- correct mapping of `edgeweight`
+- correct structural preservation of `nodekey` and `edgekey`
+- correct interpretation path for any important retained annotation fields the
+  extension claims to support semantically
+- authoritative `node_table` and `edge_table` availability after load
+- deferred annotation access after load through authoritative tables
+- post-build finalization where applicable
+- rejection or error behavior for unsupported structural cases
+
+Verification must include both:
+
+- extension-level tests
+- end-to-end load tests from real or representative source text into the target
+  package
+
+Weak proxies are forbidden. For example:
+
+- proving that a target graph exists is not enough
+- proving that a file parsed is not enough
+- proving that one row exists in a table is not enough
+
+The tests must verify field-level structural correctness and any claimed
+annotation interpretation behavior.
+
+## Success criteria
+
+Community support is successful when all of the following are true.
+
+- `PhyloExt` constructs rooted trees from phase 1 supported formats through the
+  public core protocol
+- `PhyloNetworksExt` constructs rooted networks from phase 1 supported formats
+  through the public core protocol
+- users can choose library-created-root construction or supplied-root binding
+  where the extension supports both
+- authoritative `node_table` and `edge_table` remain available and useful after
+  extension-based graph construction
+- important retained annotation fields can be interpreted either during
+  extension construction or later through package-specific wrappers
+- rooted-network construction uses one `rootnode` and multi-parent descendant
+  events rather than any multiple-root assumption
+- extension work remains a thin projection layer over authoritative core tables
+  and public protocol events rather than a shadow parser stack
+- downstream users can bridge loaded graphs into traversal and visualization
+  consumers through package-specific accessors without requiring core redesign
+
+## Contracts that do not exist
+
+The following are not part of the community-support contract and must not be
+introduced downstream without explicit approval.
+
+- extension-local replacement parsers for formats already owned by LineagesIO
+  core
+- extension-local redefinition of structural keys or structural field names
+- extension-local builder-boundary payload bags, dictionaries, or generated
+  struct fields in place of authoritative core row references
+- a requirement that every retained annotation be copied into target-package
+  graph objects
+- a requirement that target-package graph objects expose direct field-style
+  access to retained annotations
+- any assumption that rooted networks require multiple roots
+- any assumption that authoritative LineagesIO tables are optional after
+  extension-based graph construction
+
+## Fundamental implementation mandates
+
+Reading of `design/brief.md` is mandated alongside this document.
+
+Reading and compliance with all applicable `STYLE-*.md` files and
+`CONTRIBUTING.md` are mandated and must be passed forward into all downstream
+work.
+
+In particular, note terminological policies in `STYLE-vocabulary.md`, together
+with the LineagesIO-specific core identifiers and public protocol names
+ratified by the core brief:
+
+- `StructureKeyType`
+- `nodekey`
+- `edgekey`
+- `src_nodekey`
+- `dst_nodekey`
+- `edgeweight`
+- `rootnode`
+- `bind_rootnode!`
+- `add_child`
+- `finalize_graph!`
+- `node_table`
+- `edge_table`
+- `NodeRowRef`
+- `EdgeRowRef`
+
+Reading of the key technological context named above is mandated for this
+project, and downstream community reading of those sources is required
+whenever their contracts are in scope.
