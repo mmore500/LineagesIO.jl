@@ -56,6 +56,8 @@ Passing these mandates forward means:
 - naming the required upstream primary sources explicitly
 - restating the ownership boundary and authorization boundary explicitly
 - restating the verification gates explicitly
+- restating the core package contract directly and completely enough for a new
+  reader to apply it correctly without consulting separate explanatory context
 
 No downstream plan, tranche, task, review scope, or delegated work description
 is valid if it silently drops these obligations.
@@ -90,18 +92,22 @@ secondary summaries, and plausible recollection do not.
 
 ## Purpose
 
-LineagesIO.jl provides FileIO-compatible loading and saving of phylogenetic
-graph data together with package-native lazy access to graph collections.
+LineagesIO.jl provides FileIO-compatible loading and saving of rooted
+phylogenetic graph data together with package-native lazy access to graph
+collections.
 
-It serves three roles:
+It serves four roles:
 
 - a FileIO backend for lineage graph formats
 - a parsing and format-detection layer
+- an authoritative table-building layer for structural graph data and retained
+  source annotations
 - an orchestration layer that maps parsed structure into user-specified graph
-  or node representations through a principled builder protocol
+  or node representations through a public construction protocol
 
 The package does not define the user's graph model. It defines how parsed
-structure and format-owned payload are presented to user code.
+structure, retained source annotations, and optional graph construction are
+delivered to user code.
 
 ## Design objectives
 
@@ -115,33 +121,47 @@ It must support multiple phylogenetic formats within one coherent package, with
 each format implemented as a package-owned parser module rather than as an
 ad hoc bundle of unrelated helpers.
 
-It must support lazy iteration over graph collections and multi-source loads.
+It must support one-graph sources, multi-graph sources, and lazy iteration over
+graph sources, where graph sources may contain single graphs, a collection of 
+graphs, or multiple collections of graphs.
 
 It must remain transparent to user domain types. All graph construction and
 materialization is performed by user code either through normal Julia method
-extension on `add_child` or through an explicit builder callback.
+extension on the public protocol functions or through an explicit builder
+callback.
 
-It must separate structural contract from metadata contract. Structural graph
-facts are owned by the core protocol and tables. Metadata semantics are owned
-by each format module.
+It must give every loaded graph authoritative package-owned `node_table` and
+`edge_table` objects that remain directly useful in user space after loading.
 
-It must remain type-stable at the public package boundary by avoiding any core
-contract that requires runtime inference of field names from source annotations.
+It must treat structural graph facts as a distinguished core contract rather
+than as generic metadata.
+
+It must preserve retained non-structural node and edge source annotations in
+the authoritative tables under their source field names by default.
+
+It must deliver retained node and edge annotation rows to builders through
+small row-reference objects rather than through copied per-node or per-edge
+bags.
+
+It must preserve retained non-structural annotations without semantic coercion
+in core. Interpretation and coercion belong to format-specific and
+consumer-specific layers.
+
+It must scale to:
+
+- huge trees and rooted networks
+- many graphs in one source
+- many huge graphs across many sources
+
+while keeping structural handling concrete, row delivery lightweight, and
+annotation preservation table-backed.
 
 It must preserve FileIO's ownership model. FileIO remains the public
 dispatcher. LineagesIO provides the actual parser, format detector, serializer,
 and backend methods.
 
-It must give users and ecosystem packages direct access to structural tables
-and format-owned payload without forcing a particular in-memory graph type.
-
-It must scale to:
-
-- huge trees and networks
-- many graphs in one source
-- many huge graphs across many sources
-
-while keeping metadata handling concrete, stable, and format-owned.
+It must be engineered so that later FileIO registration requires minimal
+redesign.
 
 ## Non-goals
 
@@ -153,15 +173,23 @@ The package will not define a default concrete domain graph type in core. If a
 shared normalized graph type is ever needed, that responsibility belongs to a
 separate package.
 
-The package will not treat every arbitrary annotation key in every source file
-as a generic core-level schema design problem.
+The package will not define a package-wide semantic ontology for source
+annotation names such as `bootstrap`, `gamma`, `posterior`, `species`, or
+other non-structural fields.
+
+The package will not coerce retained non-structural source annotations into
+semantic numeric or logical types in core.
+
+The package will not guarantee direct field-style access such as
+`nodedata.bootstrap`, `edgedata.gamma`, or `node.bootstrap` as a generic core
+contract.
+
+The package will not treat generic GraphML as a LineagesIO-owned format. Only
+the package-ratified phylogeny-specific profile belongs here.
 
 The package will not require FileIO registry inclusion in order to be
 considered complete, though it must be engineered so that later registration
 requires minimal redesign.
-
-The package will not claim ownership of generic GraphML. Only the
-package-ratified phylogeny-specific profile belongs here.
 
 ## Core architectural commitments
 
@@ -172,32 +200,42 @@ The package is built around the following non-negotiable commitments.
 The core package owns graph structure and structural identity. Structural facts
 are not treated as ordinary metadata.
 
-### Format-owned metadata
+### Core-owned authoritative tables
 
-Each format module owns its own stable metadata schema, payload representation,
-and preservation decisions beyond the distinguished structural properties.
+The core package owns the authoritative `node_table` and `edge_table` for each
+loaded graph. These tables are the primary preserved representation of
+structure and retained node and edge annotations.
 
-### No core runtime field-name inference
+### Source-name annotation preservation
 
-The core package does not infer metadata field names from runtime annotation
-keys and does not derive public row types from per-source key discovery.
+Retained non-structural node and edge source annotations are preserved in the
+authoritative tables under their source field names by default. Optional
+mapping functions may rename those fields before table assembly.
 
-### Stable public tables
+### Raw annotation values in core
 
-Each `LineageGraphAsset` returns concrete Tables.jl-compliant companion tables.
-Their schemas are determined by format design, not by the specific runtime
-annotation key set encountered in one source file.
+Retained non-structural annotations are preserved in core without semantic
+coercion. Core preserves text values; format-specific and consumer-specific
+layers interpret those values.
 
-### Builder freedom
+### Row-reference delivery at build time
 
-Builders may consume payload eagerly during `add_child`, ignore it, or store a
-handle for deferred lookup later.
+The public construction protocol receives `nodedata` and `edgedata` as small
+row-reference objects into the authoritative tables. The protocol does not pass
+copied per-node or per-edge metadata bags.
+
+### Interpretation outside core
+
+The core package preserves structure and retained annotations. Format-specific
+and consumer-specific code decides how to parse, coerce, cache, and expose
+those annotations.
 
 ### Single owner per invariant
 
-Parsers own format semantics. The orchestration layer owns protocol routing,
-builder validation, key assignment, and asset assembly. Extensions own only the
-translation from core protocol calls into target-package graph construction.
+Parsers own source parsing and field extraction. The orchestration layer owns
+key assignment, table assembly, root binding, protocol routing, and asset
+assembly. Extensions own only the translation from the core protocol into
+target-package graph construction and user-facing accessors.
 
 ## Structural contract
 
@@ -215,10 +253,18 @@ const StructureKeyType = Int
 `StructureKeyType` is the canonical public key type for all distinguished
 structural keys in phase 1.
 
-All public contracts, tables, helper APIs, and format-owned payload handles
-that traffic in package-assigned structural keys must use
-`StructureKeyType` semantically, even when the concrete underlying type remains
-`Int`.
+All public contracts, tables, helper APIs, and row-reference objects that
+traffic in package-assigned structural keys must use `StructureKeyType`
+semantically, even when the concrete underlying type remains `Int`.
+
+### One rootnode per graph
+
+Each loaded graph asset has exactly one graph entry point, referred to in exact
+API names as `rootnode`.
+
+This applies to rooted trees and rooted networks alike. Rooted networks still
+have one `rootnode`. Reticulation is represented by multi-parent interior nodes,
+not by multiple roots.
 
 ### Node identity
 
@@ -229,8 +275,8 @@ Its contract is:
 - type: `StructureKeyType`
 - scope: unique within one graph
 - ownership: assigned by the orchestration layer
-- semantics: primary key of the node table; foreign key target of all node
-  references in returned tables and format-owned payload
+- semantics: primary key of the node table; structural key for node lookup;
+  foreign key target of all node references in returned tables
 
 `nodekey` is assigned sequentially in traversal order, starting at `1` for each
 graph.
@@ -244,8 +290,7 @@ Its contract is:
 - type: `StructureKeyType`
 - scope: unique within one graph
 - ownership: assigned by the orchestration layer
-- semantics: primary key of the edge table; stable structural key for edge
-  lookup and payload lookup
+- semantics: primary key of the edge table; structural key for edge lookup
 
 `edgekey` is assigned sequentially within each graph.
 
@@ -255,10 +300,10 @@ Its contract is:
 
 Its contract is:
 
-- type: `AbstractString` at the builder boundary; stored as `String` in core
-  tables
+- type at the public protocol boundary: `AbstractString`
+- stored form in authoritative tables: `String`
 - semantics: raw source label, passed through unchanged
-- missing label rule: parsers pass `""`
+- missing-label rule: parsers pass `""`
 
 The core package performs no label disambiguation and no synthetic label
 generation.
@@ -269,13 +314,13 @@ generation.
 
 Its contract is:
 
-- type at builder boundary: `Union{EdgeUnitT, Nothing}`
-- stored form in core edge table: `Union{Float64, Nothing}` for phase 1 formats
-  that model numeric edge weights
+- type at the public protocol boundary: `Union{EdgeUnitT, Nothing}`
+- stored form in `edge_table` for phase 1 numeric formats:
+  `Union{Float64, Nothing}`
 - semantics: absent when the source does not supply a value
 
-`edgeweight` is not ordinary metadata. It is part of the structural contract in
-the same sense as `nodekey`, `edgekey`, and `label`.
+`edgeweight` is not ordinary annotation. It is part of the structural contract
+in the same sense as `nodekey`, `edgekey`, and `label`.
 
 ### Edge endpoints
 
@@ -284,55 +329,136 @@ The core edge table always stores:
 - `src_nodekey`
 - `dst_nodekey`
 
-These are structural join columns. They are not optional metadata.
+These are distinguished structural join columns. They are not optional
+annotation.
 
-## Builder protocol
+## Public loading surfaces
 
-`add_child` is the central exported generic function through which parsed
-structure is communicated to user code.
+The package supports the following public loading surfaces:
 
-Everything in the parsing pipeline converges on calls to `add_child`.
-LineagesIO calls it. User code or extension code implements it.
+- `load(src)`
+- `load(src, NodeT)`
+- `load(src, rootnode::NodeT)`
+- `load(src; builder = fn)`
 
-`finalize_graph!` is the post-build protocol function invoked once after the
-last `add_child` call for a graph and before `LineageGraphAsset` assembly.
+Their meanings are:
 
-### Invocation styles
+- `load(src)` loads into package-owned tables only and does not require a user
+  graph materialization target
+- `load(src, NodeT)` asks LineagesIO to create the graph through the public
+  construction protocol for that node-handle type
+- `load(src, rootnode::NodeT)` asks LineagesIO to bind the parsed root node
+  onto the supplied rootnode handle and then construct descendants through the
+  public construction protocol
+- `load(src; builder = fn)` asks LineagesIO to use an explicit builder callback
 
-Two invocation styles are supported and may coexist.
+Explicit format override is provided through FileIO wrappers such as
+`File{format"..."}(...)` and `Stream{fmt}(io)`. This design does not define a
+separate positional `load(src, FormatType())` signature.
 
-**Style 1 — Method extension**
+A supplied `rootnode` target binds one graph. If a source yields more than one
+graph, that loading surface is invalid and the package must raise an
+informative error that directs the caller to a one-graph load surface or a
+different construction path.
 
-Users extend `LineagesIO.add_child` for their concrete node-handle type and
-pass that type positionally to `load`.
+An explicit `builder = ...` callback and a supplied `rootnode::NodeT` target
+represent different construction ownership models and must not be combined
+implicitly.
 
-**Style 1b — Pre-supplied entry point**
+## Root binding and child-construction protocol
 
-Users may pre-create a graph object and pass its graph entry point handle
-positionally to `load`.
+The public graph-construction protocol consists of three functions:
 
-This style is for consumers that want LineagesIO to populate descendants into a
-pre-existing graph structure instead of asking LineagesIO to create the graph
-entry point itself.
+- `bind_rootnode!`
+- `add_child`
+- `finalize_graph!`
 
-This style is valid only for loads that are expected to yield exactly one
-graph. A single supplied entry-point handle is not sufficient to represent an
-arbitrary multi-graph source.
+`bind_rootnode!` binds a parsed root node onto a supplied rootnode handle.
+`add_child` materializes descendants. `finalize_graph!` performs optional
+post-build cleanup after the final `add_child` call for a graph and before
+`LineageGraphAsset` assembly.
 
-**Style 2 — Builder callback**
+### `bind_rootnode!`
 
-Users pass an explicit `builder` callback to `load`.
+When the caller supplies `load(src, rootnode::NodeT)`, LineagesIO binds the
+parsed root node onto that supplied handle through:
 
-An explicit `builder` keyword argument always takes precedence over extended
-`LineagesIO.add_child` methods in scope.
+```julia
+function bind_rootnode!(
+    rootnode::NodeT,
+    nodekey::StructureKeyType,
+    label::AbstractString;
+    nodedata,
+)::NodeT where {NodeT}
+end
+```
 
-### Dispatch levels
+The contract of `bind_rootnode!` is:
 
-The protocol has two structural levels.
+- it is called exactly once for each graph loaded through
+  `load(src, rootnode::NodeT)`
+- it binds the distinguished structural root-node properties of the parsed
+  graph onto the supplied handle
+- it may mutate the supplied handle, validate it, or return an equivalent
+  handle
+- it receives `nodedata` as a row reference into the authoritative node table
+- it does not receive an `edgekey`, `edgeweight`, or `edgedata`, because the
+  root node has no incoming edge
 
-**Network level**
+After `bind_rootnode!` returns, all descendant construction proceeds through
+`add_child`, using the bound root handle as the parent handle where
+appropriate.
 
-Used for formats that may produce nodes with multiple incoming edges.
+### `add_child`
+
+`add_child` is the central public function through which parsed descendants are
+communicated to user code.
+
+Everything in the parsing pipeline converges on calls to `bind_rootnode!`,
+`add_child`, and `finalize_graph!`. LineagesIO calls them. User code or
+extension code implements them.
+
+### Library-created root node
+
+When the caller uses `load(src, NodeT)` and LineagesIO is responsible for
+creating the root node, the root-construction call is:
+
+```julia
+function add_child(
+    ::Nothing,
+    ::StructureKeyType,                   # nodekey
+    ::AbstractString,                     # label
+    ::Nothing,                            # edgekey
+    ::Nothing;                            # edgeweight
+    edgedata = nothing,
+    nodedata,
+)::NodeT where {NodeT}
+end
+```
+
+This root-construction call is used for rooted trees and rooted networks
+alike. The root node still has no incoming edge.
+
+### Single-parent descendant construction
+
+For descendants with exactly one incoming parent edge:
+
+```julia
+function add_child(
+    ::NodeT,
+    ::StructureKeyType,                   # nodekey
+    ::AbstractString,                     # label
+    ::StructureKeyType,                   # edgekey
+    ::Union{EdgeUnitT, Nothing};          # edgeweight
+    edgedata,
+    nodedata,
+)::NodeT where {NodeT, EdgeUnitT}
+end
+```
+
+### Multi-parent descendant construction
+
+For descendants with multiple incoming parent edges:
 
 ```julia
 function add_child(
@@ -341,146 +467,78 @@ function add_child(
     ::AbstractString,                             # label
     ::AbstractVector{StructureKeyType},           # edgekeys
     ::AbstractVector{Union{EdgeUnitT, Nothing}};  # edgeweights
-    kwargs...,                                    # edgedata, nodedata
+    edgedata,
+    nodedata,
 )::NodeT where {NodeT, EdgeUnitT}
 end
 ```
 
-**Single-parent level**
+### Public protocol semantics
 
-Used for formats in which every node has at most one parent.
+At every `add_child` call:
 
-```julia
-function add_child(
-    ::Nothing,
-    ::StructureKeyType,                         # nodekey
-    ::AbstractString,                          # label
-    ::Union{StructureKeyType, Nothing},        # edgekey
-    ::Union{EdgeUnitT, Nothing};               # edgeweight
-    kwargs...,                                 # edgedata, nodedata
-)::NodeT where {NodeT, EdgeUnitT}
-end
-
-function add_child(
-    ::NodeT,
-    ::StructureKeyType,                         # nodekey
-    ::AbstractString,                          # label
-    ::StructureKeyType,                        # edgekey
-    ::Union{EdgeUnitT, Nothing};               # edgeweight
-    kwargs...,                                 # edgedata, nodedata
-)::NodeT where {NodeT, EdgeUnitT}
-end
-```
-
-### Builder semantics
-
-The builder contract is:
-
-- `nodekey` is the library-assigned structural node key
+- `nodekey` is the library-assigned structural node key for the node being
+  created
+- `label` is the raw source label, possibly `""`
 - `edgekey` or `edgekeys` is the library-assigned structural incoming edge key
   or keys
-- `label` is the raw source label, possibly `""`
 - `edgeweight` or `edgeweights` is the distinguished structural incoming edge
   weight or weights
-- `nodedata` carries the format-owned node payload handle or value for the node
+- `nodedata` is a row reference into the authoritative node table for the node
   being created
-- `edgedata` carries the format-owned incoming edge payload handle or handles
+- `edgedata` is either `nothing`, one edge row reference, or a vector of edge
+  row references for the incoming edge or edges
 
-For the single-parent entry-point call:
-
-- `parent === nothing`
-- `edgekey === nothing`
-- `edgedata === nothing`
-
-For the network entry-point call:
-
-- `parents` is empty
-- `edgekeys` is empty
-- `edgeweights` is empty
-- `edgedata` is empty or `nothing`, depending on the concrete helper path
-
-At every non-entry-point `add_child` call, all ancestor handles already exist
-and are in scope.
+At every non-root `add_child` call, all ancestor handles already exist and are
+in scope.
 
 The returned `NodeT` is the library's stored handle for that node in all
-subsequent builder calls.
+subsequent protocol calls.
 
-### Pre-supplied entry-point contract
+### Builder callbacks
 
-When the caller supplies an `entry_point` handle positionally to `load`,
-LineagesIO does not create the graph entry point through
-`add_child(parent::Nothing, ...)`.
+An explicit `builder = fn` callback is a package-owned convenience surface. It
+does not define a different graph contract.
 
-Instead, the package binds the parsed graph entry node onto the supplied handle
-through a dedicated protocol hook:
-
-```julia
-function bind_entry_point!(
-    entry_point::NodeT,
-    nodekey::StructureKeyType,
-    label::AbstractString;
-    nodedata,
-)::NodeT where {NodeT}
-end
-```
-
-The contract of `bind_entry_point!` is:
-
-- it is called exactly once for each graph loaded through the pre-supplied
-  entry-point interface
-- it binds the distinguished structural node properties of the parsed graph
-  entry node onto the supplied handle
-- it may mutate the supplied handle, validate it, or return an equivalent
-  handle
-- it does not fabricate an incoming edge, because the entry node has none
-- it is valid only for exactly-one-graph loads unless and until the package
-  ratifies a separate entry-point factory contract
-
-After `bind_entry_point!` returns, all descendant construction proceeds through
-the normal `add_child` protocol, with the bound entry-point handle used as the
-parent handle where appropriate.
-
-`add_child` alone is not sufficient to define this interface cleanly, because a
-pre-supplied entry-point handle prevents LineagesIO from creating the graph
-entry node through the ordinary root-construction path.
-
-The pre-supplied entry-point interface is mutually exclusive with an explicit
-`builder = ...` callback. They express competing graph-construction ownership
-models and must not be combined implicitly.
+If the package supports a callback builder, that callback path must receive or
+be internally adapted to the same root-binding, child-construction, and
+finalization events defined above, with the same structural values and the same
+row-reference delivery contract.
 
 ### Protocol determination
 
-The library determines the protocol tier once, before any `add_child` call.
+The library determines the structural protocol tier once, before any
+construction call.
 
 This determination is owned by the format declaration, not by per-node runtime
 inspection.
 
-Formats capable of hybrid or reticulate structure declare the network tier.
-Formats that encode only single-parent structure declare the single-parent tier.
+Formats that may produce nodes with multiple incoming edges declare the
+multi-parent tier. Formats that encode only single-parent structure declare the
+single-parent tier.
 
 ### Builder validation
 
-Once the format declares its tier, the orchestration layer validates builder
-compatibility before parsing begins.
+Once the format declares its tier, the orchestration layer validates
+compatibility of the supplied target before parsing begins where possible.
 
-If the format declares the network tier and the supplied builder is not
+If the format declares the multi-parent tier and the supplied target is not
 compatible with it, the library raises an informative error before any parse
 work begins.
 
 ### Parse order
 
-Parsers emit `add_child` calls in top-down pre-order traversal after completing
-whatever structural analysis the format requires.
+Parsers emit `bind_rootnode!` and `add_child` calls in top-down pre-order
+traversal after completing whatever source analysis the format requires.
 
-The package does not define a generic source-wide metadata discovery pass.
-A parser may still pre-scan or fully parse a source before emission if the
-format requires it for structural correctness, collection handling, payload
-storage setup, or error reporting.
+The package may pre-parse a graph or an entire source before emission if the
+format requires it for structural correctness, collection handling, annotation
+field discovery, table assembly, payload setup, or error reporting.
 
-## Metadata contract
+## Annotation preservation and delivery contract
 
-Metadata in this package means format-owned payload beyond the distinguished
-structural properties:
+In this document, a node or edge annotation is any parsed source field that is
+not one of the distinguished structural properties:
 
 - `nodekey`
 - `edgekey`
@@ -489,111 +547,227 @@ structural properties:
 - `dst_nodekey`
 - `edgeweight`
 
-Everything outside that set is format-owned payload.
+Everything outside that set is non-structural annotation.
 
 ### Ownership
 
-The metadata contract is split as follows.
+The annotation contract is split as follows.
 
-- Core package owns transport, tables, stable handles, and builder plumbing.
-- Each format module owns the payload schema, payload preservation policy, and
-  payload access conventions.
-- User and extension code own interpretation and materialization into their
-  domain types.
+- The core package owns retention of retained annotations into the authoritative
+  node and edge tables.
+- Format parsers own extraction of source annotations and placement of those
+  annotations onto the node side or edge side.
+- Format-specific and consumer-specific code own semantic interpretation,
+  coercion, caching, and user-facing convenience accessors.
 
-### Stable format schemas
+### Field-name preservation
 
-Each format module defines explicit stable node and edge schemas in code.
+All retained node annotations become node-table fields.
 
-These schemas may include:
+All retained edge annotations become edge-table fields.
 
-- zero format-specific node payload columns
-- zero format-specific edge payload columns
-- any ratified format-specific payload columns needed for that format
+By default, the retained field name is the field name as found in the source.
 
-These schemas are not derived from runtime key discovery in one source file.
+The package may support optional field-name mapping functions for node
+annotations and edge annotations. If such mapping functions are supplied, the
+mapped names become the retained field names in the authoritative tables.
 
-### Payload representation at build time
+Any field-name mapping facility must satisfy all of the following:
 
-`nodedata` and `edgedata` are type-stable format-owned payload handles or
-values.
+- mapping is deterministic
+- mapping is applied before table assembly
+- mapping is one-to-one within a table
+- mapping must not collide with structural field names
+- mapping must not produce duplicate retained field names within one table
 
-Valid representations include:
+### Value preservation
 
-- lightweight row-reference objects into the authoritative node and edge tables
-- lightweight wrapper structs around tables and keys
-- small typed payload structs
-- another format-owned concrete representation with equivalent stable semantics
+The core package preserves retained non-structural annotation values as raw
+source text.
 
-The core contract does not require payload to be exposed as promoted fields.
-Direct syntax such as `nodedata.bootstrap` is allowed only if that format's
-implementation chooses to provide it. It is not a package-wide guarantee.
+The authoritative `node_table` and `edge_table` store retained non-structural
+annotation values as `Union{Nothing, String}`.
 
-### Payload behavior
+The core package does not parse retained annotation values into semantic
+numeric, boolean, enum, or domain-specific types.
 
-Builders may:
+Examples of values that core preserves as text rather than semantically
+coercing include:
 
-- read payload immediately during `add_child`
-- ignore payload
-- store payload handles for deferred lookup later
+- `bootstrap`
+- `gamma`
+- `posterior`
+- `species`
+- `population`
 
-Deferred lookup is a first-class design use case.
+Format-specific and consumer-specific code may parse those values into richer
+types as needed.
 
-### Unknown or open-ended annotations
+### Complex annotation values
 
-The core package does not impose a single generic preservation strategy for
-unknown annotations.
+The core package supports one scalar text value per retained annotation field
+per node or per edge.
 
-Each format may choose one of the following, provided the behavior is concrete,
-documented, and stable:
+If a source exposes a structured annotation value that cannot be represented as
+one scalar text field on one node or one edge, the format parser must do one of
+the following:
 
-- ignore unsupported annotations
-- normalize them into explicit auxiliary tables
-- preserve them in another stable format-owned store
+- decompose it into explicit scalar fields before authoritative table assembly
+- reject it with an informative error
 
-The package does not require a format to preserve every arbitrary source
-annotation.
+The core package does not define an alternative builder-boundary payload
+container for complex source annotations.
+
+### Row-reference delivery
+
+The public protocol receives retained node and edge annotation context through
+small row-reference objects into the authoritative tables.
+
+The concrete public row-reference types must be equivalent to:
+
+```julia
+struct NodeRowRef{NodeTableT}
+    table::NodeTableT
+    nodekey::StructureKeyType
+end
+
+struct EdgeRowRef{EdgeTableT}
+    table::EdgeTableT
+    edgekey::StructureKeyType
+end
+```
+
+At the public protocol boundary:
+
+- `nodedata` is a `NodeRowRef`
+- `edgedata` is `nothing` for root construction
+- `edgedata` is one `EdgeRowRef` for single-parent descendants
+- `edgedata` is `AbstractVector{<:EdgeRowRef}` for multi-parent descendants
+
+These row references point into the authoritative tables. They do not copy
+annotation fields into per-node or per-edge payload bags.
+
+### Immediate consumption during construction
+
+Client code may read and interpret retained annotations immediately during
+construction.
+
+Example:
+
+```julia
+function LineagesIO.add_child(
+    parent::MyNode,
+    nodekey::StructureKeyType,
+    label::AbstractString,
+    edgekey::StructureKeyType,
+    edgeweight;
+    nodedata::NodeRowRef,
+    edgedata::EdgeRowRef,
+)::MyNode
+    posterior_txt = node_property(nodedata, :posterior)
+    posterior = posterior_txt === nothing ? nothing : parse(Float64, posterior_txt)
+    return MyNode(nodekey, String(label), posterior)
+end
+```
+
+### Deferred consumption after construction
+
+Client code may also retain row references or retain the authoritative tables
+and interpret retained annotations later.
+
+Example:
+
+```julia
+struct MyNode{NodeRefT}
+    nodekey::StructureKeyType
+    label::String
+    nodedata::NodeRefT
+end
+
+bootstrap(node::MyNode) = begin
+    txt = node_property(node.nodedata, :bootstrap)
+    return txt === nothing ? nothing : parse(Float64, txt)
+end
+```
+
+This deferred path is a first-class intended use case.
+
+### What the core package does not promise
+
+The core package does not promise any of the following as a generic annotation
+contract:
+
+- `nodedata.bootstrap`
+- `edgedata.gamma`
+- `node.bootstrap`
+- source-specific generated struct field names derived from runtime annotation
+  names
+
+Client packages and format-specific packages may provide such sugar if they
+want it. The core package does not require it.
 
 ## Companion table contract
 
-Every `LineageGraphAsset` exposes concrete Tables.jl-compliant tables.
+Every `LineageGraphAsset` exposes package-owned concrete Tables.jl-compliant
+`node_table` and `edge_table` objects.
+
+These are the authoritative preserved stores for graph-local node structure,
+graph-local edge structure, and retained node and edge annotations.
 
 ### Node table
 
-The node table is authoritative for node-level structure and any node-level
-format payload columns retained by the format.
+The node table has exactly one row per node in the graph.
 
-Required columns:
+The node table is authoritative for:
 
-| Column | Type | Meaning |
+- `nodekey`
+- `label`
+- all retained node annotations
+
+Required structural fields:
+
+| Field | Type | Meaning |
 |---|---|---|
 | `nodekey` | `StructureKeyType` | primary key within the graph |
 | `label` | `String` | raw source label, possibly empty |
 
-Additional node columns are format-owned.
+All retained node annotations appear as additional node-table fields.
+
+All retained non-structural node-annotation fields store
+`Union{Nothing, String}` values.
 
 ### Edge table
 
-The edge table is authoritative for edge-level structure and any edge-level
-format payload columns retained by the format.
+The edge table has exactly one row per edge in the graph.
 
-Required columns:
+The edge table is authoritative for:
 
-| Column | Type | Meaning |
+- `edgekey`
+- `src_nodekey`
+- `dst_nodekey`
+- `edgeweight`
+- all retained edge annotations
+
+Required structural fields:
+
+| Field | Type | Meaning |
 |---|---|---|
 | `edgekey` | `StructureKeyType` | primary key within the graph |
 | `src_nodekey` | `StructureKeyType` | source node structural key |
 | `dst_nodekey` | `StructureKeyType` | destination node structural key |
 | `edgeweight` | `Union{Float64, Nothing}` | distinguished structural edge weight |
 
-Additional edge columns are format-owned.
+All retained edge annotations appear as additional edge-table fields.
+
+All retained non-structural edge-annotation fields store
+`Union{Nothing, String}` values.
 
 ### Graph table
 
-The graph table is authoritative for graph-level summary and graph-level
+The graph table is authoritative for graph-level summary and any graph-level
 metadata retained by the load.
 
-Required summary columns mirror the graph coordinates carried on
+Required summary fields mirror the graph coordinates carried on
 `LineageGraphAsset`.
 
 ### Collection table
@@ -606,18 +780,34 @@ collection-level metadata retained by the load.
 The source table is authoritative for source-level summary and any source-level
 metadata retained by the load.
 
+### Key-order rule
+
+Within one graph:
+
+- node-table row order matches `nodekey` order
+- edge-table row order matches `edgekey` order
+
+This means:
+
+- node-table row `i` corresponds to `nodekey == i`
+- edge-table row `i` corresponds to `edgekey == i`
+
+This rule exists to keep key-based lookup straightforward and cheap.
+
 ### Table design rule
 
 All companion tables must be:
 
+- package-owned concrete table types
 - Tables.jl-compliant
-- concretely typed or concretized through type parameters
 - valid for direct user-space retention after loading
+- usable through key-based lookup without requiring the full
+  `LineageGraphAsset` handle to remain in scope
 
 ## Post-load access contract
 
 Users and extension packages must be able to retain and use the returned
-tables directly after loading.
+authoritative tables directly after loading.
 
 They are not required to hold the full `LineageGraphAsset` for the lifetime of
 their work if they have already retained the graph handle they need together
@@ -630,30 +820,43 @@ The package may provide generic convenience helpers such as:
 ```julia
 node_property(node_table, nodekey, propertykey)
 edge_property(edge_table, edgekey, propertykey)
+node_property(nodedata::NodeRowRef, propertykey)
+edge_property(edgedata::EdgeRowRef, propertykey)
 ```
 
-These helpers are package-native convenience APIs, not the primary type-stable
-builder contract.
+These helpers are package-native convenience APIs for the authoritative tables
+and their row references.
 
-When the lookup key is a runtime `Symbol`, the convenience lookup may be
-dynamically typed. That is acceptable for user-space convenience. It is not the
-recommended hot-path access pattern for performance-critical code.
+The `propertykey` may be represented by the exact retained field name as a
+`Symbol` or `AbstractString`.
 
-### Format-specific accessors
+For retained non-structural annotation fields, these helpers return
+`Union{Nothing, String}`.
 
-Format modules, client packages, and extensions are encouraged to provide
-typed convenience accessors over retained tables or payload handles, for
-example:
+### Format-specific and consumer-specific accessors
+
+Format-specific packages and consumer packages are encouraged to provide typed
+wrappers over the authoritative tables or over retained row references.
+
+Examples:
 
 ```julia
-clade_posterior_probability(node_table, nodekey)
-hybrid_gamma(edge_table, edgekey)
+bootstrap(node_table, nodekey) = begin
+    txt = node_property(node_table, nodekey, :bootstrap)
+    return txt === nothing ? nothing : parse(Float64, txt)
+end
+
+hybrid_gamma(edge_table, edgekey) = begin
+    txt = edge_property(edge_table, edgekey, :gamma)
+    return txt === nothing ? nothing : parse(Float64, txt)
+end
 ```
 
 or package-specific wrappers such as:
 
 ```julia
-clade_posterior_probability(lgraph::TheirGraphType, node::TheirNodeType)
+bootstrap(lgraph::TheirGraphType, node::TheirNodeType) =
+    bootstrap(lgraph.node_table, node.nodekey)
 ```
 
 These wrappers belong to the format-specific or consumer-specific layer, not to
@@ -662,14 +865,14 @@ the core structural contract.
 ### Direct field access is not a core guarantee
 
 The package does not guarantee `node.fieldname`, `nodedata.fieldname`, or
-`edgedata.fieldname` as a generic metadata access contract.
+`edgedata.fieldname` as a generic retained-annotation access contract.
 
-If a format-specific implementation wants to provide field-like sugar, it may.
-The core package does not require it.
+If a package wants to provide field-like sugar or macro-based sugar over the
+authoritative tables, it may. The core package does not require it.
 
 ## Return types
 
-### LineageGraphAsset
+### `LineageGraphAsset`
 
 `LineageGraphAsset{NodeT}` is the single-graph result struct.
 
@@ -686,14 +889,13 @@ It must carry:
 - `graph_rootnode`
 - `source_path`
 
-`graph_rootnode` is the handle returned by the entry-point construction or
-entry-point binding call.
+`graph_rootnode` is:
 
-When the caller does not supply a builder and no default materialization path is
-requested, `NodeT` may be `Nothing` and `graph_rootnode` may therefore be
-`nothing`.
+- the handle returned by `bind_rootnode!` when the caller supplied a rootnode
+- the handle returned by root construction when the caller supplied `NodeT`
+- `nothing` when the caller did not request graph materialization
 
-### LineageGraphStore
+### `LineageGraphStore`
 
 `LineageGraphStore{NodeT}` is always returned by `load`.
 
@@ -758,12 +960,13 @@ The package must support:
 - multi-source load with source coordinates retained on each graph asset
 
 The view layer owns convenience semantics. It does not own parsing, key
-assignment, or graph construction.
+assignment, table assembly, root binding, or graph construction.
 
 ## Format support
 
 Formats are implemented as package-owned parser modules with clear ownership of
-their schemas and semantics.
+their parsing rules, detection rules, unsupported constructs, and annotation
+extraction rules.
 
 ### Phase 1
 
@@ -777,15 +980,19 @@ their schemas and semantics.
 - `format"TskitTrees"`
 - additional ratified formats
 
-### Format schema rule
+### Format declaration requirements
 
 Each format must define:
 
 - its structural protocol tier
-- its stable node schema
-- its stable edge schema
-- its payload preservation policy for non-structural data
-- any format-specific convenience accessors it chooses to expose
+- its supported extensions
+- its detection rules
+- its retained annotation extraction rules
+- its unsupported constructs and error behavior
+
+Formats do not define alternative core payload containers. All retained node
+and edge annotations flow into the authoritative tables and their row
+references.
 
 ## GraphML policy
 
@@ -813,18 +1020,19 @@ override rather than silently guessing.
 
 The package must support:
 
-- method-extension builders through `load(src, NodeT)`
-- pre-supplied entry-point loading through `load(src, entry_point)` for
-  exactly-one-graph loads
+- method-extension graph construction through `load(src, NodeT)`
+- rootnode binding through `load(src, rootnode::NodeT)`
 - explicit builder callbacks through `load(src; builder = fn)`
-- return type parameterization driven by `NodeT`
 - `StructureKeyType` as the semantic key type for all package-assigned
   structural keys
-- concrete format-owned node and edge table types
-- concrete format-owned payload-handle types
+- package-owned concrete `node_table` and `edge_table` types
+- package-owned concrete row-reference types
 
-The package must not require public row-type inference from source-specific
-annotation keys in order to remain type-stable.
+The package must not require:
+
+- generated public struct fields from runtime annotation names
+- source-specific public row types derived from per-source annotation names
+- copied per-node or per-edge metadata bags at the builder boundary
 
 ## Error handling
 
@@ -834,13 +1042,31 @@ The package must distinguish:
 - unsupported constructs
 - ambiguous formats
 - lossy conversions
+- invalid field-name mappings
+- invalid rootnode-target loads
+- invalid property lookups
 
 Errors must include source location where possible.
 
-Builder compatibility errors must be raised before parse work begins.
+If a caller supplies `load(src, rootnode::NodeT)` and the source yields more
+than one graph, the package must raise an informative error rather than trying
+to guess how the caller wanted multiple graphs to bind.
+
+Builder compatibility and root-binding compatibility errors should be raised
+before parse work begins where possible.
+
+Invalid field-name mappings must raise informative errors for:
+
+- collisions with structural names
+- duplicate retained names
+- otherwise invalid outputs for the retained table design
+
+If a parser encounters a complex source annotation that cannot be represented
+as one scalar text field per node or edge and the format does not decompose it,
+the parser must raise an informative error.
 
 Property lookup convenience helpers must raise informative errors for missing
-keys, missing columns, or invalid lookups rather than silently fabricating
+fields, missing keys, or invalid lookups rather than silently fabricating
 values.
 
 ## Registration readiness
@@ -858,108 +1084,48 @@ Registration itself is out of scope for this document.
 
 The package is successful when all of the following are true.
 
-- `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` via method
-  extension on `add_child`
-- `load("file.nwk", entry_point)` returns a `LineageGraphStore` for an
-  exactly-one-graph source whose parsed graph is bound onto the supplied
-  entry-point handle through `bind_entry_point!`
-- `load("file.nwk"; builder = fn)` returns `LineageGraphStore{NodeT}` via
-  callback
+- `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` through the
+  public root-creation and child-construction protocol
+- `load("file.nwk", rootnode(lgraph))` binds the parsed root node onto the
+  supplied rootnode handle through `bind_rootnode!` and then constructs
+  descendants through `add_child`
 - `load("file.nwk")` returns a `LineageGraphStore` whose graphs expose
-  authoritative node and edge tables even when no builder is used
-- `LineageGraphAsset.node_table` and `LineageGraphAsset.edge_table` are
-  directly useful in user space after loading
-- `nodekey` enables stable node lookup within a graph
-- `edgekey` enables stable edge lookup within a graph
-- network-format graphs with hybrid nodes parse through the network builder
-  protocol correctly
-- loaded graphs are immediately compatible with LineagesMakie's accessor
-  protocol once the user supplies the required accessors for their chosen
-  `NodeT`
-- the public package boundary remains type-stable without deriving row field
-  names from runtime source annotations
+  authoritative package-owned node and edge tables even when no graph
+  materialization target is supplied
+- every node in `node_table` has a stable `nodekey`
+- every edge in `edge_table` has a stable `edgekey`
+- every edge in `edge_table` has stable `src_nodekey` and `dst_nodekey`
+- retained node and edge annotations are available both during construction and
+  after load through the authoritative tables and their row references
+- client code can interpret retained annotations eagerly during construction or
+  defer interpretation until later without per-node copied annotation bags
+- rooted network formats parse with one rootnode and multi-parent interior-node
+  construction through the multi-parent `add_child` protocol
+- format-specific and consumer-specific code can build wrappers such as
+  `bootstrap(...)` and `hybrid_gamma(...)` without any core field-promotion
+  contract
+- the package scales to huge trees, many graphs, and many huge graphs while
+  keeping the authoritative representation table-backed and the builder-boundary
+  payload small
 
-## Removed concepts and stipulations
+## Contracts that do not exist
 
-The following concepts and stipulations are intentionally removed from the core
-design and must not be reintroduced downstream without explicit approval.
+The following are not part of the core design and must not be introduced
+downstream without explicit approval.
 
-### Removed generic metadata discovery pass
-
-The package no longer defines a generic core-level discovery pass that scans a
-source file to discover arbitrary metadata field names and uses that discovery
-to derive public row types.
-
-### Removed source-derived public row schemas
-
-The package no longer defines public node or edge row schemas by inspecting the
-actual annotation key set present in one runtime source.
-
-There is no core contract that the field names of `nodedata` or `edgedata`
-depend on the specific source file being loaded.
-
-### Removed package-wide requirement that every encountered key becomes a core column
-
-The package no longer requires that every metadata key encountered in a source
-file be promoted into a core companion-table column.
-
-Formats, not the core package, decide which non-structural fields are retained,
-how they are retained, and whether additional auxiliary structures are used.
-
-### Removed package-wide guarantee of promoted-field access
-
-The package no longer guarantees syntax such as:
-
-- `nodedata.bootstrap`
-- `nodedata.some_runtime_key`
-- `edgedata.gamma`
-
-across all formats merely because a source file happened to contain those
-annotation names.
-
-Any such field access is now format-owned sugar, not a package-wide promise.
-
-### Removed core prohibition framed as “no overflow dictionaries anywhere”
-
-The core package no longer frames metadata preservation as a universal
-package-level prohibition on all auxiliary or normalized preservation
-structures.
-
-If a format needs explicit auxiliary tables or another stable preservation
-structure for non-structural payload, that is a format-owned design decision.
-
-### Removed generic shared schema-builder requirement
-
-The core design no longer requires a package-wide generic schema-builder layer
-whose job is to infer public node and edge row types from runtime annotation
-records.
-
-### Removed requirement that format modules avoid bespoke payload types
-
-Format modules are now explicitly allowed to define stable format-owned payload
-types, payload-handle types, row-reference types, and accessors when those are
-the correct representation.
-
-### Removed `node_idx` naming from the core contract
-
-`node_idx` is removed from the core contract and replaced by `nodekey`.
-
-### Removed `edge_idx` naming from the core contract
-
-`edge_idx` is removed from the core contract and replaced by `edgekey`.
-
-### Removed `src_node_idx` and `dst_node_idx` naming from the core contract
-
-`src_node_idx` and `dst_node_idx` are removed from the core contract and
-replaced by `src_nodekey` and `dst_nodekey`.
-
-### Removed key-discovery-driven justification for type stability
-
-The package no longer claims that type stability is achieved by discovering
-runtime annotation keys first and then freezing source-specific row types.
-
-The package now achieves type stability by making schemas and payload
-representations format-owned and explicit.
+- `node_idx`, `edge_idx`, `src_node_idx`, and `dst_node_idx` as core
+  identifier names
+- `edgelength` as the distinguished structural edge-weight name
+- generated field-style public contracts such as `nodedata.bootstrap` or
+  `edgedata.gamma`
+- source-specific public row types derived from runtime annotation-name sets
+- copied per-node or per-edge `Dict`, bag, or source-shaped `NamedTuple`
+  payloads at the public builder boundary
+- format-owned alternative builder-boundary payload stores in place of the
+  authoritative core tables and their row references
+- semantic coercion of retained non-structural annotation values in core
+- a positional `load(src, FormatType())` override surface
+- any assumption that rooted networks require multiple roots
 
 ## Fundamental implementation mandates
 
@@ -978,6 +1144,11 @@ with the LineagesIO-specific core identifiers ratified by this document:
 - `edgekey`
 - `src_nodekey`
 - `dst_nodekey`
+- `edgeweight`
+- `rootnode`
+- `bind_rootnode!`
+- `add_child`
+- `finalize_graph!`
 
 Reading of the key technological context named above is mandated for this
 project, and downstream community reading of those sources is required
