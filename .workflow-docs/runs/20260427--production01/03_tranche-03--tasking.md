@@ -51,9 +51,8 @@ In particular:
   acceptable to use upstream terms such as `vertex`, `label`, `code`, and
   `MetaGraph`, but do not substitute those terms for ratified LineagesIO
   identifiers at the core/extension boundary
-- treat placeholder extension-owned names shown in
-  `design/brief--community-support-user-stories.md` as provisional until task 1
-  explicitly ratifies the actual public names and exposure strategy
+- treat any extension-private helper names as non-public unless task 1
+  explicitly ratifies them as part of the approved user-facing surface
 - never use `StructureKeyType` directly as the `Label` type parameter for
   `MetaGraph`; the governing briefs require a distinct non-integer wrapper type
   around `nodekey`
@@ -141,8 +140,9 @@ Tranche 3 establishes the extension owner for:
 - the MetaGraphsNext extension module and any narrowly-scoped extension-loading
   structure required to keep MetaGraphsNext activation and AbstractTrees
   compatibility honest
-- extension-owned wrapper or root-handle types for rooted simple-Newick
-  single-parent materialization into `MetaGraph`
+- native-target `MetaGraph` load surfaces for rooted simple-Newick
+- any extension-private cursor or helper state needed for single-parent
+  materialization into `MetaGraph`, kept out of the public API
 - the required non-integer MetaGraphsNext label wrapper around `nodekey`
 - extension-owned `bind_rootnode!`, `add_child`, and `finalize_graph!` methods
   for the rooted simple-Newick MetaGraphsNext path
@@ -180,8 +180,8 @@ Allowed in this tranche:
 - adding `test/extensions/` verification files and any minimal new fixtures
   needed for those tests
 - minimal source changes under `src/` only where task 1 ratifies that the
-  parent package must surface extension-owned symbols through a
-  `Base.get_extension`-compatible access path
+  parent package needs a thin native-target validation hook or an optional
+  helper surface that does not expose extension internals
 - documentation updates in `README.md` and `docs/src/index.md`
 
 Not allowed in this tranche without further approval:
@@ -216,9 +216,10 @@ and exposure obligations are instead explicit in tasks 1, 2, 3, 7, and 10.
   `julia --project=docs docs/make.jl`
 - If the tranche diagnosis no longer matches reality, stop and raise that
   before changing code
-- If the exact public exposure plan for extension-owned handle or view types is
-  still unsettled after task 1, stop before exporting or documenting those
-  names and return to the review boundary rather than inventing them ad hoc
+- If the exact native-target public surface or any optional tree-view helper
+  surface is still unsettled after task 1, stop before exporting or
+  documenting names and return to the review boundary rather than inventing
+  them ad hoc
 
 ## Tranche execution rule
 
@@ -252,37 +253,42 @@ The implementation must preserve the tranche 3 scope boundary:
 
 ## Tasks
 
-### 1. Ratify MetaGraphsNext extension-owned public names and exposure plan
+### 1. Ratify the MetaGraphsNext native-target public surface
 
 **Type**: REVIEW
-**Output**: approved exact names for the extension-owned handle and tree-view
-types, together with the approved user-facing symbol exposure strategy and any
-required `Base.get_extension` retrieval plan
+**Output**: approved public MetaGraphsNext load target or targets, approved
+optional tree-view helper naming, and explicit confirmation that the public
+happy path does not rely on `Base.get_extension(...)` or any extension-private
+handle type
 **Depends on**: none
 
 Review `design/brief--community-support-objectives.md`,
 `design/brief--community-support-user-stories.md`, the tranche file, the
 current LineagesIO source layout, and the Julia package-extension guidance to
-decide the exact names and exposure strategy for the MetaGraphsNext handle and
-tree-view types. Resolve whether callers should reach those types through a
-parent-package alias, through an extension-local module path, or through some
-other Pkg-compliant access pattern. Include the required non-integer
-`MetaGraph` label wrapper in this naming review. Do not implement materializing
-behavior yet. If the governing documents still leave the public naming or
-exposure boundary materially ambiguous, stop and escalate rather than inventing
-an unreviewed public API.
+decide the exact native-target public API for the MetaGraphsNext path.
+Ratify whether the supported library-created target is `MetaGraph`,
+`MetaGraph{...}`, or both; whether supplied-target binding is also supported in
+this tranche; and whether any optional `AbstractTrees` helper should be
+surfaced on `LineagesIO`. Include the required non-integer `MetaGraph` label
+wrapper in this review, but keep that wrapper internal unless there is a
+positive reason to expose it. Do not implement materializing behavior yet. If
+the governing documents still leave the public naming or exposure boundary
+materially ambiguous, stop and escalate rather than inventing an unreviewed
+public API.
 
 ### 2. Add weak-dependency and MetaGraphsNext extension skeleton
 
 **Type**: CONFIG
 **Output**: `Project.toml` and `test/Project.toml` declare the tranche-owned
 optional dependencies honestly; `ext/MetaGraphsNextIO.jl` exists as a loading
-skeleton; and any ratified parent-side extension lookup hook exists without
+skeleton; and any ratified parent-side native-target validation or helper hook
+exists without
 introducing a hard dependency in core
 **Depends on**: 1
 
 Touch `Project.toml`, `test/Project.toml`, and `src/LineagesIO.jl` only if task
-1 ratified that the parent package must surface extension-owned symbols.
+1 ratified that the parent package must surface an optional helper or native-
+target validation hook.
 Create `ext/MetaGraphsNextIO.jl` and any narrowly-scoped extension-loading file
 under `ext/` if that is required to preserve honest MetaGraphsNext activation
 and honest AbstractTrees compatibility without forcing AbstractTrees to be
@@ -309,30 +315,30 @@ hard MetaGraphsNext import. If task 2 introduced any companion loading
 structure for AbstractTrees compatibility, prove that basic MetaGraphsNext
 materialization still does not require `using AbstractTrees`. Also re-assert
 that `load(src)` for the tables-only path continues to work and returns
-authoritative tables with `graph_rootnode === nothing`. End the task green with
+authoritative tables with `materialized === nothing`. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 4. Implement the MetaGraphsNext single-parent handle and library-created-root path
+### 4. Implement the MetaGraphsNext native-target library-created-root path
 
 **Type**: WRITE
-**Output**: the extension defines the concrete MetaGraphsNext wrapper state,
-the required non-integer label wrapper around `nodekey`, and the
-library-created-root `add_child` methods needed to materialize rooted simple
-Newick trees into `MetaGraph`
+**Output**: the extension defines any private construction state it genuinely
+needs, the required non-integer label wrapper around `nodekey`, and the rooted
+simple-Newick materialization path needed to load into a native `MetaGraph`
 **Depends on**: 3
 
 Touch `ext/MetaGraphsNextIO.jl` and `src/LineagesIO.jl` only if task 1 ratified
-that a parent-side alias is required for user access to the extension-owned
-types. Implement the rooted simple-Newick single-parent materialization path on
-top of the existing core protocol. Use an upstream-supported directed graph
+that a parent-side alias or validation hook is required for the approved public
+surface. Implement the rooted simple-Newick single-parent materialization path
+on top of the existing core protocol. Use an upstream-supported directed graph
 owner such as `SimpleDiGraph` under `MetaGraph`, define a concrete non-integer
-wrapper type around `StructureKeyType` for the upstream label type, and
-implement the `add_child(::Nothing, ...)` and single-parent descendant
-`add_child(parent, ...)` methods required for `load(src, NodeT)`. Keep
-authoritative LineagesIO tables as the primary preserved annotation store by
-default; only project metadata into MetaGraphsNext where the extension design
-actually needs it. Do not introduce a shadow parser stack, multi-parent logic,
-or unrooted-tree behavior. End the task green with
+wrapper type around `StructureKeyType` for the upstream label type, and keep
+any per-node cursor state private to the extension rather than making it a
+documented user-facing target. The resulting public happy path must support the
+ratified native-target `load(src, MetaGraph)` surface. Keep authoritative
+LineagesIO tables as the primary preserved annotation store by default; only
+project metadata into MetaGraphsNext where the extension design actually needs
+it. Do not introduce a shadow parser stack, multi-parent logic, or unrooted-
+tree behavior. End the task green with
 `julia --project=test test/runtests.jl`.
 
 ### 5. Verify rooted simple-Newick MetaGraphsNext materialization and authoritative-table retention
@@ -348,7 +354,7 @@ Add `test/extensions/metagraphsnext_simple_newick.jl` and
 `test/extensions/metagraphsnext_tables_after_load.jl`, using representative
 rooted simple-Newick fixtures that already exist in the repository unless a
 minimal new fixture is genuinely required. Verify the actual contract boundary:
-the returned `graph_rootnode` type, MetaGraphsNext graph structure, stable
+the returned `materialized` type, MetaGraphsNext graph structure, stable
 mapping from `nodekey` to the extension-owned label wrapper, correct edge
 insertion, and continued direct access to `asset.node_table` and
 `asset.edge_table` after load. Use upstream `MetaGraphsNext` and `Graphs.jl`
@@ -361,7 +367,7 @@ for the pre-tranche-3 repository state. End the task green with
 
 **Type**: WRITE
 **Output**: the extension provides the approved `bind_rootnode!` path for the
-MetaGraphsNext root-handle target and any required extension-local
+MetaGraphsNext supplied native target and any required extension-local
 `finalize_graph!` behavior for the rooted simple-Newick single-parent tier
 **Depends on**: 5
 
@@ -387,8 +393,8 @@ unsupported supplied-root cases
 Add `test/extensions/metagraphsnext_supplied_root.jl` and use the existing
 single-graph and multi-graph fixtures unless a minimal additional fixture is
 strictly required. Verify successful one-graph binding for the approved root
-handle shape, including the expected post-load relationship between
-`asset.graph_rootnode` and the supplied handle. Assert that authoritative
+target shape, including the expected post-load relationship between
+`asset.materialized` and the supplied target. Assert that authoritative
 tables remain available after the bound load. Verify that multi-graph sources
 and any other unsupported supplied-root combinations fail informatively rather
 than guessing. End the task green with `julia --project=test test/runtests.jl`.
@@ -442,10 +448,10 @@ extension remained a thin single-parent projection layer over the core package
 Update `README.md` and `docs/src/index.md` so the documented public API matches
 the ratified MetaGraphsNext reference path, including activation expectations,
 authoritative-table retention, and the approved AbstractTrees wrapper usage.
-Avoid placeholder extension-owned names unless they are explicitly labeled as
-examples rather than ratified API. Run `julia --project=test test/runtests.jl`
-and `julia --project=docs docs/make.jl`. Then review the final repository state
-against the tranche boundary: no hard dependency in core, no shadow parser, no
-multi-parent or unrooted support leakage, no silent export of unreviewed
-extension names, and no loss of authoritative tables after extension-based
-loads.
+Avoid `Base.get_extension(...)`, placeholder handle names, or other
+extension-internal constructs in public examples. Run
+`julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`.
+Then review the final repository state against the tranche boundary: no hard
+dependency in core, no shadow parser, no multi-parent or unrooted support
+leakage, no silent export of unreviewed extension names, and no loss of
+authoritative tables after extension-based loads.

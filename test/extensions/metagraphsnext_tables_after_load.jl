@@ -1,16 +1,14 @@
 using MetaGraphsNext
 
 @testset "MetaGraphsNext loads preserve authoritative tables" begin
-    extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
-    store = load(fixture_path, extension.MetaGraphsNextNodeHandle)
+    store = load(fixture_path, MetaGraphsNext.MetaGraph)
     asset = first(store.graphs)
-    rootnode = asset.graph_rootnode
 
     @test asset.node_table isa LineagesIO.NodeTable
     @test asset.edge_table isa LineagesIO.EdgeTable
-    @test rootnode.nodekey == 1
-    @test LineagesIO.node_property(asset.node_table, rootnode.nodekey, :posterior) == "0.99"
+    @test asset.materialized isa MetaGraphsNext.MetaGraph
+    @test LineagesIO.node_property(asset.node_table, 1, :posterior) == "0.99"
     @test LineagesIO.node_property(asset.node_table, 4, :posterior) == "0.52"
     @test LineagesIO.edge_property(asset.edge_table, 2, :bootstrap) == "97"
     @test LineagesIO.edge_property(asset.edge_table, 2, :phase) == "left"

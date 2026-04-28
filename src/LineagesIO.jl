@@ -9,6 +9,7 @@ export EdgeTable
 export GraphTable
 export LineageGraphAsset
 export LineageGraphStore
+export MetaGraphsNextTreeView
 export NodeRowRef
 export NodeTable
 export SourceTable
@@ -18,6 +19,15 @@ export bind_rootnode!
 export edge_property
 export finalize_graph!
 export node_property
+
+"""
+    MetaGraphsNextTreeView(asset)
+    MetaGraphsNextTreeView(graph, node_table, edge_table)
+
+Construct the extension-owned AbstractTrees-compatible wrapper for a
+MetaGraphsNext-backed rooted-tree materialization.
+"""
+function MetaGraphsNextTreeView end
 
 include("core_types.jl")
 include("tables.jl")

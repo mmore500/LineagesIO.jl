@@ -372,12 +372,18 @@ Their meanings are:
 
 - `load(src)` loads into package-owned tables only and does not require a user
   graph materialization target
-- `load(src, NodeT)` asks LineagesIO to create the graph through the public
-  construction protocol for that node-handle type
+- `load(src, NodeT)` asks LineagesIO to create a materialized result through
+  the public construction protocol for that target type
 - `load(src, rootnode::NodeT)` asks LineagesIO to bind the parsed root node
-  onto the supplied rootnode handle and then construct descendants through the
-  public construction protocol
+  onto the supplied construction target and then construct descendants through
+  the public construction protocol
 - `load(src; builder = fn)` asks LineagesIO to use an explicit builder callback
+
+For user-defined protocol implementations, `NodeT` is often a root-node or
+node-handle type. For first-class package extensions, `NodeT` may instead be a
+native graph or container type from the target package. Public extension load
+surfaces must prefer native target-package types where that can be supported
+cleanly and idiomatically.
 
 Explicit format override is provided through FileIO wrappers such as
 `File{format"..."}(...)` and `Stream{fmt}(io)`. This design does not define a
@@ -400,15 +406,16 @@ The public graph-construction protocol consists of three functions:
 - `add_child`
 - `finalize_graph!`
 
-`bind_rootnode!` binds a parsed root node onto a supplied rootnode handle.
+`bind_rootnode!` binds a parsed root node onto a supplied construction target.
 `add_child` materializes descendants. `finalize_graph!` performs optional
 post-build cleanup after the final `add_child` call for a graph and before
-`LineageGraphAsset` assembly.
+`LineageGraphAsset` assembly, returning the value stored as the graph's
+materialized result.
 
 ### `bind_rootnode!`
 
 When the caller supplies `load(src, rootnode::NodeT)`, LineagesIO binds the
-parsed root node onto that supplied handle through:
+parsed root node onto that supplied target through:
 
 ```julia
 function bind_rootnode!(
@@ -425,15 +432,15 @@ The contract of `bind_rootnode!` is:
 - it is called exactly once for each graph loaded through
   `load(src, rootnode::NodeT)`
 - it binds the distinguished structural root-node properties of the parsed
-  graph onto the supplied handle
-- it may mutate the supplied handle, validate it, or return an equivalent
-  handle
+  graph onto the supplied target
+- it may mutate the supplied target, validate it, or return an equivalent
+  target
 - it receives `nodedata` as a row reference into the authoritative node table
 - it does not receive an `edgekey`, `edgeweight`, or `edgedata`, because the
   root node has no incoming edge
 
 After `bind_rootnode!` returns, all descendant construction proceeds through
-`add_child`, using the bound root handle as the parent handle where
+`add_child`, using the bound root return value as the parent handle where
 appropriate.
 
 ### `add_child`
@@ -465,6 +472,12 @@ end
 
 This root-construction call is used for rooted trees and rooted networks
 alike. The root node still has no incoming edge.
+
+For generic user-defined protocol implementations, the returned `NodeT` is
+typically the root node or root handle itself. For native package-extension
+loads, the public requested result type may instead be a graph or container
+type, while any extension-private per-node cursor state remains internal and
+non-public.
 
 ### Single-parent descendant construction
 
@@ -519,8 +532,11 @@ At every `add_child` call:
 At every non-root `add_child` call, all ancestor handles already exist and are
 in scope.
 
-The returned `NodeT` is the library's stored handle for that node in all
-subsequent protocol calls.
+For generic user-defined protocol implementations, the returned `NodeT` is the
+library's stored handle for that node in all subsequent protocol calls.
+Native package extensions may keep additional private construction state
+internally so long as the public requested materialized type remains the user-
+facing result.
 
 ### Builder callbacks
 
@@ -901,7 +917,7 @@ authoritative tables, it may. The core package does not require it.
 
 ### `LineageGraphAsset`
 
-`LineageGraphAsset{NodeT}` is the single-graph result struct.
+`LineageGraphAsset{MaterializedT}` is the single-graph result struct.
 
 It must carry:
 
@@ -913,18 +929,22 @@ It must carry:
 - `graph_label`
 - `node_table`
 - `edge_table`
-- `graph_rootnode`
+- `materialized`
 - `source_path`
 
-`graph_rootnode` is:
+`materialized` is:
 
-- the handle returned by `bind_rootnode!` when the caller supplied a rootnode
-- the handle returned by root construction when the caller supplied `NodeT`
+- the final value returned by `finalize_graph!` when the caller requested graph
+  materialization
 - `nothing` when the caller did not request graph materialization
+
+For generic node-model construction, this value is often the root node or root
+handle. For first-class package extensions, it should ordinarily be the native
+target-package graph or container object requested by the caller.
 
 ### `LineageGraphStore`
 
-`LineageGraphStore{NodeT}` is always returned by `load`.
+`LineageGraphStore{MaterializedT}` is always returned by `load`.
 
 It must carry:
 
@@ -933,7 +953,7 @@ It must carry:
 - `graph_table`
 - `graphs`
 
-`graphs` is a lazy iterator of `LineageGraphAsset{NodeT}`.
+`graphs` is a lazy iterator of `LineageGraphAsset{MaterializedT}`.
 
 ### Multi-source coordinates
 

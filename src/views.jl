@@ -1,11 +1,11 @@
 """
-    LineageGraphAsset{NodeT}
+    LineageGraphAsset{MaterializedT}
 
 Single-graph load result that carries authoritative package-owned tables and
-graph/source coordinates.
+graph/source coordinates together with any optional materialized graph result.
 """
 struct LineageGraphAsset{
-    NodeT,
+    MaterializedT,
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
@@ -17,7 +17,7 @@ struct LineageGraphAsset{
     graph_label::OptionalString
     node_table::NodeTableT
     edge_table::EdgeTableT
-    graph_rootnode::NodeT
+    materialized::MaterializedT
     source_path::OptionalString
 end
 
@@ -26,13 +26,13 @@ struct GraphAssetIterator{GraphAssetVectorT <: AbstractVector}
 end
 
 """
-    LineageGraphStore{NodeT}
+    LineageGraphStore{MaterializedT}
 
 Top-level load result. `graphs` is a lazy iterator of
-`LineageGraphAsset{NodeT}` values.
+`LineageGraphAsset{MaterializedT}` values.
 """
 struct LineageGraphStore{
-    NodeT,
+    MaterializedT,
     SourceTableT <: SourceTable,
     CollectionTableT <: CollectionTable,
     GraphTableT <: GraphTable,
@@ -56,9 +56,9 @@ function LineageGraphStore(
     GraphAssetVectorT <: AbstractVector,
 }
     graph_asset_type = eltype(GraphAssetVectorT)
-    node_type = fieldtype(graph_asset_type, 9)
+    materialized_type = fieldtype(graph_asset_type, 9)
     graph_iterator_type = typeof(graphs)
-    return LineageGraphStore{node_type, SourceTableT, CollectionTableT, GraphTableT, graph_iterator_type}(
+    return LineageGraphStore{materialized_type, SourceTableT, CollectionTableT, GraphTableT, graph_iterator_type}(
         source_table,
         collection_table,
         graph_table,

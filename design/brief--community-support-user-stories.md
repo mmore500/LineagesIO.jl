@@ -23,13 +23,6 @@ Julia syntax examples.
 If any example in this annex conflicts with either governing brief, the briefs
 govern and this annex must be revised.
 
-Some examples below use provisional placeholder names such as
-`MetaGraphsNextNodeHandle`, `PhyloNodeHandle`, `PhyloNetworksNodeHandle`, and
-`MetaGraphsNextTreeView` to illustrate extension-owned wrapper or view shapes.
-These placeholder names do not amend the controlled vocabulary and do not
-ratify exported API names. Exact extension-owned names must be ratified before
-implementation lands.
-
 ## How to use this annex
 
 Tranche files and tasking files for community support should cite the relevant
@@ -40,6 +33,7 @@ The examples below are intended to anchor:
 - the first deliverable for simple Newick trees across all three extensions
 - the role of `MetaGraphsNext.jl` as the reference-standard consumer
 - the way authoritative LineagesIO tables remain available after materialization
+- the requirement that public load surfaces stay on native target-package types
 - target-specific rejection behavior and compatibility boundaries
 
 ## User story 1: Extension activation for the MetaGraphsNext reference path
@@ -51,12 +45,12 @@ Newick reference path available without introducing a hard dependency in core.
 ```julia
 using FileIO: load
 using LineagesIO
-using MetaGraphsNext
+using MetaGraphsNext: MetaGraph
 
-store = load("primates.nwk", MetaGraphsNextNodeHandle)
+store = load("primates.nwk", MetaGraph)
 asset = first(store.graphs)
 
-asset.graph_rootnode isa MetaGraphsNextNodeHandle
+asset.materialized isa MetaGraph
 asset.node_table
 asset.edge_table
 ```
@@ -70,13 +64,14 @@ trees and the reference model for later general graph integrations.
 ```julia
 using FileIO: load
 using LineagesIO
-using MetaGraphsNext
+using MetaGraphsNext: MetaGraph
 
-store = load("annotated_tree.nwk", MetaGraphsNextNodeHandle)
+store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
-root_handle = asset.graph_rootnode
+graph = asset.materialized
 
-LineagesIO.node_property(asset.node_table, root_handle.nodekey, :bootstrap)
+graph
+LineagesIO.node_property(asset.node_table, 1, :bootstrap)
 asset.edge_table
 ```
 
@@ -89,12 +84,12 @@ contract of the core package.
 ```julia
 using FileIO
 using LineagesIO
-using MetaGraphsNext
+using MetaGraphsNext: MetaGraph
 
-store = load(File{format"Newick"}("unrooted_primates.nwk"), MetaGraphsNextNodeHandle)
+store = load(File{format"Newick"}("unrooted_primates.nwk"), MetaGraph)
 asset = first(store.graphs)
 
-asset.graph_rootnode
+asset.materialized
 asset.node_table
 asset.edge_table
 ```
@@ -109,12 +104,12 @@ AbstractTrees semantics.
 using FileIO: load
 using AbstractTrees
 using LineagesIO
-using MetaGraphsNext
+using MetaGraphsNext: MetaGraph
 
-store = load("primates.nwk", MetaGraphsNextNodeHandle)
+store = load("primates.nwk", MetaGraph)
 asset = first(store.graphs)
 
-tree_view = MetaGraphsNextTreeView(asset.graph_rootnode, asset.node_table, asset.edge_table)
+tree_view = LineagesIO.MetaGraphsNextTreeView(asset)
 
 AbstractTrees.children(tree_view)
 collect(AbstractTrees.PreOrderDFS(tree_view))
@@ -129,32 +124,32 @@ core package contract.
 ```julia
 using FileIO: load
 using LineagesIO
-using Phylo
+using Phylo: RootedTree
 
-store = load("primates.nwk", PhyloNodeHandle)
+store = load("primates.nwk", RootedTree)
 asset = first(store.graphs)
 
-asset.graph_rootnode isa PhyloNodeHandle
+asset.materialized isa RootedTree
 asset.node_table
 asset.edge_table
 ```
 
-## User story 6: Phylo.jl root binding can target a caller-owned rooted tree
+## User story 6: Clients do not need extension-private handle types
 
-As a user who already owns the tree container, I want the Phylo.jl extension to
-support the supplied-root surface where upstream semantics make that clean and
-verifiable.
+As a user loading into ecosystem-native structures, I do not want to discover
+or import extension-private handle types just to request a supported
+materialization path.
 
 ```julia
 using FileIO: load
 using LineagesIO
-using Phylo
+using MetaGraphsNext: MetaGraph
+using Phylo: RootedTree
+using PhyloNetworks: HybridNetwork
 
-phylo_root = PhyloRootHandle()
-store = load("primates.nwk", phylo_root)
-asset = first(store.graphs)
-
-asset.graph_rootnode === phylo_root
+meta_store = load("primates.nwk", MetaGraph)
+phylo_store = load("primates.nwk", RootedTree)
+network_store = load("primates.nwk", HybridNetwork)
 ```
 
 ## User story 7: PhyloNetworks gets an early simple-tree deliverable
@@ -166,12 +161,12 @@ rooted-network tranche is complete.
 ```julia
 using FileIO: load
 using LineagesIO
-using PhyloNetworks
+using PhyloNetworks: HybridNetwork
 
-store = load("primates.nwk", PhyloNetworksNodeHandle)
+store = load("primates.nwk", HybridNetwork)
 asset = first(store.graphs)
 
-asset.graph_rootnode isa PhyloNetworksNodeHandle
+asset.materialized isa HybridNetwork
 asset.node_table
 asset.edge_table
 ```
@@ -185,9 +180,9 @@ without moving that semantic coercion into LineagesIO core.
 ```julia
 using FileIO
 using LineagesIO
-using PhyloNetworks
+using PhyloNetworks: HybridNetwork
 
-store = load(File{format"LineageNetwork"}("hybrid_example.ln"), PhyloNetworksNodeHandle)
+store = load(File{format"LineageNetwork"}("hybrid_example.ln"), HybridNetwork)
 asset = first(store.graphs)
 
 gamma_txt = LineagesIO.edge_property(asset.edge_table, 7, :gamma)
@@ -202,10 +197,13 @@ consumer packages.
 
 ```julia
 using FileIO: load
+using MetaGraphsNext: MetaGraph
+using Phylo: RootedTree
+using PhyloNetworks: HybridNetwork
 
-meta_store = load("primates.nwk", MetaGraphsNextNodeHandle)
-phylo_store = load("primates.nwk", PhyloNodeHandle)
-network_store = load("primates.nwk", PhyloNetworksNodeHandle)
+meta_store = load("primates.nwk", MetaGraph)
+phylo_store = load("primates.nwk", RootedTree)
+network_store = load("primates.nwk", HybridNetwork)
 
 first(meta_store.graphs).node_table
 first(phylo_store.graphs).node_table
@@ -218,10 +216,10 @@ As a user, I want target-specific rejection behavior rather than silent
 structure loss when a package cannot represent the loaded source cleanly.
 
 ```julia
-julia> load("reticulate_network.nwk", PhyloNodeHandle)
+julia> load("reticulate_network.nwk", RootedTree)
 ERROR: The Phylo.jl extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.
 
-julia> load("posterior.trees", some_existing_rootnode_handle)
+julia> load("posterior.trees", some_existing_target)
 ERROR: The supplied-root extension load surface is valid only for a source that yields exactly one graph.
 ```
 
@@ -233,8 +231,10 @@ system.
 
 ```julia
 using FileIO: load
+using LineagesIO
+using MetaGraphsNext: MetaGraph
 
-store = load("annotated_tree.nwk", MetaGraphsNextNodeHandle)
+store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
 asset.node_table
@@ -252,16 +252,18 @@ requiring LineagesIO core to own those semantics.
 ```julia
 using FileIO: load
 using AbstractTrees
+using LineagesIO
+using MetaGraphsNext: MetaGraph
 
-store = load("annotated_tree.nwk", MetaGraphsNextNodeHandle)
+store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-tree_view = MetaGraphsNextTreeView(asset.graph_rootnode, asset.node_table, asset.edge_table)
-bootstrap(node_handle) = begin
-    txt = LineagesIO.node_property(asset.node_table, node_handle.nodekey, :bootstrap)
+tree_view = LineagesIO.MetaGraphsNextTreeView(asset)
+bootstrap(nodekey) = begin
+    txt = LineagesIO.node_property(asset.node_table, nodekey, :bootstrap)
     txt === nothing ? nothing : parse(Float64, txt)
 end
 
 collect(AbstractTrees.Leaves(tree_view))
-bootstrap(first(AbstractTrees.Leaves(tree_view)))
+bootstrap(1)
 ```

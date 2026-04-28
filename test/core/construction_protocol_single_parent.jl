@@ -62,7 +62,7 @@ end
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
     store = load(fixture_path, SingleParentProtocolNode)
     asset = first(store.graphs)
-    rootnode = asset.graph_rootnode
+    rootnode = asset.materialized
 
     @test rootnode isa SingleParentProtocolNode
     @test rootnode.finalized

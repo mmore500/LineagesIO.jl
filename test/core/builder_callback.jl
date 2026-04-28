@@ -29,7 +29,7 @@ end
 
     store = load(fixture_path; builder = builder)
     asset = first(store.graphs)
-    rootnode = asset.graph_rootnode
+    rootnode = asset.materialized
 
     @test rootnode isa BuilderCallbackNode
     @test rootnode.finalized

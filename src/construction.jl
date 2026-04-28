@@ -25,7 +25,7 @@ function bind_rootnode!(
     label;
     nodedata,
 )
-    throw(ArgumentError("No `LineagesIO.bind_rootnode!` method is defined for `$(typeof(rootnode))`. Implement `bind_rootnode!(rootnode, nodekey, label; nodedata)` for the supplied rootnode handle or choose a different load surface."))
+    throw(ArgumentError("No `LineagesIO.bind_rootnode!` method is defined for `$(typeof(rootnode))`. Implement `bind_rootnode!(rootnode, nodekey, label; nodedata)` for the supplied rootnode or materialization target, or choose a different load surface."))
 end
 
 """
@@ -50,12 +50,12 @@ function add_child(
 end
 
 """
-    finalize_graph!(graph_rootnode)
+    finalize_graph!(materialized)
 
 Optional post-build cleanup hook. The default implementation is a no-op.
 """
-function finalize_graph!(graph_rootnode)
-    return graph_rootnode
+function finalize_graph!(materialized)
+    return materialized
 end
 
 function materialize_graphs(
@@ -81,10 +81,10 @@ function materialize_graphs(
     isempty(graph_assets) && return graph_assets
     first_graph = materialize_graph(first(graph_assets), request)
     materialized_graphs = [first_graph]
-    expected_root_type = typeof(first_graph.graph_rootnode)
+    expected_materialized_type = typeof(first_graph.materialized)
     for graph_asset in Iterators.drop(graph_assets, 1)
         materialized_graph = materialize_graph(graph_asset, request)
-        typeof(materialized_graph.graph_rootnode) == expected_root_type || throw(ArgumentError("All graphs materialized through one construction request must return the same concrete root-handle type, but saw both `$(expected_root_type)` and `$(typeof(materialized_graph.graph_rootnode))`."))
+        typeof(materialized_graph.materialized) == expected_materialized_type || throw(ArgumentError("All graphs materialized through one construction request must return the same concrete materialized type, but saw both `$(expected_materialized_type)` and `$(typeof(materialized_graph.materialized))`."))
         push!(materialized_graphs, materialized_graph)
     end
     return materialized_graphs
@@ -97,7 +97,7 @@ function materialize_graph(
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
-    rootnode_handle = materialize_graph_rootnode(graph_asset, request)
+    materialized = materialize_graph_rootnode(graph_asset, request)
     return LineageGraphAsset(
         graph_asset.index,
         graph_asset.source_idx,
@@ -107,7 +107,7 @@ function materialize_graph(
         graph_asset.graph_label,
         graph_asset.node_table,
         graph_asset.edge_table,
-        rootnode_handle,
+        materialized,
         graph_asset.source_path,
     )
 end

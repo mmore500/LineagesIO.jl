@@ -11,13 +11,11 @@ end
 @testset "MetaGraphsNext simple rooted Newick materialization" begin
     extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
-    store = load(fixture_path, extension.MetaGraphsNextNodeHandle)
+    store = load(fixture_path, MetaGraphsNext.MetaGraph)
     asset = first(store.graphs)
-    rootnode = asset.graph_rootnode
-    graph = rootnode.graph
+    graph = asset.materialized
 
-    @test rootnode isa extension.MetaGraphsNextNodeHandle
-    @test rootnode.nodekey == 1
+    @test graph isa MetaGraphsNext.MetaGraph
     @test MetaGraphsNext.Graphs.nv(graph) == 5
     @test MetaGraphsNext.Graphs.ne(graph) == 4
 

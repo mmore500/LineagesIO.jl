@@ -27,7 +27,7 @@
     @test first_asset.collection_idx == 1
     @test first_asset.collection_graph_idx == 1
     @test first_asset.source_path == fixture_path
-    @test first_asset.graph_rootnode === nothing
+    @test first_asset.materialized === nothing
     @test Tables.getcolumn(first_asset.node_table, :label) == ["", "Alpha", "Beta"]
 
     @test second_asset.index == 2
@@ -35,6 +35,6 @@
     @test second_asset.collection_idx == 1
     @test second_asset.collection_graph_idx == 2
     @test second_asset.source_path == fixture_path
-    @test second_asset.graph_rootnode === nothing
+    @test second_asset.materialized === nothing
     @test Tables.getcolumn(second_asset.node_table, :label) == ["", "Inner", "Gamma", "Delta", "Epsilon"]
 end

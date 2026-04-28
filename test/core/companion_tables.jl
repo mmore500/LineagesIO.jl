@@ -108,7 +108,7 @@
     @test asset.collection_graph_idx == 3
     @test asset.collection_label == "posterior block"
     @test asset.graph_label == "graph 3"
-    @test asset.graph_rootnode === nothing
+    @test asset.materialized === nothing
     @test asset.source_path == "synthetic.nwk"
     @test asset.node_table === node_table
     @test asset.edge_table === edge_table

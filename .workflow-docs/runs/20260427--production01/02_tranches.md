@@ -234,7 +234,7 @@ on.
 - **Manual**: Load a representative simple rooted Newick file through
   `load("primates.nwk")`, `load(File{format"Newick"}(...))`, and
   `load(Stream{format"Newick"}(...))`. Inspect the first returned graph asset
-  and confirm `graph_rootnode === nothing`, authoritative `node_table` and
+  and confirm `materialized === nothing`, authoritative `node_table` and
   `edge_table` exist, and source/collection coordinates are preserved.
 - **Automated**: Add and run `test/core/newick_tables_only.jl`,
   `test/core/fileio_load_surfaces.jl`, and `test/core/graph_store_coordinates.jl`
@@ -244,7 +244,7 @@ on.
 
 - [ ] Given a simple rooted Newick file, when `load("primates.nwk")` runs,
       then the result is a lazy `LineageGraphStore` whose first graph asset
-      exposes authoritative package-owned tables and `graph_rootnode === nothing`.
+      exposes authoritative package-owned tables and `materialized === nothing`.
 - [ ] Given an ambiguous source that is unsafe to auto-detect, when a caller
       uses a bare `load(...)` surface, then the package raises an informative
       explicit-override error rather than guessing a format.
@@ -352,8 +352,9 @@ into `MetaGraphsNext.jl`.
 This tranche is user-facing. It establishes:
 
 - the `MetaGraphsNext` package extension module
-- extension-owned wrapper or root-handle types needed for clean single-parent
-  incremental construction
+- native-target `MetaGraph` load surfaces for simple rooted Newick
+- any extension-private cursor or helper state needed for clean single-parent
+  incremental construction, kept out of the public API
 - root creation and, where upstream semantics make it clean, supplied-root
   binding for `MetaGraphsNext` targets
 - authoritative-table retention after extension-based loads
@@ -366,9 +367,10 @@ protocol and tables. It must not add an extension-local parser stack.
 ### How to verify
 
 - **Manual**: Load a representative rooted simple Newick file after loading
-  both LineagesIO and MetaGraphsNext. Inspect the returned root handle, verify
-  the target graph structure, and confirm the authoritative tables remain
-  usable after load. Traverse the wrapper with `AbstractTrees.PreOrderDFS`.
+  both LineagesIO and MetaGraphsNext. Inspect the returned native
+  `MetaGraph`, verify the target graph structure, and confirm the authoritative
+  tables remain usable after load. Traverse the wrapper with
+  `AbstractTrees.PreOrderDFS`.
 - **Automated**: Add and run `test/extensions/metagraphsnext_activation.jl`,
   `test/extensions/metagraphsnext_simple_newick.jl`,
   `test/extensions/metagraphsnext_supplied_root.jl`,
@@ -379,9 +381,10 @@ protocol and tables. It must not add an extension-local parser stack.
 ### Acceptance criteria
 
 - [ ] Given a rooted simple Newick file and an active MetaGraphsNext extension,
-      when `load("primates.nwk", MetaGraphsNextNodeHandle)` runs, then the
-      package returns a MetaGraphsNext-backed materialization that still exposes
-      authoritative LineagesIO tables after load.
+      when `load("primates.nwk", MetaGraph)` runs, then the package returns a
+      native MetaGraphsNext-backed materialization that still exposes
+      authoritative LineagesIO tables after load and does not require any
+      extension-private handle type.
 - [ ] Given the MetaGraphsNext tree wrapper, when `AbstractTrees.PreOrderDFS`
       traverses it, then the traversal follows the same root/child structure
       implied by the authoritative core tables and does not depend on any
@@ -422,7 +425,7 @@ Build the rooted simple Newick extension path into `Phylo.jl`.
 This tranche is user-facing. It establishes:
 
 - the `Phylo` package extension module
-- extension-owned handle or wrapper types needed for clean single-parent
+- native-target `RootedTree` load surfaces for clean single-parent
   construction into a rooted `Phylo.jl` tree
 - library-created-root construction and, if upstream-verified and clean,
   supplied-root binding
@@ -436,7 +439,7 @@ explicitly chosen and verified.
 ### How to verify
 
 - **Manual**: Load a representative rooted simple Newick file into a
-  `Phylo.jl` target and inspect the rooted structure, root handle, branch
+  `Phylo.jl` target and inspect the rooted structure, returned native tree, branch
   lengths, and retained authoritative tables after load.
 - **Automated**: Add and run `test/extensions/phylo_activation.jl`,
   `test/extensions/phylo_simple_newick.jl`,
@@ -447,7 +450,7 @@ explicitly chosen and verified.
 ### Acceptance criteria
 
 - [ ] Given a rooted simple Newick file and an active Phylo extension, when
-      `load("primates.nwk", PhyloNodeHandle)` runs, then the package returns a
+      `load("primates.nwk", RootedTree)` runs, then the package returns a
       rooted `Phylo.jl` materialization and retains authoritative LineagesIO
       tables after load.
 - [ ] Given a source that requires the multi-parent construction tier, when the
@@ -515,7 +518,7 @@ support.
 ### Acceptance criteria
 
 - [ ] Given a rooted simple Newick file and an active PhyloNetworks extension,
-      when `load("primates.nwk", PhyloNetworksNodeHandle)` runs, then the
+      when `load("primates.nwk", HybridNetwork)` runs, then the
       package returns a tree-compatible target path and retains authoritative
       LineagesIO tables after load.
 - [ ] Given an implementation approach that would require unverified divergence

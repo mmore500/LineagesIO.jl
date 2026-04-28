@@ -35,7 +35,7 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-asset.graph_rootnode === nothing
+asset.materialized === nothing
 asset.node_table
 asset.edge_table
 ```
@@ -92,27 +92,26 @@ function LineagesIO.add_child(
 end
 
 store = load("annotated_tree.nwk", DemoNode)
-rootnode = first(store.graphs).graph_rootnode
+rootnode = first(store.graphs).materialized
 ```
 
 ## MetaGraphsNext extension
 
 Loading `MetaGraphsNext` activates the tranche 3 reference extension without
-turning it into a hard dependency of LineagesIO core. The extension-owned
-handle and tree-view types stay inside the extension module and can be
-retrieved through `Base.get_extension`.
+turning it into a hard dependency of LineagesIO core. The extension
+implementation stays behind the weak-dependency boundary, while the public load
+surface stays on native `MetaGraphsNext` types.
 
 ```julia
 using FileIO: load
 using LineagesIO
 using MetaGraphsNext
 
-extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
-store = load("annotated_tree.nwk", extension.MetaGraphsNextNodeHandle)
+store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-rootnode = asset.graph_rootnode
-rootnode.nodekey
+graph = asset.materialized
+graph
 asset.node_table
 asset.edge_table
 ```
@@ -124,12 +123,7 @@ path:
 ```julia
 using AbstractTrees
 
-extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
-tree_view = extension.MetaGraphsNextTreeView(
-    asset.graph_rootnode,
-    asset.node_table,
-    asset.edge_table,
-)
+tree_view = LineagesIO.MetaGraphsNextTreeView(asset)
 
 collect(AbstractTrees.PreOrderDFS(tree_view))
 ```

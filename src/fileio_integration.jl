@@ -40,7 +40,9 @@ end
 
 function build_load_request(args::Tuple{Type}, builder)::AbstractLoadRequest
     builder === nothing || throw(ArgumentError("Choose either `load(src, NodeT)` or `load(src; builder = fn)`, not both at once."))
-    return NodeTypeLoadRequest(first(args))
+    node_type = first(args)
+    validate_extension_load_target(node_type)
+    return NodeTypeLoadRequest(node_type)
 end
 
 function build_load_request(args::Tuple{RootNodeT}, builder)::AbstractLoadRequest where {RootNodeT}
@@ -58,4 +60,8 @@ end
 
 function normalize_source_path(source_path::AbstractString)::OptionalString
     return String(source_path)
+end
+
+function validate_extension_load_target(::Type)::Nothing
+    return nothing
 end

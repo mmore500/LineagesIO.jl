@@ -3,7 +3,7 @@
     store = load(fixture_path)
     asset = first(store.graphs)
 
-    @test asset.graph_rootnode === nothing
+    @test asset.materialized === nothing
     @test Tables.columnnames(asset.node_table) == (:nodekey, :label, :posterior)
     @test Tables.columnnames(asset.edge_table) == (:edgekey, :src_nodekey, :dst_nodekey, :edgeweight, :bootstrap, :phase)
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]

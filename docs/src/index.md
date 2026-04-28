@@ -20,7 +20,7 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-asset.graph_rootnode === nothing
+asset.materialized === nothing
 asset.node_table
 asset.edge_table
 ```
@@ -39,7 +39,7 @@ Phase 1 supports simple rooted Newick loads through:
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
-`edge_table` objects. For the tables-only path, `graph_rootnode === nothing`.
+`edge_table` objects. For the tables-only path, `materialized === nothing`.
 
 Construction loads reuse the same authoritative tables and expose retained
 annotation values through `NodeRowRef`, `EdgeRowRef`, `node_property`, and
@@ -85,27 +85,26 @@ function LineagesIO.add_child(
 end
 
 store = load("annotated_tree.nwk", DemoNode)
-rootnode = first(store.graphs).graph_rootnode
+rootnode = first(store.graphs).materialized
 ```
 
 ## MetaGraphsNext extension
 
 Loading `MetaGraphsNext` activates the LineagesIO package extension for the
-simple rooted Newick reference path. The extension-owned handle and tree-view
-types remain in the extension module and can be retrieved through
-`Base.get_extension`.
+simple rooted Newick reference path. The extension implementation remains
+behind the weak-dependency boundary, while the public load surface stays on
+native `MetaGraphsNext` types.
 
 ```julia
 using FileIO: load
 using LineagesIO
 using MetaGraphsNext
 
-extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
-store = load("annotated_tree.nwk", extension.MetaGraphsNextNodeHandle)
+store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-rootnode = asset.graph_rootnode
-rootnode.nodekey
+graph = asset.materialized
+graph
 asset.node_table
 asset.edge_table
 ```
@@ -116,12 +115,7 @@ supports rooted traversal:
 ```julia
 using AbstractTrees
 
-extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
-tree_view = extension.MetaGraphsNextTreeView(
-    asset.graph_rootnode,
-    asset.node_table,
-    asset.edge_table,
-)
+tree_view = LineagesIO.MetaGraphsNextTreeView(asset)
 
 collect(AbstractTrees.PreOrderDFS(tree_view))
 ```

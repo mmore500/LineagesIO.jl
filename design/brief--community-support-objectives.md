@@ -116,6 +116,8 @@ The core LineagesIO.jl package will be extended (using Julia's package extension
 - what kind of support each package receives in terms of data
 - what responsibilities belong to LineagesIO core and what responsibilities
   belong to extension packages
+- what public load surfaces consumers use to materialize native target-package
+  types without reaching into extension internals
 - how authoritative tables and row references are used at the extension
   boundary
 - what verification is required before community support can be considered
@@ -178,6 +180,12 @@ It must support first-class construction into focal consumer ackages
 packages through Julia package extensions rather than by embedding those
 packages as hard dependencies in core.
 
+It must present consumer-facing load surfaces in terms of native target-package
+types or instances whenever that can be supported cleanly and idiomatically.
+Extension-private handles, cursors, and helper wrapper types may exist
+internally, but they must not become the default user-facing materialization
+API unless a specific exception is explicitly ratified.
+
 It must preserve a clean ownership boundary:
 
 - core owns parsing, detection, authoritative tables, structural keys, root
@@ -234,9 +242,9 @@ Phase 1 focal graph-construction targets:
 
 ### Category 2 — Downstream consumer compatibility
 
-These are packages whose contracts shape the design of returned handles,
-wrappers, and accessors, even when LineagesIO does not construct their objects
-directly in core.
+These are packages whose contracts shape the design of returned native graph
+objects, optional wrappers, and accessors, even when LineagesIO does not
+construct their objects directly in core.
 
 Phase 1 focal downstream-consumer targets:
 
@@ -281,7 +289,10 @@ Phase 1 extension modules are:
 
 Each extension module owns:
 
-- the target-package handle wrapper type or rootnode wrapper type
+- the native-target materialization methods behind `load(src, TargetType)` and,
+  when supported, `load(src, target)`
+- any extension-private cursor types, label wrapper types, or lookup
+  structures needed for internal construction
 - `bind_rootnode!` methods for supplied-root construction into that package
 - `add_child` methods for library-created-root and descendant construction into
   that package
@@ -293,6 +304,8 @@ Each extension module owns:
 Extensions may:
 
 - allocate and mutate target-package graph objects
+- allocate internal cursor or helper state needed to satisfy the construction
+  protocol cleanly
 - parse retained annotation text values into richer semantic types for that
   target package
 - choose which retained annotations to project into target-package node or edge
@@ -305,6 +318,10 @@ Extensions must not:
 - reimplement source parsing already owned by LineagesIO core
 - redefine the distinguished structural contract
 - invent alternative builder-boundary payload containers
+- require callers to use `Base.get_extension(...)` to reach a public
+  materialization target
+- require callers to import extension-private handle or cursor types in order
+  to materialize native target-package structures
 - rely on runtime-generated struct fields derived from retained annotation names
 - weaken the one-rootnode-per-graph contract
 
@@ -345,10 +362,11 @@ functions:
 ### `bind_rootnode!`
 
 An extension implements `bind_rootnode!` when the target package supports
-loading into a caller-supplied rootnode handle through `load(src, rootnode)`.
+loading into a caller-supplied native target or other construction entry object
+through `load(src, rootnode)`.
 
-This hook is for binding the parsed root node onto an already-existing graph
-entry point in the target package.
+This hook is for binding the parsed root node onto an already-existing target
+package entry point.
 
 ### `add_child`
 
@@ -495,6 +513,9 @@ The extension must not assume any fixed metadata types:
 * `VertexData`, `EdgeData`, `GraphData` are user-defined or `Nothing`
 * weight handling is optional and may be absent or custom
 
+The public MetaGraphsNext load surface must be expressed in terms of native
+`MetaGraph` types or instances, not extension-private node-handle types.
+
 ### Construction tier
 
 `MetaGraphsNext.jl` support must implement:
@@ -510,12 +531,12 @@ In all cases:
 
 No multiple-root semantics are permitted.
 
-### Extension wrapper responsibility
+### Extension-private construction state responsibility
 
-The extension must define a wrapper or handle type that is sufficient to carry:
+The extension may define private cursor or helper types sufficient to carry:
 
 * the target `MetaGraph`
-* the current node identity as a non-integer label value — an extension-defined
+* the current node identity as a non-integer label value — an extension-local
   wrapper type that holds a `StructureKeyType` value; never `StructureKeyType`
   directly (see the structural mapping note below)
 * a mapping between `nodekey` and target graph node identity
@@ -525,7 +546,10 @@ The extension must define a wrapper or handle type that is sufficient to carry:
   * edge resolution (if needed)
   * parent tracking (for directed construction)
 
-The wrapper design must:
+Any such types are internal implementation detail unless explicitly ratified
+otherwise. The public surface must remain the native `MetaGraph` target.
+
+The internal-state design must:
 
 * preserve concrete field types
 * avoid abstract fields
@@ -627,16 +651,22 @@ A rooted network still has one `rootnode`. Hybrid or reticulate interior nodes
 are constructed through multi-parent `add_child` calls, not through multiple
 roots.
 
-### Extension wrapper responsibility
+The public `PhyloNetworks.jl` load surface must be expressed in terms of native
+`HybridNetwork` types or instances, not extension-private node-handle types.
 
-The extension must define a wrapper or handle type that is sufficient to carry:
+### Extension-private construction state responsibility
+
+The extension may define private cursor or helper state sufficient to carry:
 
 - the target `HybridNetwork`
 - the current target `Node`
 - any additional extension-local state needed to satisfy the construction
   protocol cleanly
 
-The wrapper design must preserve concrete field types and follow
+Any such state is internal implementation detail unless explicitly ratified
+otherwise. The public surface must remain the native `HybridNetwork` target.
+
+The internal-state design must preserve concrete field types and follow
 `STYLE-julia.md`.
 
 ### Structural mapping expectations
@@ -705,9 +735,13 @@ formats.
 The extension must reject or decline formats whose structure requires the
 multi-parent construction tier if the target package cannot represent them.
 
-### Extension wrapper responsibility
+The public `Phylo.jl` load surface must be expressed in terms of native
+`RootedTree` or other ratified `Phylo.jl` target types or instances, not
+extension-private node-handle types.
 
-The extension must define a wrapper or handle type that is sufficient to carry:
+### Extension-private construction state responsibility
+
+The extension may define private cursor or helper state sufficient to carry:
 
 - the target `RootedTree` or equivalent target tree object
 - the current target node reference or node identifier needed for incremental
@@ -715,7 +749,10 @@ The extension must define a wrapper or handle type that is sufficient to carry:
 - any additional extension-local state needed to satisfy the construction
   protocol cleanly
 
-The wrapper design must preserve concrete field types and follow
+Any such state is internal implementation detail unless explicitly ratified
+otherwise. The public surface must remain the native `Phylo.jl` target.
+
+The internal-state design must preserve concrete field types and follow
 `STYLE-julia.md`.
 
 ### Structural mapping expectations
@@ -768,9 +805,10 @@ Phase 2 work may extend this to:
 
 LineagesIO does not need to construct `AbstractTrees.jl` objects directly.
 
-Instead, the community objective is that target-package wrappers and loaded
-graph objects remain compatible with `AbstractTrees.jl` traversal patterns when
-the user or the extension supplies the required traversal methods.
+Instead, the community objective is that loaded native graph objects and any
+optional compatibility wrappers remain compatible with `AbstractTrees.jl`
+traversal patterns when the user or the extension supplies the required
+traversal methods.
 
 Core design choices that support this objective include:
 
@@ -786,8 +824,8 @@ package-specific verification.
 At minimum, each first-class extension must verify:
 
 - extension activation through Julia package extensions
-- root creation through `load(src, NodeT)`
-- root binding through `load(src, rootnode::NodeT)` when supported
+- native-target creation through `load(src, TargetType)`
+- native-target binding through `load(src, target)` when supported
 - single-parent descendant construction where applicable
 - multi-parent descendant construction where applicable
 - correct mapping of `label`
@@ -799,6 +837,8 @@ At minimum, each first-class extension must verify:
 - deferred annotation access after load through authoritative tables
 - post-build finalization where applicable
 - rejection or error behavior for unsupported structural cases
+- absence of any requirement for callers to use extension-private handle types
+  or `Base.get_extension(...)` in the public happy path
 
 Verification must include both:
 
@@ -832,8 +872,8 @@ Community support is successful when all of the following are true.
   public core protocol
 - `PhyloNetworksIO` constructs rooted networks from phase 1 supported formats
   through the public core protocol
-- users can choose library-created-root construction or supplied-root binding
-  where the extension supports both
+- users can choose library-created native-target construction or supplied-target
+  binding where the extension supports both
 - authoritative `node_table` and `edge_table` remain available and useful after
   extension-based graph construction
 - important retained annotation fields can be interpreted either during
@@ -855,6 +895,8 @@ introduced downstream without explicit approval.
 - extension-local redefinition of structural keys or structural field names
 - extension-local builder-boundary payload bags, dictionaries, or generated
   struct fields in place of authoritative core row references
+- a requirement that callers import extension-private handle types or use
+  `Base.get_extension(...)` to request native package materialization
 - a requirement that every retained annotation be copied into target-package
   graph objects
 - a requirement that target-package graph objects expose direct field-style

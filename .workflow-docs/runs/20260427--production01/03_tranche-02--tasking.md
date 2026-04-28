@@ -206,7 +206,7 @@ passing.
 The implementation must preserve the tranche 2 scope boundary:
 
 - `load(src)` must remain the tables-only path and must continue to return
-  authoritative tables with `graph_rootnode === nothing`
+  authoritative tables with `materialized === nothing`
 - all construction paths must reuse the same authoritative tables and
   row-reference contract rather than inventing alternative payload stores
 - retained annotations in core must remain raw text in authoritative tables;
@@ -305,7 +305,7 @@ into `test/runtests.jl`. Use the new annotated simple-Newick fixture to verify
 field-level node-table and edge-table contents, retained source field names,
 and raw text values for representative fields such as `posterior` or
 `bootstrap` where the fixture supplies them. Also assert that the same tables
-remain available through the bare `load(src)` path and that `graph_rootnode`
+remain available through the bare `load(src)` path and that `materialized`
 stays `nothing` there. These tests must fail for the pre-tranche-2 parser state
 that rejected retained annotations outright. End the task green with
 `julia --project=test test/runtests.jl`.
@@ -324,7 +324,8 @@ owner, and FileIO integration as needed. Add one shared top-down pre-order
 emission path that constructs the root through `add_child(::Nothing, ...)`,
 constructs descendants through single-parent `add_child(parent, ...)`, hands
 `NodeRowRef` and `EdgeRowRef` values through the public boundary, and stores the
-returned root handle as `graph_rootnode` in the returned asset. The explicit
+returned materialized value in the `materialized` field of the returned asset.
+The explicit
 `builder=fn` path must remain a thin convenience surface over the same core
 events rather than inventing a second builder-boundary payload model. If the
 required callback shape remains materially ambiguous after revalidation, stop

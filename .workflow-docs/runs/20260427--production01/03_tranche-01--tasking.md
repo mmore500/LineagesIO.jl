@@ -178,7 +178,7 @@ The implementation must preserve the tranche 1 scope boundary:
 
 - `load(src)` must remain tables-only for this tranche
 - returned graph assets must expose authoritative tables and
-  `graph_rootnode === nothing`
+  `materialized === nothing`
 - ambiguous bare loads must fail with an informative explicit-override error
   instead of guessing
 
@@ -212,7 +212,7 @@ owner boundaries. Verify the repository remains green with
 **Output**: package-owned concrete `source_table`, `collection_table`,
 `graph_table`, `node_table`, and `edge_table` types exist and satisfy Tables.jl;
 `LineageGraphAsset` and `LineageGraphStore` exist with the ratified tranche 1
-fields; `graphs` is a lazy iterator surface; `graph_rootnode` is `nothing` for
+fields; `graphs` is a lazy iterator surface; `materialized` is `nothing` for
 the tables-only path
 **Depends on**: 1
 
@@ -226,7 +226,7 @@ surfaces required by the briefs. Make all table and return-type fields concrete
 or concretized through type parameters, and implement genuine Tables.jl source
 methods rather than ad hoc lookalikes. `LineageGraphAsset` must carry the
 ratified coordinate and label fields together with `node_table`, `edge_table`,
-`graph_rootnode`, and `source_path`. `LineageGraphStore` must always be the
+`materialized`, and `source_path`. `LineageGraphStore` must always be the
 `load` return type and expose lazy `graphs` iteration rather than eager graph
 materialization. Verify with `julia --project=test test/runtests.jl`.
 
@@ -278,7 +278,7 @@ consumer-package materialization here. Verify with
 **Type**: TEST
 **Output**: `test/core/newick_tables_only.jl` and
 `test/core/graph_store_coordinates.jl` exist and verify field-level table
-contents, structural keys, `graph_rootnode === nothing`, lazy iteration, and
+contents, structural keys, `materialized === nothing`, lazy iteration, and
 coordinate retention for representative rooted simple-Newick inputs
 **Depends on**: 4
 
@@ -287,7 +287,7 @@ fixtures. Touch `test/runtests.jl` and the new test files under `test/core/`.
 Verify representative rooted simple-Newick loads at the field level: required
 node and edge table columns, exact `nodekey`/`edgekey` assignments,
 `src_nodekey`/`dst_nodekey` relationships, `edgeweight` values, blank-label
-handling where applicable, and `graph_rootnode === nothing`. Add multi-graph
+handling where applicable, and `materialized === nothing`. Add multi-graph
 tests that confirm lazy iteration and source/collection coordinate carriage
 without forcing eager graph allocation. These tests must fail for real contract
 breaks, not merely confirm that a store object exists. End the task green with
@@ -330,7 +330,7 @@ tests under `test/core/`, and update docs only if the public loading surfaces
 or examples now need explicit coverage. Verify: `load("primates.nwk")`,
 `load(File{format"Newick"}(...))`, and `load(Stream{format"Newick"}(...))`
 return lazy `LineageGraphStore` results whose first graph asset exposes the
-authoritative tables and `graph_rootnode === nothing`; ambiguous bare loads
+authoritative tables and `materialized === nothing`; ambiguous bare loads
 raise the required explicit-override error; unaffected baseline behavior
 remains green. Then perform a tranche-boundary review to ensure the code has
 not introduced `bind_rootnode!`, `add_child`, row-reference contracts, weak
