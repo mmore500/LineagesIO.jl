@@ -13,14 +13,10 @@
     @test Tables.getcolumn(asset.edge_table, :phase) == Union{Nothing, String}[nothing, "left", nothing, nothing]
 
     invalid_fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "invalid_annotation_structured.nwk"))
-    invalid_error = try
+    invalid_error = capture_expected_load_error() do
         load(invalid_fixture_path)
-        nothing
-    catch err
-        err
     end
-    surfaced_error = invalid_error isa Base.CapturedException ? invalid_error.ex : invalid_error
-    @test surfaced_error isa ArgumentError
-    @test occursin("structured retained node annotation values", sprint(showerror, surfaced_error))
-    @test occursin("line 1, column", sprint(showerror, surfaced_error))
+    @test invalid_error isa ArgumentError
+    @test occursin("structured retained node annotation values", sprint(showerror, invalid_error))
+    @test occursin("line 1, column", sprint(showerror, invalid_error))
 end

@@ -72,13 +72,9 @@ end
     ]
 
     multi_graph_path = abspath(joinpath(@__DIR__, "..", "fixtures", "multi_graph_root_binding_source.trees"))
-    multi_graph_error = try
+    multi_graph_error = capture_expected_load_error() do
         load(multi_graph_path, RootBindingProtocolNode(nothing, "", nothing, RootBindingProtocolNode[], false))
-        nothing
-    catch err
-        err
     end
-    surfaced_error = multi_graph_error isa Base.CapturedException ? multi_graph_error.ex : multi_graph_error
-    @test surfaced_error isa ArgumentError
-    @test occursin("exactly one graph", sprint(showerror, surfaced_error))
+    @test multi_graph_error isa ArgumentError
+    @test occursin("exactly one graph", sprint(showerror, multi_graph_error))
 end
