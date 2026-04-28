@@ -1,5 +1,6 @@
 ---
 date-created: 2026-04-27T00:00:00
+date-revised: 2026-04-28T00:00:00
 status: authoritative-annex
 parent-brief: design/brief.md
 ---
@@ -24,8 +25,9 @@ governs and this annex must be revised.
 
 Exact identifiers already ratified in `design/brief.md` and
 `STYLE-vocabulary.md` are normative. Example-only filenames and other
-incidental values in this annex illustrate call shape and verification intent;
-they do not create new identifier contracts by themselves.
+incidental values in this annex illustrate call shape and verification intent.
+They do not create new identifier contracts, ratify new format names, or
+authorize new target-package load surfaces by themselves.
 
 ## How to use this annex
 

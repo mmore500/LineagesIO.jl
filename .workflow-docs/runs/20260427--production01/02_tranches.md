@@ -55,9 +55,9 @@ In particular:
 - do not substitute proscribed alternates such as `node_idx`, `edge_idx`,
   `edgelength`, `tip`, or generic `vertex` terminology in project-owned
   identifiers
-- treat provisional extension-owned names shown in
-  `design/brief--community-support-user-stories.md` as placeholders only until
-  explicitly ratified
+- do not treat example-only filenames, future-format mentions, or provisional
+  extension-owned names in the governing briefs or annexes as ratified public
+  contracts unless a governing brief explicitly promotes them into scope
 
 ## Upstream primary sources
 
@@ -153,6 +153,9 @@ set and the current repository state:
 - phase 1 scope includes `Newick`, rooted-network-capable network inputs,
   `LineageGraphML`, `MetaGraphsNext.jl`, `Phylo.jl`, `PhyloNetworks.jl`, and
   `AbstractTrees.jl` compatibility
+- the near-term soft-release sequence uses rooted-network-capable
+  `format"Newick"` and native `PhyloNetworks.jl` materialization; it does not
+  depend on a separate `LineageNetwork` core format owner before soft release
 - the remaining work may be re-tranched so that the next tranche series ends in
   a `PhyloNetworks.jl`-ready soft release suitable for end-user workflow use,
   provided the design remains a thin projection over the core owners and the
@@ -196,7 +199,7 @@ Minimum tranche-end verification rules:
    Type: `AFK`
    Blocked by: tranche 2
 
-4. `Multi-parent core protocol and rooted-network format owners`
+4. `Multi-parent core protocol and rooted-network Newick owner`
    Type: `AFK`
    Blocked by: tranche 3
 
@@ -433,7 +436,7 @@ protocol and tables. It must not add an extension-local parser stack.
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
 - Community user story 12: Package-specific wrappers can bridge the loaded graph onward
 
-## Tranche 4: Multi-parent core protocol and rooted-network format owners
+## Tranche 4: Multi-parent core protocol and rooted-network Newick owner
 
 **Type**: AFK
 **Blocked by**: Tranche 3
@@ -451,7 +454,7 @@ protocol and tables. It must not add an extension-local parser stack.
 - Mandated reading of `STYLE-vocabulary.md`
 - Mandated reading of `PhyloNetworks.jl/`, `fileio.jl/`, `Tables.jl/`, and the
   exact upstream primary sources that define rooted-network-capable `Newick`
-  and `LineageNetwork` structure and annotation rules
+  structure and annotation rules
 
 ### What to build
 
@@ -464,7 +467,7 @@ This tranche is foundational. It establishes:
 - target compatibility validation for the multi-parent tier before parse work
   begins where possible
 - rooted-network-capable core parsing ownership for phase 1
-  `format"Newick"` and `format"LineageNetwork"` inputs
+  `format"Newick"` inputs
 - authoritative table assembly for multi-parent graph structure and retained
   edge annotations such as raw `gamma` text
 - explicit one-`rootnode` semantics for rooted networks and clear rejection of
@@ -476,26 +479,23 @@ ownership for itself.
 
 ### How to verify
 
-- **Manual**: Load representative rooted-network-capable Newick and
-  `LineageNetwork` inputs tables-only and into a custom
-  multi-parent-compatible target. Inspect the authoritative tables,
-  multi-parent descendant events, raw retained `gamma` text, and one-`rootnode`
-  invariant.
+- **Manual**: Load representative rooted-network-capable Newick inputs
+  tables-only and into a custom multi-parent-compatible target. Inspect the
+  authoritative tables, multi-parent descendant events, raw retained `gamma`
+  text, and the one-`rootnode` invariant.
 - **Automated**: Add and run
   `test/core/network_protocol_multi_parent.jl`,
   `test/core/network_newick_format.jl`,
-  `test/core/lineagenetwork_format.jl`,
   `test/core/network_target_validation.jl`, and
   `test/core/network_annotation_retention.jl` through
   `julia --project=test test/runtests.jl`.
 
 ### Acceptance criteria
 
-- [ ] Given a rooted-network-capable `Newick` or `LineageNetwork` source, when
-      the core package loads it tables-only or into a multi-parent-compatible
-      target, then the load uses one `rootnode`, stable structural keys, and
-      multi-parent descendant construction rather than any multiple-root
-      assumption.
+- [ ] Given a rooted-network-capable `Newick` source, when the core package
+      loads it tables-only or into a multi-parent-compatible target, then the
+      load uses one `rootnode`, stable structural keys, and multi-parent
+      descendant construction rather than any multiple-root assumption.
 - [ ] Given a target or builder that is incompatible with the multi-parent
       construction tier, when the caller attempts the load, then the package
       raises an informative compatibility error before irreversible
@@ -506,7 +506,7 @@ ownership for itself.
 - Core user story 2: Explicit format override and stream-based load
 - Core user story 8: Multi-parent rooted-network construction
 - Core user story 10: Informative errors for ambiguous or invalid loads
-- Community user story 8: PhyloNetworks can later consume rooted-network inputs with gamma
+- Community user story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 
 ## Tranche 5: PhyloNetworks native rooted-network load surface
 
@@ -553,13 +553,14 @@ must be reviewed before it becomes the public native-target contract.
 ### How to verify
 
 - **Manual**: Load representative rooted-network-capable Newick and
-  `LineageNetwork` inputs through `load(path, HybridNetwork)`. Inspect the
-  resulting `HybridNetwork`, its rooted-network structure, any claimed `gamma`
-  interpretation path, and the retained authoritative tables after load.
+  tree-compatible rooted Newick inputs through `load(path, HybridNetwork)`.
+  Inspect the resulting `HybridNetwork`, its rooted-network structure where
+  applicable, any claimed `gamma` interpretation path, and the retained
+  authoritative tables after load.
 - **Automated**: Add and run
   `test/extensions/phylonetworks_activation.jl`,
   `test/extensions/phylonetworks_newick_networks.jl`,
-  `test/extensions/phylonetworks_lineagenetwork.jl`,
+  `test/extensions/phylonetworks_tree_compatible_newick.jl`,
   `test/extensions/phylonetworks_annotation_paths.jl`,
   `test/extensions/phylonetworks_tables_after_load.jl`, and
   `test/extensions/phylonetworks_rejection_paths.jl` through
@@ -580,8 +581,8 @@ must be reviewed before it becomes the public native-target contract.
 ### User stories addressed
 
 - Community user story 6: Clients do not need extension-private handle types
-- Community user story 7: PhyloNetworks gets an early simple-tree deliverable
-- Community user story 8: PhyloNetworks can later consume rooted-network inputs with gamma
+- Community user story 7: PhyloNetworks soft release centers the rooted-network public path
+- Community user story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
 - Community user story 10: Unsupported structural cases fail specifically by target
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
@@ -657,8 +658,8 @@ with a passing internal adapter.
 - Core user story 7: Deferred annotation access after load
 - Core user story 9: Source and collection coordinates remain attached to each graph
 - Community user story 6: Clients do not need extension-private handle types
-- Community user story 7: PhyloNetworks gets an early simple-tree deliverable
-- Community user story 8: PhyloNetworks can later consume rooted-network inputs with gamma
+- Community user story 7: PhyloNetworks soft release centers the rooted-network public path
+- Community user story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
 - Community user story 10: Unsupported structural cases fail specifically by target
 - Community user story 11: Authoritative tables remain first-class after extension-based loads

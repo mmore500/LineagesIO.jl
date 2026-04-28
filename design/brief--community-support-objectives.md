@@ -1,5 +1,6 @@
 ---
 date-created: 2026-04-26T00:00:00
+date-revised: 2026-04-28T00:00:00
 status: authoritative-companion
 ---
 
@@ -159,7 +160,9 @@ user-story annex for this companion brief.
 
 Its purpose is to anchor:
 
-- the intended early deliverable for simple Newick trees
+- the staged extension deliverables, with `MetaGraphsNext.jl` first and the
+  `PhyloNetworks.jl` soft release centered on rooted-network-capable
+  `format"Newick"`
 - the priority of `MetaGraphsNext.jl` as the reference-standard consumer
 - the consumer-facing syntax shapes that tranche plans should target
 - extension-specific verification expectations and rejection behavior
@@ -172,13 +175,30 @@ If a code example in that annex conflicts with a ratified contract in this
 document or in `design/brief.md`, the governing brief or briefs govern and the
 annex must be revised.
 
+## Scope-hardening rules for extension specs and examples
+
+Extension-facing briefs, tranche files, tasking files, and verification plans
+must use only ratified core format owners when they define near-term
+deliverables.
+
+For the current phase 1 soft-release sequence, the domain-focal production
+surface is `load(src, HybridNetwork)` from rooted-network-capable
+`format"Newick"` sources.
+
+Provisional format names, extension-private handle concepts, and placeholder
+helper names must not appear in near-term user stories, acceptance criteria,
+or verification plans as if they were already public contracts.
+
+If a document discusses a future format or helper surface, it must label that
+item as future scope and must not couple it to current tranche gates.
+
 ## Community support objectives
 
 The package must satisfy all of the following community-facing objectives.
 
-It must support first-class construction into focal consumer ackages
-packages through Julia package extensions rather than by embedding those
-packages as hard dependencies in core.
+It must support first-class construction into focal consumer packages through
+Julia package extensions rather than by embedding those packages as hard
+dependencies in core.
 
 It must present consumer-facing load surfaces in terms of native target-package
 types or instances whenever that can be supported cleanly and idiomatically.
@@ -621,10 +641,9 @@ All behavior must be verified against upstream `MetaGraphsNext.jl` contracts.
 Phase 1 `MetaGraphsNext.jl` extension support must cover:
 
 * `format"Newick"`
-* `format"LineageNetwork"`
-* unrooted-tree Newick
 * rooted-tree Newick
-* rooted-network Newick (extended)
+* rooted-network-capable Newick
+* unrooted-tree Newick
 * unrooted-network-compatible Newick (as ratified)
 
 Phase 2 work may extend this to:
@@ -707,12 +726,14 @@ documented in the extension test plan.
 
 Phase 1 `PhyloNetworks.jl` extension support must cover:
 
-- `format"LineageNetwork"`
-- rooted-network-capable Newick support as ratified by core format policy
+- rooted-network-capable `format"Newick"`
+- tree-compatible rooted `format"Newick"` loads only where they are part of
+  the same verified native `HybridNetwork` workflow
 
 Phase 2 work may extend this to:
 
-- `format"Nexus"` where ratified and implemented in core
+- additional ratified core formats such as `format"Nexus"` where they are
+  implemented in core and explicitly approved for this extension
 
 ## Phylo.jl support objectives
 

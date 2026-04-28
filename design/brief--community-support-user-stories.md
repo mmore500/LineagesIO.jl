@@ -1,5 +1,6 @@
 ---
 date-created: 2026-04-27T00:00:00
+date-revised: 2026-04-28T00:00:00
 status: authoritative-annex
 parent-brief: design/brief--community-support-objectives.md
 ---
@@ -23,6 +24,10 @@ Julia syntax examples.
 If any example in this annex conflicts with either governing brief, the briefs
 govern and this annex must be revised.
 
+Example-only filenames, fixtures, and incidental values in this annex do not
+ratify new format names, new target-package load surfaces, or new public
+helper names by themselves.
+
 ## How to use this annex
 
 Tranche files and tasking files for community support should cite the relevant
@@ -30,7 +35,9 @@ user story numbers from this annex.
 
 The examples below are intended to anchor:
 
-- the first deliverable for simple Newick trees across all three extensions
+- the staged extension deliverables, with `MetaGraphsNext.jl` first and the
+  `PhyloNetworks.jl` soft release centered on rooted-network-capable
+  `format"Newick"`
 - the role of `MetaGraphsNext.jl` as the reference-standard consumer
 - the way authoritative LineagesIO tables remain available after materialization
 - the requirement that public load surfaces stay on native target-package types
@@ -152,18 +159,19 @@ phylo_store = load("primates.nwk", RootedTree)
 network_store = load("primates.nwk", HybridNetwork)
 ```
 
-## User story 7: PhyloNetworks gets an early simple-tree deliverable
+## User story 7: PhyloNetworks soft release centers the rooted-network public path
 
-As a PhyloNetworks user, I want an early deliverable that can materialize
-simple Newick trees into a `HybridNetwork`-compatible path even before the full
-rooted-network tranche is complete.
+As a PhyloNetworks user, I want the soft-release deliverable to target
+rooted-network-capable `Newick` inputs directly so the native `HybridNetwork`
+workflow is production-oriented rather than staged around a temporary
+tree-first path.
 
 ```julia
-using FileIO: load
+using FileIO
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
-store = load("primates.nwk", HybridNetwork)
+store = load(File{format"Newick"}("hybrid_example.nwk"), HybridNetwork)
 asset = first(store.graphs)
 
 asset.materialized isa HybridNetwork
@@ -171,18 +179,19 @@ asset.node_table
 asset.edge_table
 ```
 
-## User story 8: PhyloNetworks can later consume rooted-network inputs with gamma
+## User story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 
 As a user loading reticulate inputs, I want the PhyloNetworks path to interpret
-important retained fields such as `gamma` when the target package needs them,
-without moving that semantic coercion into LineagesIO core.
+important retained fields such as `gamma` from rooted-network-capable
+`Newick` sources when the target package needs them, without moving that
+semantic coercion into LineagesIO core.
 
 ```julia
 using FileIO
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
-store = load(File{format"LineageNetwork"}("hybrid_example.ln"), HybridNetwork)
+store = load(File{format"Newick"}("hybrid_example.nwk"), HybridNetwork)
 asset = first(store.graphs)
 
 gamma_txt = LineagesIO.edge_property(asset.edge_table, 7, :gamma)

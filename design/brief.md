@@ -1,5 +1,6 @@
 ---
 date-created: 2026-04-26T00:00:00
+date-revised: 2026-04-28T00:00:00
 status: authoritative
 ---
 
@@ -132,6 +133,27 @@ scope.
 
 If a code example in the annex conflicts with a ratified core contract in this
 document, this document governs and the annex must be revised.
+
+## Scope-hardening rules for downstream specs and examples
+
+This specification set distinguishes between:
+
+- ratified current-scope format owners and public load surfaces
+- phase-roadmap items that remain future work
+- illustrative filenames, helper names, and examples
+
+Downstream briefs, tranche files, tasking files, review scopes, examples, and
+acceptance criteria must not treat a future format name, placeholder wrapper,
+or example-only syntax as a ratified near-term contract.
+
+A format or public load surface may appear in current-scope user stories,
+tranche gates, or task verification only after the governing briefs define its
+owner, structural protocol tier, detection policy, and phase placement
+explicitly.
+
+For the current phase 1 soft-release sequence, the near-term production target
+is rooted-network-capable `format"Newick"` together with native
+`PhyloNetworks.jl` materialization.
 
 ## Design objectives
 
@@ -1018,7 +1040,6 @@ extraction rules.
 ### Phase 1
 
 - `format"Newick"`
-- `format"LineageNetwork"`
 - `format"LineageGraphML"`
 
 ### Phase 2
