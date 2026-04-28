@@ -5,8 +5,8 @@ CurrentModule = LineagesIO
 # LineagesIO
 
 LineagesIO.jl provides FileIO-compatible loading of rooted lineage graph
-sources into package-owned authoritative tables and, when requested, through a
-single-parent graph-construction protocol.
+sources into package-owned authoritative tables and, when requested, through
+single-parent or multi-parent graph-construction protocol tiers.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ asset.edge_table
 
 ## Supported load surfaces
 
-Phase 1 supports simple rooted Newick loads through:
+Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 
 - `load("tree.nwk")` for safe Newick extensions
 - `load(File{format"Newick"}("tree.txt"))` for explicit override on ambiguous paths
@@ -91,9 +91,10 @@ rootnode = first(store.graphs).materialized
 ## MetaGraphsNext extension
 
 Loading `MetaGraphsNext` activates the LineagesIO package extension for the
-simple rooted Newick reference path. The extension implementation remains
-behind the weak-dependency boundary, while the public load surface stays on
-native `MetaGraphsNext` types.
+current single-parent rooted-tree reference path. The extension implementation
+remains behind the weak-dependency boundary, while the public load surface
+stays on native `MetaGraphsNext` types and rejects multi-parent sources
+specifically.
 
 ```julia
 using FileIO: load

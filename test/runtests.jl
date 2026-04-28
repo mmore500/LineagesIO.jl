@@ -31,11 +31,16 @@ end
     include("core/root_binding.jl")
     include("core/builder_callback.jl")
     include("core/error_paths.jl")
+    include("core/network_target_validation.jl")
+    include("core/network_protocol_multi_parent.jl")
+    include("core/network_newick_format.jl")
+    include("core/network_annotation_retention.jl")
     include("extensions/metagraphsnext_activation.jl")
     include("extensions/metagraphsnext_simple_newick.jl")
     include("extensions/metagraphsnext_tables_after_load.jl")
     include("extensions/metagraphsnext_supplied_root.jl")
     include("extensions/metagraphsnext_abstracttrees.jl")
+    include("extensions/metagraphsnext_network_rejection.jl")
 
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(LineagesIO)

@@ -65,3 +65,7 @@ end
 function validate_extension_load_target(::Type)::Nothing
     return nothing
 end
+
+function validate_extension_load_target(target, graph_asset::LineageGraphAsset)::Nothing
+    return nothing
+end

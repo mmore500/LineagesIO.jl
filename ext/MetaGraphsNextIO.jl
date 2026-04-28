@@ -53,7 +53,7 @@ function require_empty_graph!(
 )::Nothing
     MetaGraphsNext.Graphs.is_directed(graph) || throw(
         ArgumentError(
-            "A supplied `MetaGraph` must be directed for the rooted simple-Newick MetaGraphsNext path.",
+            "A supplied `MetaGraph` must be directed for the current single-parent MetaGraphsNext load path.",
         ),
     )
     MetaGraphsNext.Graphs.nv(graph) == 0 || throw(
@@ -63,7 +63,7 @@ function require_empty_graph!(
     )
     metagraph_label_type(typeof(graph)) === MetaGraphsNextNodeLabel || throw(
         ArgumentError(
-            "A supplied `MetaGraph` must use `MetaGraphsNextNodeLabel` as its label type for the rooted simple-Newick MetaGraphsNext path.",
+            "A supplied `MetaGraph` must use `MetaGraphsNextNodeLabel` as its label type for the current single-parent MetaGraphsNext load path.",
         ),
     )
     return nothing
@@ -107,6 +107,30 @@ function LineagesIO.validate_extension_load_target(
     throw(
         ArgumentError(
             "The MetaGraphsNext extension supports `load(src, MetaGraph)` for library-created materialization. To choose a specific MetaGraph parameterization, construct an empty `MetaGraph` instance yourself and call `load(src, graph)` instead.",
+        ),
+    )
+end
+
+function LineagesIO.validate_extension_load_target(
+    ::Type{TargetT},
+    graph_asset::LineagesIO.LineageGraphAsset,
+)::Nothing where {TargetT <: MetaGraphsNext.MetaGraph}
+    LineagesIO.graph_requires_multi_parent(graph_asset) || return nothing
+    throw(
+        ArgumentError(
+            "The MetaGraphsNext extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.",
+        ),
+    )
+end
+
+function LineagesIO.validate_extension_load_target(
+    ::GraphT,
+    graph_asset::LineagesIO.LineageGraphAsset,
+)::Nothing where {GraphT <: MetaGraphsNext.MetaGraph}
+    LineagesIO.graph_requires_multi_parent(graph_asset) || return nothing
+    throw(
+        ArgumentError(
+            "The MetaGraphsNext extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.",
         ),
     )
 end

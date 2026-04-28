@@ -1,15 +1,36 @@
-struct ParsedNewickNode
+struct ParsedNewickOccurrence
     label::String
+    hybrid_label::OptionalString
     node_annotations::Dict{Symbol, String}
     edgeweight::EdgeWeightType
     edge_annotations::Dict{Symbol, String}
-    children::Vector{ParsedNewickNode}
+    children::Vector{ParsedNewickOccurrence}
 end
 
 mutable struct NewickParserState
     text::String
     index::Int
     source_label::OptionalString
+end
+
+mutable struct HybridOccurrenceState
+    occurrence_count::Int
+    child_owner_count::Int
+end
+
+mutable struct NewickGraphBuildState
+    nodekeys::Vector{StructureKeyType}
+    labels::Vector{String}
+    node_annotation_rows::Vector{Dict{Symbol, String}}
+    node_annotation_names::Vector{Symbol}
+    edgekeys::Vector{StructureKeyType}
+    src_nodekeys::Vector{StructureKeyType}
+    dst_nodekeys::Vector{StructureKeyType}
+    edgeweights::Vector{EdgeWeightType}
+    edge_annotation_rows::Vector{Dict{Symbol, String}}
+    edge_annotation_names::Vector{Symbol}
+    hybrid_nodekey_by_label::Dict{String, StructureKeyType}
+    hybrid_occurrence_state_by_label::Dict{String, HybridOccurrenceState}
 end
 
 function build_newick_store(
@@ -60,51 +81,42 @@ function build_newick_store(
 end
 
 function build_graph_asset(
-    root::ParsedNewickNode,
+    root::ParsedNewickOccurrence,
     graph_index::Int,
     source_path::OptionalString,
 )::LineageGraphAsset
-    root.edgeweight === nothing || throw(ArgumentError("Simple rooted Newick root incoming edge weights are out of scope for tranche 2 loads."))
-    isempty(root.edge_annotations) || throw(ArgumentError("Simple rooted Newick root incoming edge annotations are out of scope for tranche 2 loads."))
+    root.edgeweight === nothing || throw(ArgumentError("Incoming root edge weights are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
+    isempty(root.edge_annotations) || throw(ArgumentError("Incoming root edge annotations are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
 
-    nodekeys = StructureKeyType[]
-    labels = String[]
-    node_annotation_rows = Dict{Symbol, String}[]
-    node_annotation_names = Symbol[]
-
-    edgekeys = StructureKeyType[]
-    src_nodekeys = StructureKeyType[]
-    dst_nodekeys = StructureKeyType[]
-    edgeweights = EdgeWeightType[]
-    edge_annotation_rows = Dict{Symbol, String}[]
-    edge_annotation_names = Symbol[]
-
-    append_graph_tables!(
-        root,
-        nothing,
-        nodekeys,
-        labels,
-        node_annotation_rows,
-        node_annotation_names,
-        edgekeys,
-        src_nodekeys,
-        dst_nodekeys,
-        edgeweights,
-        edge_annotation_rows,
-        edge_annotation_names,
+    state = NewickGraphBuildState(
+        StructureKeyType[],
+        String[],
+        Dict{Symbol, String}[],
+        Symbol[],
+        StructureKeyType[],
+        StructureKeyType[],
+        StructureKeyType[],
+        EdgeWeightType[],
+        Dict{Symbol, String}[],
+        Symbol[],
+        Dict{String, StructureKeyType}(),
+        Dict{String, HybridOccurrenceState}(),
     )
+    rootnodekey = append_occurrence!(state, root, nothing)
+    rootnodekey == StructureKeyType(1) || throw(ArgumentError("Rooted-network-capable Newick table assembly must preserve the tranche-4 `rootnodekey == 1` invariant, but the root resolved to nodekey $(rootnodekey)."))
+    validate_hybrid_occurrence_counts!(state)
 
     node_table = NodeTable(
-        nodekey = nodekeys,
-        label = labels,
-        annotation_columns = build_annotation_columns(node_annotation_rows, node_annotation_names),
+        nodekey = state.nodekeys,
+        label = state.labels,
+        annotation_columns = build_annotation_columns(state.node_annotation_rows, state.node_annotation_names),
     )
     edge_table = EdgeTable(
-        edgekey = edgekeys,
-        src_nodekey = src_nodekeys,
-        dst_nodekey = dst_nodekeys,
-        edgeweight = edgeweights,
-        annotation_columns = build_annotation_columns(edge_annotation_rows, edge_annotation_names),
+        edgekey = state.edgekeys,
+        src_nodekey = state.src_nodekeys,
+        dst_nodekey = state.dst_nodekeys,
+        edgeweight = state.edgeweights,
+        annotation_columns = build_annotation_columns(state.edge_annotation_rows, state.edge_annotation_names),
     )
     return LineageGraphAsset(
         graph_index,
@@ -120,53 +132,130 @@ function build_graph_asset(
     )
 end
 
-function append_graph_tables!(
-    node::ParsedNewickNode,
+function append_occurrence!(
+    state::NewickGraphBuildState,
+    occurrence::ParsedNewickOccurrence,
     parent_nodekey::Union{Nothing, StructureKeyType},
-    nodekeys::Vector{StructureKeyType},
-    labels::Vector{String},
-    node_annotation_rows::Vector{Dict{Symbol, String}},
-    node_annotation_names::Vector{Symbol},
-    edgekeys::Vector{StructureKeyType},
-    src_nodekeys::Vector{StructureKeyType},
-    dst_nodekeys::Vector{StructureKeyType},
-    edgeweights::Vector{EdgeWeightType},
-    edge_annotation_rows::Vector{Dict{Symbol, String}},
-    edge_annotation_names::Vector{Symbol},
 )::StructureKeyType
-    nodekey = StructureKeyType(length(nodekeys) + 1)
-    push!(nodekeys, nodekey)
-    push!(labels, node.label)
-    push!(node_annotation_rows, node.node_annotations)
-    append_annotation_names!(node_annotation_names, node.node_annotations)
-
+    nodekey = resolve_occurrence_nodekey!(state, occurrence)
     if parent_nodekey !== nothing
-        edgekey = StructureKeyType(length(edgekeys) + 1)
-        push!(edgekeys, edgekey)
-        push!(src_nodekeys, parent_nodekey)
-        push!(dst_nodekeys, nodekey)
-        push!(edgeweights, node.edgeweight)
-        push!(edge_annotation_rows, node.edge_annotations)
-        append_annotation_names!(edge_annotation_names, node.edge_annotations)
-    end
-
-    for child in node.children
-        append_graph_tables!(
-            child,
+        append_edge_row!(
+            state,
+            parent_nodekey,
             nodekey,
-            nodekeys,
-            labels,
-            node_annotation_rows,
-            node_annotation_names,
-            edgekeys,
-            src_nodekeys,
-            dst_nodekeys,
-            edgeweights,
-            edge_annotation_rows,
-            edge_annotation_names,
+            occurrence.edgeweight,
+            occurrence.edge_annotations,
         )
     end
+    append_occurrence_children!(state, occurrence, nodekey)
     return nodekey
+end
+
+function resolve_occurrence_nodekey!(
+    state::NewickGraphBuildState,
+    occurrence::ParsedNewickOccurrence,
+)::StructureKeyType
+    occurrence.hybrid_label === nothing && return append_new_node!(state, occurrence)
+
+    hybrid_label = occurrence.hybrid_label
+    if haskey(state.hybrid_nodekey_by_label, hybrid_label)
+        nodekey = state.hybrid_nodekey_by_label[hybrid_label]
+        hybrid_state = state.hybrid_occurrence_state_by_label[hybrid_label]
+        hybrid_state.occurrence_count += 1
+        hybrid_state.occurrence_count <= 2 || throw(ArgumentError("Repeated hybrid label `#$(hybrid_label)` is structurally ambiguous for tranche 4 rooted-network-capable Newick loads because it appears more than twice in one graph."))
+        merge_hybrid_occurrence_node!(state, nodekey, occurrence, hybrid_label)
+        return nodekey
+    end
+
+    nodekey = append_new_node!(state, occurrence)
+    state.hybrid_nodekey_by_label[hybrid_label] = nodekey
+    state.hybrid_occurrence_state_by_label[hybrid_label] = HybridOccurrenceState(1, 0)
+    return nodekey
+end
+
+function append_new_node!(
+    state::NewickGraphBuildState,
+    occurrence::ParsedNewickOccurrence,
+)::StructureKeyType
+    nodekey = StructureKeyType(length(state.nodekeys) + 1)
+    push!(state.nodekeys, nodekey)
+    push!(state.labels, occurrence.label)
+    push!(state.node_annotation_rows, copy(occurrence.node_annotations))
+    append_annotation_names!(state.node_annotation_names, occurrence.node_annotations)
+    return nodekey
+end
+
+function merge_hybrid_occurrence_node!(
+    state::NewickGraphBuildState,
+    nodekey::StructureKeyType,
+    occurrence::ParsedNewickOccurrence,
+    hybrid_label::AbstractString,
+)::Nothing
+    state.labels[nodekey] == occurrence.label || throw(ArgumentError("Repeated hybrid label `#$(hybrid_label)` was associated with conflicting structural labels `$(state.labels[nodekey])` and `$(occurrence.label)`."))
+    merged_annotations = state.node_annotation_rows[nodekey]
+    for (annotation_name, annotation_value) in occurrence.node_annotations
+        if haskey(merged_annotations, annotation_name)
+            merged_annotations[annotation_name] == annotation_value || throw(ArgumentError("Repeated hybrid label `#$(hybrid_label)` was associated with conflicting retained node annotation values for `$(annotation_name)`."))
+        else
+            merged_annotations[annotation_name] = annotation_value
+        end
+    end
+    append_annotation_names!(state.node_annotation_names, occurrence.node_annotations)
+    return nothing
+end
+
+function append_occurrence_children!(
+    state::NewickGraphBuildState,
+    occurrence::ParsedNewickOccurrence,
+    nodekey::StructureKeyType,
+)::Nothing
+    occurrence.hybrid_label === nothing && return append_all_occurrence_children!(state, occurrence.children, nodekey)
+    isempty(occurrence.children) && return nothing
+
+    hybrid_label = occurrence.hybrid_label
+    hybrid_state = state.hybrid_occurrence_state_by_label[hybrid_label]
+    hybrid_state.child_owner_count += 1
+    hybrid_state.child_owner_count == 1 || throw(ArgumentError("Repeated hybrid label `#$(hybrid_label)` is structurally ambiguous for tranche 4 rooted-network-capable Newick loads because more than one occurrence lists descendants. Successors of one hybrid node must appear in only one occurrence."))
+    append_all_occurrence_children!(state, occurrence.children, nodekey)
+    return nothing
+end
+
+function append_all_occurrence_children!(
+    state::NewickGraphBuildState,
+    children::Vector{ParsedNewickOccurrence},
+    parent_nodekey::StructureKeyType,
+)::Nothing
+    for child in children
+        append_occurrence!(state, child, parent_nodekey)
+    end
+    return nothing
+end
+
+function append_edge_row!(
+    state::NewickGraphBuildState,
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    edgeweight::EdgeWeightType,
+    edge_annotations::Dict{Symbol, String},
+)::StructureKeyType
+    edgekey = StructureKeyType(length(state.edgekeys) + 1)
+    push!(state.edgekeys, edgekey)
+    push!(state.src_nodekeys, src_nodekey)
+    push!(state.dst_nodekeys, dst_nodekey)
+    push!(state.edgeweights, edgeweight)
+    push!(state.edge_annotation_rows, copy(edge_annotations))
+    append_annotation_names!(state.edge_annotation_names, edge_annotations)
+    return edgekey
+end
+
+function validate_hybrid_occurrence_counts!(
+    state::NewickGraphBuildState,
+)::Nothing
+    for (hybrid_label, hybrid_state) in state.hybrid_occurrence_state_by_label
+        hybrid_state.occurrence_count == 2 && continue
+        throw(ArgumentError("Unmatched hybrid label `#$(hybrid_label)` is out of scope for tranche 4 rooted-network-capable Newick loads because this phase supports only the repeated two-occurrence hybrid convention."))
+    end
+    return nothing
 end
 
 function build_annotation_columns(
@@ -185,7 +274,7 @@ function append_annotation_names!(
     annotation_names::Vector{Symbol},
     annotation_row::Dict{Symbol, String},
 )::Nothing
-    for annotation_name in keys(annotation_row)
+    for annotation_name in sort!(collect(keys(annotation_row)))
         annotation_name in annotation_names || push!(annotation_names, annotation_name)
     end
     return nothing
@@ -194,9 +283,9 @@ end
 function parse_newick_source(
     text::String,
     source_label::OptionalString,
-)::Vector{ParsedNewickNode}
+)::Vector{ParsedNewickOccurrence}
     parser = NewickParserState(text, firstindex(text), source_label)
-    roots = ParsedNewickNode[]
+    roots = ParsedNewickOccurrence[]
     skip_whitespace!(parser)
     while !parser_at_end(parser)
         push!(roots, parse_graph!(parser))
@@ -206,7 +295,7 @@ function parse_newick_source(
     return roots
 end
 
-function parse_graph!(parser::NewickParserState)::ParsedNewickNode
+function parse_graph!(parser::NewickParserState)::ParsedNewickOccurrence
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "expected a rooted graph before end of input")
     parser_peek(parser) == ';' && throw_parse_error(parser, "expected a rooted graph before `;`")
@@ -217,12 +306,12 @@ function parse_graph!(parser::NewickParserState)::ParsedNewickNode
     return root
 end
 
-function parse_subtree!(parser::NewickParserState)::ParsedNewickNode
+function parse_subtree!(parser::NewickParserState)::ParsedNewickOccurrence
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "tree ends prematurely while reading a subtree")
     if parser_peek(parser) == '('
         advance!(parser)
-        children = ParsedNewickNode[parse_subtree!(parser)]
+        children = ParsedNewickOccurrence[parse_subtree!(parser)]
         while true
             skip_whitespace!(parser)
             next_character = parser_peek(parser)
@@ -236,26 +325,64 @@ function parse_subtree!(parser::NewickParserState)::ParsedNewickNode
                 throw_parse_error(parser, "expected `,` or `)` while reading descendant list")
             end
         end
-        label = parse_optional_label!(parser)
+        label, hybrid_label = parse_optional_node_identity!(parser)
         node_annotations = parse_optional_annotations!(parser, "node")
         edgeweight, edge_annotations = parse_optional_edgeweight!(parser)
-        return ParsedNewickNode(label, node_annotations, edgeweight, edge_annotations, children)
+        return ParsedNewickOccurrence(label, hybrid_label, node_annotations, edgeweight, edge_annotations, children)
     end
-    label = parse_optional_label!(parser)
+
+    label, hybrid_label = parse_optional_node_identity!(parser)
     node_annotations = parse_optional_annotations!(parser, "node")
     edgeweight, edge_annotations = parse_optional_edgeweight!(parser)
-    return ParsedNewickNode(label, node_annotations, edgeweight, edge_annotations, ParsedNewickNode[])
+    return ParsedNewickOccurrence(label, hybrid_label, node_annotations, edgeweight, edge_annotations, ParsedNewickOccurrence[])
 end
 
-function parse_optional_label!(parser::NewickParserState)::String
+function parse_optional_node_identity!(
+    parser::NewickParserState,
+)::Tuple{String, OptionalString}
     skip_whitespace!(parser)
-    parser_at_end(parser) && return ""
+    parser_at_end(parser) && return "", nothing
     next_character = parser_peek(parser)
-    next_character in (',', ')', ';', ':') && return ""
-    next_character == '#' && throw_parse_error(parser, "extended Newick hybrid nodes are out of scope for tranche 2 simple rooted Newick loads")
-    next_character == '\'' && return parse_quoted_text!(parser, '\'')
-    next_character == '"' && return parse_quoted_text!(parser, '"')
-    return parse_unquoted_label!(parser)
+    next_character in (',', ')', ';', ':') && return "", nothing
+    next_character == '#' && return parse_hybrid_label!(parser)
+    next_character == '\'' && return parse_quoted_text!(parser, '\''), nothing
+    next_character == '"' && return parse_quoted_text!(parser, '"'), nothing
+    return parse_unquoted_label!(parser), nothing
+end
+
+function parse_hybrid_label!(
+    parser::NewickParserState,
+)::Tuple{String, OptionalString}
+    advance!(parser)
+    parser_at_end(parser) && throw_parse_error(parser, "expected a hybrid label after `#`")
+    next_character = parser_peek(parser)
+    next_character === nothing && throw_parse_error(parser, "expected a hybrid label after `#`")
+    isletter(next_character) || throw_parse_error(parser, "expected an alphabetic hybrid label after `#`")
+
+    label_buffer = IOBuffer()
+    while !parser_at_end(parser)
+        current_character = parser_peek(parser)
+        current_character === nothing && break
+        if current_character in (',', '(', ')', ';', ':')
+            break
+        elseif current_character == '['
+            break
+        elseif current_character == '#'
+            throw_parse_error(parser, "hybrid labels may contain only one leading `#` marker")
+        elseif isspace(current_character)
+            break
+        end
+        print(label_buffer, advance!(parser))
+    end
+    skip_whitespace!(parser)
+
+    hybrid_label = String(take!(label_buffer))
+    isempty(hybrid_label) && throw_parse_error(parser, "expected a hybrid label after `#`")
+    if !parser_at_end(parser)
+        next_character = parser_peek(parser)
+        next_character in (',', ')', ';', ':', '[') || throw_parse_error(parser, "hybrid labels may not contain whitespace; quote the label explicitly if whitespace is required")
+    end
+    return hybrid_label, hybrid_label
 end
 
 function parse_quoted_text!(parser::NewickParserState, quote_character::Char)::String
@@ -287,7 +414,7 @@ function parse_unquoted_label!(parser::NewickParserState)::String
         elseif current_character == '['
             break
         elseif current_character == '#'
-            throw_parse_error(parser, "extended Newick hybrid nodes are out of scope for tranche 2 simple rooted Newick loads")
+            throw_parse_error(parser, "hybrid labels must occupy the entire unquoted node label token in tranche 4 rooted-network-capable Newick loads")
         elseif isspace(current_character)
             break
         end
@@ -322,7 +449,7 @@ function parse_annotation_block!(
 )::Nothing
     advance!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "unterminated `[&...]` retained annotation block")
-    parser_peek(parser) == '&' || throw_parse_error(parser, "only `[&...]` retained annotation comments are supported for tranche 2 simple rooted Newick loads")
+    parser_peek(parser) == '&' || throw_parse_error(parser, "only `[&...]` retained annotation comments are supported for tranche 4 rooted-network-capable Newick loads")
     advance!(parser)
     skip_whitespace!(parser)
     while true
@@ -369,7 +496,7 @@ function parse_annotation_field_name!(
         if current_character in ('=', ':', ',', ']') || isspace(current_character)
             break
         elseif current_character == '{'
-            throw_parse_error(parser, "structured retained $(scope) annotation field names are out of scope for tranche 2 simple rooted Newick loads")
+            throw_parse_error(parser, "structured retained $(scope) annotation field names are out of scope for tranche 4 rooted-network-capable Newick loads")
         end
         print(field_buffer, advance!(parser))
     end
@@ -387,7 +514,7 @@ function parse_annotation_scalar_value!(
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "retained $(scope) annotation `$(annotation_name)` must provide one scalar value")
     next_character = parser_peek(parser)
-    next_character == '{' && throw_parse_error(parser, "structured retained $(scope) annotation values such as `{...}` are out of scope for tranche 2 simple rooted Newick loads")
+    next_character == '{' && throw_parse_error(parser, "structured retained $(scope) annotation values such as `{...}` are out of scope for tranche 4 rooted-network-capable Newick loads")
     next_character == '\'' && return parse_quoted_text!(parser, '\'')
     next_character == '"' && return parse_quoted_text!(parser, '"')
 
@@ -398,9 +525,9 @@ function parse_annotation_scalar_value!(
         if current_character in (',', ']')
             break
         elseif current_character == '{'
-            throw_parse_error(parser, "structured retained $(scope) annotation values such as `{...}` are out of scope for tranche 2 simple rooted Newick loads")
+            throw_parse_error(parser, "structured retained $(scope) annotation values such as `{...}` are out of scope for tranche 4 rooted-network-capable Newick loads")
         elseif current_character == '['
-            throw_parse_error(parser, "nested retained $(scope) annotation comments are out of scope for tranche 2 simple rooted Newick loads")
+            throw_parse_error(parser, "nested retained $(scope) annotation comments are out of scope for tranche 4 rooted-network-capable Newick loads")
         end
         print(value_buffer, advance!(parser))
     end
@@ -415,45 +542,97 @@ function parse_optional_edgeweight!(parser::NewickParserState)::Tuple{EdgeWeight
     parser_at_end(parser) && return nothing, edge_annotations
     parser_peek(parser) == ':' || return nothing, edge_annotations
     advance!(parser)
-    skip_whitespace!(parser)
-    append_parsed_annotations!(edge_annotations, parse_optional_annotations!(parser, "edge"), "edge")
-    parser_at_end(parser) && throw_parse_error(parser, "expected a numeric edge weight after `:`")
-    parser_peek(parser) == ':' && throw_parse_error(parser, "extended Newick edge fields are out of scope for tranche 2 simple rooted Newick loads")
-    parser_peek(parser) in (',', ')', ';') && throw_parse_error(parser, "expected a numeric edge weight after `:`")
 
+    edgeweight = nothing
+    for field_index in 1:3
+        skip_whitespace!(parser)
+        append_parsed_annotations!(edge_annotations, parse_optional_annotations!(parser, "edge"), "edge")
+        field_token = parse_optional_edge_field_token!(parser)
+        if field_index == 1
+            edgeweight = parse_edgeweight_token!(parser, field_token)
+        elseif field_token !== nothing
+            field_name = field_index == 2 ? :support : :gamma
+            validate_numeric_edge_field_token!(parser, field_token, field_name)
+            append_positional_edge_annotation!(edge_annotations, field_name, field_token)
+        end
+        append_parsed_annotations!(edge_annotations, parse_optional_annotations!(parser, "edge"), "edge")
+        skip_whitespace!(parser)
+        parser_at_end(parser) && return edgeweight, edge_annotations
+
+        next_character = parser_peek(parser)
+        if next_character == ':'
+            field_index == 3 && throw_parse_error(parser, "extended edge fields beyond `:length:support:gamma` are out of scope for tranche 4 rooted-network-capable Newick loads")
+            advance!(parser)
+            continue
+        elseif next_character in (',', ')', ';')
+            return edgeweight, edge_annotations
+        else
+            throw_parse_error(parser, "extended edge data may only be followed by another `:` field, a delimiter, or retained `[&...]` annotations")
+        end
+    end
+    return edgeweight, edge_annotations
+end
+
+function parse_optional_edge_field_token!(
+    parser::NewickParserState,
+)::OptionalString
     token_buffer = IOBuffer()
     while !parser_at_end(parser)
         current_character = parser_peek(parser)
         current_character === nothing && break
-        if current_character in (',', ')', ';')
+        if current_character in (':', ',', ')', ';')
             break
         elseif current_character == '['
             break
-        elseif current_character == ':'
-            throw_parse_error(parser, "extended Newick edge fields are out of scope for tranche 2 simple rooted Newick loads")
         elseif isspace(current_character)
             break
         end
         print(token_buffer, advance!(parser))
     end
     skip_whitespace!(parser)
-    weight_token = String(take!(token_buffer))
-    isempty(weight_token) && throw_parse_error(parser, "expected a numeric edge weight after `:`")
-    weight = try
-        parse(Float64, weight_token)
-    catch
-        throw_parse_error(parser, "invalid edge weight `$(weight_token)`")
-    end
-    isfinite(weight) || throw_parse_error(parser, "edge weights must be finite values")
-    weight < 0.0 && throw_parse_error(parser, "edge weights must be non-negative for tranche 2 simple rooted Newick loads")
+    token = String(take!(token_buffer))
+    isempty(token) && return nothing
+    return token
+end
 
-    append_parsed_annotations!(edge_annotations, parse_optional_annotations!(parser, "edge"), "edge")
-    skip_whitespace!(parser)
-    if !parser_at_end(parser)
-        next_character = parser_peek(parser)
-        next_character in (',', ')', ';') || throw_parse_error(parser, "edge weights may only be followed by a delimiter or retained `[&...]` annotations")
+function parse_edgeweight_token!(
+    parser::NewickParserState,
+    edgeweight_token::OptionalString,
+)::EdgeWeightType
+    edgeweight_token === nothing && return nothing
+    edgeweight = try
+        parse(Float64, edgeweight_token)
+    catch
+        throw_parse_error(parser, "invalid edge weight `$(edgeweight_token)`")
     end
-    return weight, edge_annotations
+    isfinite(edgeweight) || throw_parse_error(parser, "edge weights must be finite values")
+    edgeweight < 0.0 && throw_parse_error(parser, "edge weights must be non-negative for tranche 4 rooted-network-capable Newick loads")
+    return edgeweight
+end
+
+function validate_numeric_edge_field_token!(
+    parser::NewickParserState,
+    field_token::AbstractString,
+    field_name::Symbol,
+)::Nothing
+    parsed_value = try
+        parse(Float64, field_token)
+    catch
+        throw_parse_error(parser, "invalid positional edge field `$(field_name)` value `$(field_token)`")
+    end
+    isfinite(parsed_value) || throw_parse_error(parser, "positional edge field `$(field_name)` values must be finite")
+    parsed_value < 0.0 && throw_parse_error(parser, "positional edge field `$(field_name)` values must be non-negative for tranche 4 rooted-network-capable Newick loads")
+    return nothing
+end
+
+function append_positional_edge_annotation!(
+    edge_annotations::Dict{Symbol, String},
+    field_name::Symbol,
+    field_value::String,
+)::Nothing
+    haskey(edge_annotations, field_name) && throw(ArgumentError("Duplicate retained edge annotation field `$(field_name)` is not supported within one row."))
+    edge_annotations[field_name] = field_value
+    return nothing
 end
 
 function append_parsed_annotations!(
