@@ -83,7 +83,7 @@
     @test missing_nodekey_error isa ArgumentError
     @test occursin("nodekey 4", sprint(showerror, missing_nodekey_error))
 
-    stored_graph = LineagesIO.StoredGraph(
+    graph_asset = LineagesIO.LineageGraphAsset(
         7,
         2,
         5,
@@ -92,9 +92,10 @@
         "graph 3",
         node_table,
         edge_table,
+        nothing,
         "synthetic.nwk",
     )
-    graphs = LineagesIO.GraphAssetIterator([stored_graph])
+    graphs = LineagesIO.GraphAssetIterator([graph_asset])
     store = LineagesIO.LineageGraphStore(source_table, collection_table, graph_table, graphs)
 
     @test Base.IteratorSize(typeof(store.graphs)) === Base.HasLength()

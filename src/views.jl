@@ -1,15 +1,3 @@
-struct StoredGraph{NodeTableT <: NodeTable, EdgeTableT <: EdgeTable}
-    index::Int
-    source_idx::Int
-    collection_idx::Int
-    collection_graph_idx::Int
-    collection_label::OptionalString
-    graph_label::OptionalString
-    node_table::NodeTableT
-    edge_table::EdgeTableT
-    source_path::OptionalString
-end
-
 """
     LineageGraphAsset{NodeT}
 
@@ -33,14 +21,14 @@ struct LineageGraphAsset{
     source_path::OptionalString
 end
 
-struct GraphAssetIterator{StoredGraphT <: AbstractVector}
-    stored_graphs::StoredGraphT
+struct GraphAssetIterator{GraphAssetVectorT <: AbstractVector}
+    graph_assets::GraphAssetVectorT
 end
 
 """
     LineageGraphStore{NodeT}
 
-Top-level tranche 1 load result. `graphs` is a lazy iterator of
+Top-level load result. `graphs` is a lazy iterator of
 `LineageGraphAsset{NodeT}` values.
 """
 struct LineageGraphStore{
@@ -60,14 +48,17 @@ function LineageGraphStore(
     source_table::SourceTableT,
     collection_table::CollectionTableT,
     graph_table::GraphTableT,
-    graphs::GraphsT,
+    graphs::GraphAssetIterator{GraphAssetVectorT},
 ) where {
     SourceTableT <: SourceTable,
     CollectionTableT <: CollectionTable,
     GraphTableT <: GraphTable,
-    GraphsT,
+    GraphAssetVectorT <: AbstractVector,
 }
-    return LineageGraphStore{Nothing, SourceTableT, CollectionTableT, GraphTableT, GraphsT}(
+    graph_asset_type = eltype(GraphAssetVectorT)
+    node_type = fieldtype(graph_asset_type, 9)
+    graph_iterator_type = typeof(graphs)
+    return LineageGraphStore{node_type, SourceTableT, CollectionTableT, GraphTableT, graph_iterator_type}(
         source_table,
         collection_table,
         graph_table,
@@ -76,34 +67,81 @@ function LineageGraphStore(
 end
 
 Base.IteratorSize(::Type{<:GraphAssetIterator}) = Base.HasLength()
-Base.length(iterator::GraphAssetIterator)::Int = length(iterator.stored_graphs)
-
-function Base.eltype(::Type{GraphAssetIterator{StoredGraphT}}) where {StoredGraphT <: AbstractVector}
-    stored_graph_type = eltype(StoredGraphT)
-    return LineageGraphAsset{
-        Nothing,
-        fieldtype(stored_graph_type, 7),
-        fieldtype(stored_graph_type, 8),
-    }
-end
+Base.length(iterator::GraphAssetIterator)::Int = length(iterator.graph_assets)
+Base.eltype(::Type{GraphAssetIterator{GraphAssetVectorT}}) where {GraphAssetVectorT <: AbstractVector} = eltype(GraphAssetVectorT)
 
 function Base.iterate(iterator::GraphAssetIterator, state::Int = 1)
     state > length(iterator) && return nothing
-    stored_graph = iterator.stored_graphs[state]
-    asset = LineageGraphAsset(
-        stored_graph.index,
-        stored_graph.source_idx,
-        stored_graph.collection_idx,
-        stored_graph.collection_graph_idx,
-        stored_graph.collection_label,
-        stored_graph.graph_label,
-        stored_graph.node_table,
-        stored_graph.edge_table,
-        nothing,
-        stored_graph.source_path,
-    )
-    return asset, state + 1
+    return iterator.graph_assets[state], state + 1
 end
+
+"""
+    NodeRowRef
+
+Tables.jl-compatible row reference into an authoritative `NodeTable`.
+"""
+struct NodeRowRef{NodeTableT <: NodeTable} <: Tables.AbstractRow
+    table::NodeTableT
+    nodekey::StructureKeyType
+    function NodeRowRef{NodeTableT}(table::NodeTableT, nodekey::StructureKeyType) where {NodeTableT <: NodeTable}
+        assert_rowkey(table, nodekey, "nodekey")
+        return new{NodeTableT}(table, nodekey)
+    end
+end
+
+"""
+    EdgeRowRef
+
+Tables.jl-compatible row reference into an authoritative `EdgeTable`.
+"""
+struct EdgeRowRef{EdgeTableT <: EdgeTable} <: Tables.AbstractRow
+    table::EdgeTableT
+    edgekey::StructureKeyType
+    function EdgeRowRef{EdgeTableT}(table::EdgeTableT, edgekey::StructureKeyType) where {EdgeTableT <: EdgeTable}
+        assert_rowkey(table, edgekey, "edgekey")
+        return new{EdgeTableT}(table, edgekey)
+    end
+end
+
+function Base.getproperty(rowref::NodeRowRef, nm::Symbol)
+    if nm === :table || nm === :nodekey
+        return getfield(rowref, nm)
+    end
+    return getfield(rowref, nm)
+end
+
+function Base.getproperty(rowref::EdgeRowRef, nm::Symbol)
+    if nm === :table || nm === :edgekey
+        return getfield(rowref, nm)
+    end
+    return getfield(rowref, nm)
+end
+
+function NodeRowRef(node_table::NodeTableT, nodekey::StructureKeyType) where {NodeTableT <: NodeTable}
+    return NodeRowRef{NodeTableT}(node_table, nodekey)
+end
+
+function EdgeRowRef(edge_table::EdgeTableT, edgekey::StructureKeyType) where {EdgeTableT <: EdgeTable}
+    return EdgeRowRef{EdgeTableT}(edge_table, edgekey)
+end
+
+Tables.schema(rowref::NodeRowRef)::Tables.Schema = Tables.schema(getfield(rowref, :table))
+Tables.schema(rowref::EdgeRowRef)::Tables.Schema = Tables.schema(getfield(rowref, :table))
+Tables.columnnames(rowref::NodeRowRef)::Tuple = Tables.columnnames(getfield(rowref, :table))
+Tables.columnnames(rowref::EdgeRowRef)::Tuple = Tables.columnnames(getfield(rowref, :table))
+
+function Tables.getcolumn(rowref::NodeRowRef, ::Type{T}, i::Int, nm::Symbol) where {T}
+    return Tables.getcolumn(getfield(rowref, :table), T, i, nm)[getfield(rowref, :nodekey)]
+end
+
+function Tables.getcolumn(rowref::EdgeRowRef, ::Type{T}, i::Int, nm::Symbol) where {T}
+    return Tables.getcolumn(getfield(rowref, :table), T, i, nm)[getfield(rowref, :edgekey)]
+end
+
+Tables.getcolumn(rowref::NodeRowRef, i::Int) = Tables.getcolumn(getfield(rowref, :table), i)[getfield(rowref, :nodekey)]
+Tables.getcolumn(rowref::EdgeRowRef, i::Int) = Tables.getcolumn(getfield(rowref, :table), i)[getfield(rowref, :edgekey)]
+Tables.getcolumn(rowref::NodeRowRef, nm::Symbol) = Tables.getcolumn(getfield(rowref, :table), nm)[getfield(rowref, :nodekey)]
+Tables.getcolumn(rowref::EdgeRowRef, nm::Symbol) = Tables.getcolumn(getfield(rowref, :table), nm)[getfield(rowref, :edgekey)]
 
 function node_property(
     node_table::NodeTable,
@@ -116,6 +154,13 @@ function node_property(
     return Tables.getcolumn(node_table, normalized_propertykey)[nodekey]
 end
 
+function node_property(
+    nodedata::NodeRowRef,
+    propertykey,
+)::NodePropertyValueType
+    return node_property(getfield(nodedata, :table), getfield(nodedata, :nodekey), propertykey)
+end
+
 function edge_property(
     edge_table::EdgeTable,
     edgekey::StructureKeyType,
@@ -125,6 +170,13 @@ function edge_property(
     has_property(edge_table, normalized_propertykey) || throw(ArgumentError("Requested edge property `$(repr(normalized_propertykey))` is not present in the authoritative edge table."))
     assert_rowkey(edge_table, edgekey, "edgekey")
     return Tables.getcolumn(edge_table, normalized_propertykey)[edgekey]
+end
+
+function edge_property(
+    edgedata::EdgeRowRef,
+    propertykey,
+)::EdgePropertyValueType
+    return edge_property(getfield(edgedata, :table), getfield(edgedata, :edgekey), propertykey)
 end
 
 function has_property(table::AbstractLineageTable, propertykey::Symbol)::Bool
