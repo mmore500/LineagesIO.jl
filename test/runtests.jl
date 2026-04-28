@@ -31,6 +31,11 @@ end
     include("core/root_binding.jl")
     include("core/builder_callback.jl")
     include("core/error_paths.jl")
+    include("extensions/metagraphsnext_activation.jl")
+    include("extensions/metagraphsnext_simple_newick.jl")
+    include("extensions/metagraphsnext_tables_after_load.jl")
+    include("extensions/metagraphsnext_supplied_root.jl")
+    include("extensions/metagraphsnext_abstracttrees.jl")
 
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(LineagesIO)

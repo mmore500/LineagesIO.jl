@@ -16,6 +16,7 @@ Phase 1 currently supports simple rooted Newick sources through:
 - stream-based loads through `load(Stream{format"Newick"}(...))`
 - library-created-root construction through `load("tree.nwk", NodeT)`
 - supplied-root binding through `load("tree.nwk", rootnode)`
+- optional `MetaGraphsNext.jl` materialization through the package-extension path
 - explicit builder callbacks through `load("tree.nwk"; builder = fn)`
 - lazy `LineageGraphStore.graphs` iteration with authoritative `node_table`
   and `edge_table`
@@ -92,4 +93,43 @@ end
 
 store = load("annotated_tree.nwk", DemoNode)
 rootnode = first(store.graphs).graph_rootnode
+```
+
+## MetaGraphsNext extension
+
+Loading `MetaGraphsNext` activates the tranche 3 reference extension without
+turning it into a hard dependency of LineagesIO core. The extension-owned
+handle and tree-view types stay inside the extension module and can be
+retrieved through `Base.get_extension`.
+
+```julia
+using FileIO: load
+using LineagesIO
+using MetaGraphsNext
+
+extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
+store = load("annotated_tree.nwk", extension.MetaGraphsNextNodeHandle)
+asset = first(store.graphs)
+
+rootnode = asset.graph_rootnode
+rootnode.nodekey
+asset.node_table
+asset.edge_table
+```
+
+If `AbstractTrees.jl` is also loaded, the same extension-owned tree-view type
+gains rooted traversal methods without changing the basic MetaGraphsNext load
+path:
+
+```julia
+using AbstractTrees
+
+extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
+tree_view = extension.MetaGraphsNextTreeView(
+    asset.graph_rootnode,
+    asset.node_table,
+    asset.edge_table,
+)
+
+collect(AbstractTrees.PreOrderDFS(tree_view))
 ```
