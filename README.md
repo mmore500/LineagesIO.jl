@@ -97,15 +97,12 @@ rootnode = first(store.graphs).materialized
 
 ## MetaGraphsNext extension
 
-Loading `MetaGraphsNext` activates the tranche 3 reference extension without
-turning it into a hard dependency of LineagesIO core. The extension
-implementation stays behind the weak-dependency boundary, while the public load
-surface stays on native `MetaGraphsNext` types.
+Loading `MetaGraphsNext` activates the pacakge extension that provides for materialization of a native `MetaGraphs.MetaGraph` type directly from the source.
 
 ```julia
 using FileIO: load
 using LineagesIO
-using MetaGraphsNext
+using MetaGraphsNext: MetaGraph
 
 store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
