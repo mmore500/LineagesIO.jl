@@ -142,11 +142,10 @@ compatibility and round-trip writing.
 
 Loading `MetaGraphsNext` activates the package extension that materializes a
 native `MetaGraphsNext.MetaGraph` type directly from the source. Nodes carry
-`Symbol` labels (`graph[:3]`), and source edge weights are stored as
-`Union{Nothing, Float64}` edge data so they surface immediately via
-`Graphs.weights(graph)`. Pass an empty MetaGraph instance to `load` when
-custom `VertexData`/`EdgeData` types or multi-parent network sources are
-needed.
+`Symbol` labels (`graph[Symbol(3)]`), and source edge weights are stored as
+`Union{Nothing, Float64}` edge data accessible via `graph[Symbol(i), Symbol(j)]`.
+Pass an empty MetaGraph instance to `load` when custom `VertexData`/`EdgeData`
+types or multi-parent network sources are needed.
 
 ```julia
 using FileIO: load
@@ -157,7 +156,7 @@ store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
 graph = asset.materialized
-Graphs.weights(graph)[1, 2]  # source edge weight for the first edge
+graph[Symbol(1), Symbol(2)]  # source edge weight (Union{Nothing,Float64})
 asset.node_table
 asset.edge_table
 ```

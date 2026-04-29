@@ -107,13 +107,14 @@ The current PhyloNetworks soft-release workflow is documented on the
 
 Loading `MetaGraphsNext` activates the LineagesIO package extension for
 MetaGraph materialization. Nodes are labelled with `Symbol` keys so that
-standard MetaGraph access works without wrapper types: `graph[:3]` for vertex
-data, `graph[:1, :2]` for edge data. The library-created path (`load(src,
-MetaGraph)`) always produces a directed MetaGraph with `Union{Nothing, Float64}`
-edge data, making source edge weights immediately accessible via
-`Graphs.weights(graph)`. The library-created path supports only single-parent
-(tree) sources; pass an empty MetaGraph instance to `load` for multi-parent
-(network) sources.
+standard MetaGraph access works without wrapper types: `graph[Symbol(3)]` for
+vertex data, `graph[Symbol(1), Symbol(2)]` for edge data. (Symbol literals
+like `:foo` require an identifier name; integer-keyed nodes need `Symbol(n)`.)
+The library-created path (`load(src, MetaGraph)`) always produces a directed
+MetaGraph with `Nothing` vertex data and `Union{Nothing, Float64}` edge data,
+making source edge weights immediately accessible. The library-created path
+supports only single-parent (tree) sources; pass an empty MetaGraph instance
+to `load` for multi-parent (network) sources.
 
 ```julia
 using FileIO: load
@@ -123,9 +124,10 @@ using MetaGraphsNext
 store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-graph = asset.materialized   # MetaGraph{Int, SimpleDiGraph{Int}, Symbol, ...}
-Graphs.weights(graph)[1, 2]  # source edge weight, Root→second node
-graph[:3]                     # vertex data (nothing by default)
+# MetaGraph{Int, SimpleDiGraph{Int}, Symbol, Nothing, Union{Nothing,Float64}, ...}
+graph = asset.materialized
+graph[Symbol(1), Symbol(2)]   # source edge weight (Union{Nothing,Float64})
+graph[Symbol(3)]              # vertex data (nothing — VertexData=Nothing)
 asset.node_table
 asset.edge_table
 ```
@@ -148,7 +150,7 @@ my_graph = MetaGraph(
 )
 store = load("annotated_network.nwk", my_graph)
 graph = first(store.graphs).materialized
-graph[:1, :2]    # → Float64 edge weight
+graph[Symbol(1), Symbol(2)]   # → Float64 edge weight
 ```
 
 If `AbstractTrees.jl` is also loaded, the same extension-owned tree-view type
