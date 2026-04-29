@@ -105,7 +105,7 @@ secondary summaries, and plausible recollection do not.
 The core LineagesIO.jl package will be extended (using Julia's package extension mechanism) to provide supported for **DESERIALIZATION**:
 
 - `MetaGraphsNextIO`
-    - Triggered on `MetaGraphsNext`, will provide native materialization of concrete `MetaGraphsNext.jl` types from support data source formatted-files.
+    - Triggered on `MetaGraphsNext`, will provide native materialization of `MetaGraphsNext.jl` types from support data source formatted-files.
     - `AbstractTrees.jl` interface will be added through wrapper functions on appropriate `MetaGraphsNextIO.jl` types.
 - `PhyloNetworksIO`
     - Triggered on `PhyloNetworks.jl`, as above for native object materialization from any supported data source.
@@ -243,9 +243,9 @@ It must provide organic idiomatic support for seamless downstream
 interoperability with domain-standard ecosystem packages and traversers:
 
 - `MetaGraphsNext.jl`, `PhyloNetworks.jl`
-    - Building from parser directly into (appropriate) native concrete types from (appropriate) data sources of (supported) data formats
+    - Building from parser directly into (appropriate) native types from (appropriate) data sources of (supported) data formats
 - `AbstractTrees.jl` 
-    - Add wrappers around `MetaGraphsNext.jl` concrete types to provide `AbstractTree` interface
+    - Add wrappers around `MetaGraphsNext.jl` types to provide `AbstractTree` interface
 
 ## Scope of community support (Integrated "consumer packages")
 
@@ -514,31 +514,6 @@ general graph materialization in LineagesIO.
 
 If we can support this package's abstractions, we can support any phylogenetic structure.
 
-### Concrete target types
-
-The extension must support construction into the following concrete types:
-
-* `MetaGraph{...}` (the sole concrete graph container type)
-
-This includes, by parameterization:
-
-* underlying graph types (from `Graphs.jl`):
-
-  * `SimpleDiGraph{Int}` — required (primary target for rooted trees and networks)
-  * `SimpleGraph{Int}` — required (unrooted trees)
-  * other `AbstractGraph{Int}` subtypes — supported if compatible with construction protocol
-
-So concretely, the extension must handle:
-
-* `MetaGraph{Int, SimpleDiGraph{Int}, ...}` — primary directed construction target
-* `MetaGraph{Int, SimpleGraph{Int}, ...}` — undirected construction target
-
-The extension must not assume any fixed metadata types:
-
-* `Label` type is user-defined
-* `VertexData`, `EdgeData`, `GraphData` are user-defined or `Nothing`
-* weight handling is optional and may be absent or custom
-
 The public MetaGraphsNext load surface must be expressed in terms of native
 `MetaGraph` types or instances, not extension-private node-handle types.
 
@@ -589,33 +564,21 @@ The extension must map:
   → stable node identity via a non-integer label wrapper type
 
   **Hard constraint**: `StructureKeyType = Int`. MetaGraphsNext's internal vertex
-  code type is also `Code<:Integer`. The MetaGraphsNext source explicitly states
+  code type is also `Code<:Integer`. The MetaGraphsNext source *recommends*
   that integer types must not be used as the `Label` type parameter because vertex
   labels (stable, user-supplied) and vertex codes (mutable internal integers) must
-  be distinct types. Using `StructureKeyType` directly as `Label` is prohibited —
-  even for incremental construction where no vertex is deleted, the type-system
-  distinction is the requirement. The extension must define a thin non-integer
-  wrapper type (e.g. `struct LineageNodeID; nodekey::StructureKeyType; end`) and
-  use it as the `Label` type parameter. Confirm the exact ratified type name with
-  the project owner before export.
+  be distinct types. 
+  The extension can pin an internal fixed type (e.g. `Symbol`) that we will use to 
+  map our `nodekey` <=> MetaGraphsNext `label`.
 
 * `edgekey`
   → stable edge identity (must be tracked extension-locally; MetaGraphsNext does not provide intrinsic edge IDs)
-
-* `label`
-  → node label in `MetaGraph` (using label system or metadata)
 
 * `edgeweight`
   → edge weight storage (either:
 
   * Graphs.jl weight system, or
   * edge metadata field)
-
-If `MetaGraphsNext.jl` requires unique labels:
-
-* the extension must normalize names
-* normalization must be internal only
-* authoritative `label` from LineagesIO must remain unchanged
 
 ### Annotation interpretation expectations
 
@@ -655,6 +618,7 @@ Phase 1 `MetaGraphsNext.jl` extension support must cover:
 Phase 2 work may extend this to:
 
 * `format"Nexus"`
+* other formats
 
 ## PhyloNetworks.jl support objectives
 
