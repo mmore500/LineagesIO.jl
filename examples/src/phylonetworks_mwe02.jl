@@ -21,6 +21,7 @@ println("explicit override path: ", tree_path)
 println("tree-compatible materialized type: ", typeof(tree))
 println("tree root node number: ", tree.node[tree.rooti].number)
 println("tree node labels from authoritative table: ", Tables.getcolumn(tree_asset.node_table, :label))
+println("tree leaf names in native HybridNetwork: ", [node.name for node in tree.leaf])
 println("round-trip tree newick: ", writenewick(tree))
 
 network_path = normpath(

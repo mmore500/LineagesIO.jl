@@ -124,13 +124,19 @@ The current soft-release contract includes:
 - rooted-network native loads through `load(path, HybridNetwork)`
 - explicit override through `load(File{format"Newick"}(...), HybridNetwork)`
 - tree-compatible rooted loads through the same `HybridNetwork` surface
-- secondary supplied-target binding through `load(path, HybridNetwork())`
+- secondary supplied-target binding through `load(path, HybridNetwork())` on
+  one-graph sources
 - first-class authoritative `node_table` and `edge_table` retention after load
 
 The current soft-release contract does not include unrooted-network support,
 additional format owners, or serialization. See
 `examples/src/phylonetworks_mwe01.jl` and `examples/src/phylonetworks_mwe02.jl`
 for runnable package examples.
+
+For tree-compatible rooted inputs with empty leaf labels, the authoritative
+blank label remains in `node_table`, while the native `HybridNetwork` may
+carry a synthesized nonempty leaf name for downstream PhyloNetworks
+compatibility and round-trip writing.
 
 ## MetaGraphsNext extension
 

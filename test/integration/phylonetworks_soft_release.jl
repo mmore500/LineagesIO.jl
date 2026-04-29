@@ -57,46 +57,51 @@ end
     @test roundtrip_graph.numhybrids == graph.numhybrids
     @test roundtrip_graph.numtaxa == graph.numtaxa
 
-    explicit_store = load(
-        File{format"Newick"}(network_path),
-        PhyloNetworks.HybridNetwork,
-    )
-    explicit_graph = first(explicit_store.graphs).materialized
-    @test explicit_graph.numnodes == graph.numnodes
-    @test explicit_graph.numedges == graph.numedges
-    @test explicit_graph.numhybrids == graph.numhybrids
-
     new_leaf = PhyloNetworks.addChild!(graph, only(graph.hybrid))
     @test new_leaf.number > Tables.getcolumn(asset.node_table, :nodekey)[end]
 end
 
 @testset "PhyloNetworks soft-release tree-compatible rooted workflow" begin
-    tree_path = abspath(
+    ambiguous_tree_path = abspath(
         joinpath(
             @__DIR__,
             "..",
-            "fixtures",
-            "single_rooted_tree.nwk",
+            "..",
+            "examples",
+            "data",
+            "phylonetworks_mwe02_tree_compatible_rooted.txt",
         ),
     )
-    store = load(tree_path, PhyloNetworks.HybridNetwork)
+    ambiguous_error = capture_expected_load_error() do
+        load(ambiguous_tree_path, PhyloNetworks.HybridNetwork)
+    end
+    @test ambiguous_error isa ErrorException
+    @test occursin("resolve the ambiguity", sprint(showerror, ambiguous_error))
+    @test occursin("File{format\"FMT\"}", sprint(showerror, ambiguous_error))
+
+    store = load(
+        File{format"Newick"}(ambiguous_tree_path),
+        PhyloNetworks.HybridNetwork,
+    )
     asset = first(store.graphs)
     graph = asset.materialized
 
     @test graph isa PhyloNetworks.HybridNetwork
+    @test asset.source_path == ambiguous_tree_path
     @test graph.isrooted
     @test graph.numnodes == 5
     @test graph.numedges == 4
     @test graph.numhybrids == 0
     @test soft_release_child_numbers(graph.node[graph.rooti]) == [2, 5]
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]
-    @test all(!isempty, [node.name for node in graph.leaf])
+    @test [node.name for node in graph.leaf] == ["A", "LineagesIO__unnamed_leaf__4", "C"]
 
     roundtrip_text = PhyloNetworks.writenewick(graph)
     roundtrip_graph = PhyloNetworks.readnewick(roundtrip_text)
     @test roundtrip_graph isa PhyloNetworks.HybridNetwork
     @test roundtrip_graph.numhybrids == 0
     @test roundtrip_graph.numtaxa == graph.numtaxa
+    @test occursin("LineagesIO__unnamed_leaf__4", roundtrip_text)
 end
 
 @testset "PhyloNetworks soft-release supplied-target boundary" begin

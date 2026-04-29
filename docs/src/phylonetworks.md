@@ -59,7 +59,9 @@ example.
 
 Tree-compatible rooted inputs use the same public `HybridNetwork` surface.
 When the source path is intentionally ambiguous, use FileIO's explicit
-override wrapper:
+override wrapper. A bare `load(path, HybridNetwork)` call on an ambiguous
+`.txt` path is expected to fail fast and tell the caller to resolve the
+format explicitly:
 
 ```julia
 using FileIO
@@ -76,6 +78,20 @@ asset.edge_table
 
 This is still a native `HybridNetwork` load, not a separate tree-only
 materialization path.
+
+If a tree-compatible rooted source carries an empty leaf label, LineagesIO
+preserves that exact authoritative label in `node_table`, while the native
+`HybridNetwork` receives an extension-owned synthesized leaf name so the
+result remains usable in ordinary downstream PhyloNetworks workflow. As a
+result, round-tripped Newick text reflects the synthesized native leaf name,
+not the empty authoritative label:
+
+```julia
+using Tables
+
+Tables.getcolumn(asset.node_table, :label)
+[node.name for node in graph.leaf]
+```
 
 See `examples/src/phylonetworks_mwe02.jl` for a runnable explicit-override,
 tree-compatible rooted example.

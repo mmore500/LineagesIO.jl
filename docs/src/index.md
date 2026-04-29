@@ -100,7 +100,8 @@ The current PhyloNetworks soft-release workflow is documented on the
 - explicit overrides through `load(File{format"Newick"}(...), HybridNetwork)`
 - tree-compatible rooted loads through the same public surface
 - authoritative `node_table` and `edge_table` retention after load
-- secondary supplied-target binding for an empty `HybridNetwork()`
+- secondary supplied-target binding for an empty `HybridNetwork()` on
+  one-graph sources
 
 ## MetaGraphsNext extension
 
