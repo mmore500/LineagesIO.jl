@@ -65,10 +65,10 @@ full before implementation:
   `Tables.rows`, `Tables.columns`, `Tables.schema`, `Tables.getcolumn`,
   `Tables.columnnames`, and `Tables.materializer`, so the package-owned table
   types are genuinely Tables.jl-compliant.
-- `Phylo.jl/`
-  Read the simple-Newick parser and tests in `src/newick.jl` and
-  `test/test_newick.jl` only for upstream structural reading expectations that
-  help define simple rooted Newick behavior.
+- other locally verified Newick primary sources
+  Read any additional locally available Newick parser and test sources only
+  where needed for upstream structural reading expectations that help define
+  simple rooted Newick behavior.
 - `PhyloNetworks.jl/`
   Read the simple and extended Newick reader behavior in `src/readwrite.jl`
   and `test/test_relaxed_reading.jl` only where needed to distinguish tranche 1
@@ -260,13 +260,13 @@ coordinates, and rejects out-of-scope constructs instead of guessing
 **Depends on**: 3
 
 Implement the tranche 1 parser owner for simple rooted Newick only. Touch the
-Newick format-owner files under `src/`, using the upstream `Phylo.jl` and
-`PhyloNetworks.jl` readers only as contract references rather than as embedded
-parsers. Parse simple rooted Newick into package-owned authoritative tables,
-assign `nodekey` and `edgekey` sequentially per graph using
-`StructureKeyType`, populate `src_nodekey`, `dst_nodekey`, `label`, and
-`edgeweight`, and preserve graph/source coordinates into the returned assets and
-store. Preserve retained annotations only where tranche 1 simple-Newick scope
+Newick format-owner files under `src/`, using locally verified upstream
+Newick readers only as contract references rather than as embedded parsers.
+Parse simple rooted Newick into package-owned authoritative tables, assign
+`nodekey` and `edgekey` sequentially per graph using `StructureKeyType`,
+populate `src_nodekey`, `dst_nodekey`, `label`, and `edgeweight`, and
+preserve graph/source coordinates into the returned assets and store.
+Preserve retained annotations only where tranche 1 simple-Newick scope
 actually supports them; reject out-of-scope or structurally ambiguous constructs
 with informative errors instead of inventing payload bags or silently dropping
 structure. Do not implement `bind_rootnode!`, `add_child`, row references, or

@@ -151,6 +151,11 @@ workflow hardening, production-facing verification, and documentation honesty.
 The tranche must not pad itself with shallow re-tests of already-ratified
 extension internals. It must verify and publish the real end-user contract.
 
+Current active community-support scope for native consumer-package work remains
+limited to the already-ratified `MetaGraphsNext.jl` reference path and the
+`PhyloNetworks.jl` soft-release path. No additional native consumer package is
+part of tranche-06 fulfillment or tasking.
+
 ## Ownership and invariant framing
 
 Tranche 6 establishes the soft-release owner for:
@@ -204,7 +209,8 @@ Not allowed in this tranche without further approval:
 - redesigning the tranche-05 extension ownership model when the current owner
   already satisfies the public contract
 - new hard dependencies in core for `PhyloNetworks.jl`
-- new consumer-package work, new core formats, unrooted-network work, or
+- new consumer-package work beyond the current `MetaGraphsNext.jl` and
+  `PhyloNetworks.jl` scope, new core formats, unrooted-network work, or
   serialization work
 - broad speculative documentation that treats future-scope capabilities as
   current soft-release contract
@@ -406,4 +412,3 @@ Verification for this task:
 - `julia --project=test test/runtests.jl`
 - `julia --project=docs docs/make.jl`
 - direct execution of the tranche-06 PhyloNetworks example workflow
-

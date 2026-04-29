@@ -69,7 +69,6 @@ material to a tranche:
 - `MetaGraphsNext.jl/`
 - `AbstractTrees.jl/`
 - `PhyloNetworks.jl/`
-- `Phylo.jl/`
 - `Tables.jl/`
 
 The following additional upstream sources are required by this tranche plan and
@@ -106,8 +105,7 @@ Verified current-state observations:
   `julia --project=docs docs/make.jl` builds successfully apart from the normal
   Documenter deployment warning
 - no multi-parent construction protocol, rooted-network-capable core format
-  owner, `PhyloNetworks.jl` extension, `Phylo.jl` extension, or
-  `LineageGraphML` owner exists yet
+  owner, `PhyloNetworks.jl` extension, or `LineageGraphML` owner exists yet
 
 The next clean foundational owner is therefore the multi-parent core and
 rooted-network format layer needed to support a native `PhyloNetworks.jl`
@@ -139,8 +137,9 @@ framing:
 - the next domain-focal deliverable is an end-user-ready
   `PhyloNetworks.jl`-based workflow, not a deferred network core followed by a
   later production pass
-- `Phylo.jl` rooted-tree work remains in phase 1 scope, but it is intentionally
-  deferred behind the `PhyloNetworks.jl` soft-release sequence
+- additional native consumer-package work beyond the currently ratified
+  `MetaGraphsNext.jl` and `PhyloNetworks.jl` scope is deferred and must not be
+  treated as active tranche or tasking scope
 
 ## Authorization boundary
 
@@ -151,7 +150,7 @@ set and the current repository state:
 - clean extension-layer design is authorized inside the current extension
   surface
 - phase 1 scope includes `Newick`, rooted-network-capable network inputs,
-  `LineageGraphML`, `MetaGraphsNext.jl`, `Phylo.jl`, `PhyloNetworks.jl`, and
+  `LineageGraphML`, `MetaGraphsNext.jl`, `PhyloNetworks.jl`, and
   `AbstractTrees.jl` compatibility
 - the near-term soft-release sequence uses rooted-network-capable
   `format"Newick"` and native `PhyloNetworks.jl` materialization; it does not
@@ -167,7 +166,8 @@ re-authorized later:
 - serialization as a delivery target
 - `Nexus`
 - `TskitTrees`
-- additional consumer packages beyond the governing briefs
+- additional native consumer packages beyond the currently ratified
+  `MetaGraphsNext.jl` and `PhyloNetworks.jl` community-support scope
 - silent export of provisional extension-owned names before explicit review
 
 ## Verification and green-state gates
@@ -219,13 +219,9 @@ Minimum tranche-end verification rules:
    Type: `AFK`
    Blocked by: tranche 4
 
-9. `Phylo.jl simple-Newick rooted-tree extension`
-   Type: `AFK`
-   Blocked by: tranche 2
-
-10. `Phase 1 stabilization, conformance, and documentation`
+9. `Phase 1 stabilization, conformance, and documentation`
    Type: `HITL`
-   Blocked by: tranche 6, tranche 7, tranche 8, and tranche 9
+   Blocked by: tranche 6, tranche 7, and tranche 8
 
 ## Tranche 1: Simple Newick tables-only core foundation
 
@@ -243,9 +239,9 @@ Minimum tranche-end verification rules:
 
 - Mandated line-by-line reading of all governance documents named in this file
 - Mandated reading of `STYLE-vocabulary.md`
-- Mandated reading of `fileio.jl/`, `Tables.jl/`, and any simple-Newick
-  upstream reference material in `Phylo.jl/` or `PhyloNetworks.jl/` that is
-  used to define the parser-owned structural reading rules
+- Mandated reading of `fileio.jl/`, `Tables.jl/`, and the exact simple-Newick
+  upstream primary sources actually used to define the parser-owned structural
+  reading rules
 
 ### What to build
 
@@ -432,7 +428,6 @@ protocol and tables. It must not add an extension-local parser stack.
 - Community user story 1: Extension activation for the MetaGraphsNext reference path
 - Community user story 2: MetaGraphsNext is the earliest reference-standard deliverable
 - Community user story 4: AbstractTrees traversal works through a MetaGraphsNext wrapper
-- Community user story 9: The same source can materialize into different consumers
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
 - Community user story 12: Package-specific wrappers can bridge the loaded graph onward
 
@@ -580,11 +575,12 @@ must be reviewed before it becomes the public native-target contract.
 
 ### User stories addressed
 
+- Community user story 5: Tree-compatible rooted inputs share the same PhyloNetworks public load surface
 - Community user story 6: Clients do not need extension-private handle types
 - Community user story 7: PhyloNetworks soft release centers the rooted-network public path
 - Community user story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
-- Community user story 10: Unsupported structural cases fail specifically by target
+- Community user story 10: Unsupported structural or load-surface cases fail specifically
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
 
 ## Tranche 6: PhyloNetworks soft-release hardening and end-user workflow completion
@@ -657,11 +653,12 @@ with a passing internal adapter.
 - Core user story 2: Explicit format override and stream-based load
 - Core user story 7: Deferred annotation access after load
 - Core user story 9: Source and collection coordinates remain attached to each graph
+- Community user story 5: Tree-compatible rooted inputs share the same PhyloNetworks public load surface
 - Community user story 6: Clients do not need extension-private handle types
 - Community user story 7: PhyloNetworks soft release centers the rooted-network public path
 - Community user story 8: PhyloNetworks interprets rooted-network Newick inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
-- Community user story 10: Unsupported structural cases fail specifically by target
+- Community user story 10: Unsupported structural or load-surface cases fail specifically
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
 
 ## Tranche 7: MetaGraphsNext network-capable and unrooted-tree completion
@@ -729,7 +726,7 @@ boundary and any new wrapper names still require review before merger.
 - Community user story 3: MetaGraphsNext can stage unrooted-tree support with a distinguished rootnode
 - Community user story 8: PhyloNetworks can later consume rooted-network inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
-- Community user story 10: Unsupported structural cases fail specifically by target
+- Community user story 10: Unsupported structural or load-surface cases fail specifically
 - Community user story 11: Authoritative tables remain first-class after extension-based loads
 - Community user story 12: Package-specific wrappers can bridge the loaded graph onward
 
@@ -799,77 +796,10 @@ brief.
 - Core user story 9: Source and collection coordinates remain attached to each graph
 - Core user story 10: Informative errors for ambiguous or invalid loads
 
-## Tranche 9: Phylo.jl simple-Newick rooted-tree extension
-
-**Type**: AFK
-**Blocked by**: Tranche 2
-
-### Parent PRD
-
-- `design/brief.md`
-- `design/brief--user-stories.md`
-- `design/brief--community-support-objectives.md`
-- `design/brief--community-support-user-stories.md`
-
-### Governance and required reading
-
-- Mandated line-by-line reading of all governance documents named in this file
-- Mandated reading of `STYLE-vocabulary.md`
-- Mandated reading of `Phylo.jl/`, `fileio.jl/`, `Tables.jl/`, and Julia
-  package-extension and weak-dependency primary sources
-
-### What to build
-
-Build the rooted simple Newick extension path into `Phylo.jl`.
-
-This tranche is user-facing. It establishes:
-
-- the `Phylo` package extension module
-- native-target `RootedTree` load surfaces for clean single-parent
-  construction into a rooted `Phylo.jl` tree
-- library-created-root construction and, if upstream-verified and clean,
-  supplied-root binding
-- explicit rejection of unsupported multi-parent or rooted-network loads
-- authoritative-table retention after extension-based materialization
-
-This tranche is intentionally deferred behind the `PhyloNetworks.jl`
-soft-release sequence because the current phase 1 delivery focus is the native
-rooted-network workflow.
-
-### How to verify
-
-- **Manual**: Load a representative rooted simple Newick file into a
-  `Phylo.jl` target and inspect the rooted structure, returned native tree,
-  branch lengths, and retained authoritative tables after load.
-- **Automated**: Add and run `test/extensions/phylo_activation.jl`,
-  `test/extensions/phylo_simple_newick.jl`,
-  `test/extensions/phylo_supplied_root.jl`, and
-  `test/extensions/phylo_rejection_paths.jl` through
-  `julia --project=test test/runtests.jl`.
-
-### Acceptance criteria
-
-- [ ] Given a rooted simple Newick file and an active Phylo extension, when
-      `load("primates.nwk", RootedTree)` runs, then the package returns a
-      rooted `Phylo.jl` materialization and retains authoritative LineagesIO
-      tables after load.
-- [ ] Given a source that requires the multi-parent construction tier, when the
-      Phylo extension is asked to load it, then the package raises an
-      informative target-specific rejection instead of silently flattening the
-      structure.
-
-### User stories addressed
-
-- Community user story 5: Phylo.jl rooted-tree materialization is available from the same core load
-- Community user story 6: Clients do not need extension-private handle types
-- Community user story 9: The same source can materialize into different consumers
-- Community user story 10: Unsupported structural cases fail specifically by target
-- Community user story 11: Authoritative tables remain first-class after extension-based loads
-
-## Tranche 10: Phase 1 stabilization, conformance, and documentation
+## Tranche 9: Phase 1 stabilization, conformance, and documentation
 
 **Type**: HITL
-**Blocked by**: Tranche 6, tranche 7, tranche 8, and tranche 9
+**Blocked by**: Tranche 6, tranche 7, and tranche 8
 
 ### Parent PRD
 

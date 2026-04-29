@@ -121,11 +121,11 @@ Revalidated observations on 2026-04-28:
   public LineagesIO protocol events into a native target package graph
 - there is currently no `PhyloNetworks` extension module and no
   `test/extensions/phylonetworks_*` verification layer
-- the community brief still mentions `ext/PhyloNetworksExt.jl`, but the
-  implemented phase-1 extension pattern in this repository is `*IO.jl`
-  (`MetaGraphsNextIO.jl`, `MetaGraphsNextAbstractTreesIO.jl`). Tranche 5 must
-  ratify the module filename before code changes so work does not split across
-  stale and current naming patterns
+- the governing briefs and implemented phase-1 extension pattern align on the
+  `*IO.jl` naming convention (`MetaGraphsNextIO.jl`,
+  `MetaGraphsNextAbstractTreesIO.jl`), so tranche 5 must preserve that
+  `PhyloNetworksIO.jl` module filename and keep implementation on the same
+  naming path
 - upstream `PhyloNetworks.jl` exposes mutable network assembly primitives
   directly on `HybridNetwork`, `Node`, and `Edge`, and its own `readnewick`
   path finalizes networks with `storeHybrids!`, `checkNumHybEdges!`,
@@ -161,7 +161,8 @@ This tranche does not own:
 - any new core parser, core table, or core protocol redesign
 - broad docs, README, or soft-release packaging polish
 - tranche-6 workflow completion or production-facing user guide work
-- `Phylo.jl`, `LineageGraphML`, or tranche-7 MetaGraphsNext network completion
+- additional native consumer-package work, `LineageGraphML`, or tranche-7
+  MetaGraphsNext network completion
 
 The key architectural rule is that the extension must stay a thin projection
 over authoritative LineagesIO tables and the existing public protocol events.
@@ -219,8 +220,8 @@ Not allowed in this tranche without further approval:
   `julia --project=test test/runtests.jl`
 - Re-confirm that the current docs build is green by running
   `julia --project=docs docs/make.jl`
-- Re-confirm the extension module filename before code changes so a stale
-  `PhyloNetworksExt.jl` reference does not leak into implementation
+- Re-confirm the extension module filename and `*IO.jl` weakdep wiring before
+  code changes so implementation matches the current repository pattern
 - Re-confirm whether supplied-target `HybridNetwork()` binding is truly
   upstream-clean before ratifying it as public tranche-5 scope
 - If the tranche diagnosis no longer matches reality, stop and raise that
@@ -256,9 +257,10 @@ supplied-target `HybridNetwork()` binding is ratified now or deferred
 Read the parent tranche, the four governing design documents, the current
 extension pattern, and the cited `PhyloNetworks.jl` upstream sources before
 making any code changes. Use that reading to lock the tranche-5 execution
-boundary. Resolve the naming inconsistency between the community brief's
-`PhyloNetworksExt.jl` mention and the repository's current `*IO.jl` extension
-pattern. Also ratify the tranche-5 public surface: `load(src, HybridNetwork)`
+boundary. Confirm that the extension module filename remains
+`PhyloNetworksIO.jl`, matching the repository's current `*IO.jl` extension
+pattern and the governing briefs. Also ratify the tranche-5 public surface:
+`load(src, HybridNetwork)`
 is mandatory, while `load(src, target::HybridNetwork)` is only in scope if the
 upstream mutation path can be supported without speculative wrapper behavior or
 leaky partial-state conventions. Do not change project files in this task

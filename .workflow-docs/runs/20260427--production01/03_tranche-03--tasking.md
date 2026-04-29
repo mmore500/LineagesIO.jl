@@ -155,7 +155,7 @@ This tranche does not yet own:
 
 - multi-parent `add_child` behavior
 - rooted-network or unrooted-tree support
-- Phylo.jl or PhyloNetworks.jl construction
+- additional native consumer-package construction
 - redesign of the core parser, authoritative tables, or construction protocol
 - any extension-local shadow parser stack or alternative builder-boundary
   payload store
@@ -190,7 +190,7 @@ Not allowed in this tranche without further approval:
 - multi-parent, rooted-network, or unrooted-tree implementation
 - parser duplication, shadow topology stores, or alternative metadata-payload
   containers
-- Phylo.jl or PhyloNetworks.jl support
+- additional native consumer-package support
 - silent export of provisional extension-owned public names before review
 
 No standalone MIGRATE task is required for tranche 3, because there is no

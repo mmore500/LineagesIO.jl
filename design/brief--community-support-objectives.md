@@ -96,7 +96,6 @@ Available at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-
 | `MetaGraphsNext.jl/` | Key consumer support target package with concrete types for which we will provide first-class support for using the package extension mechanism |
 | `AbstractTrees.jl/` | Traversal traits and iteration interface; to be supported by wrapping appropriate `MetaGraphsNext.jl` types in the package extension |
 | `PhyloNetworks.jl/` | Extended Newick with hybrid nodes parsing reference; Domain consumer support target; extension target to be provided with native support like  `MetaGraphsNext.jl`|
-| `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
 
 When upstream behavior matters, verified source text governs. Memory,
 secondary summaries, and plausible recollection do not.
@@ -110,8 +109,11 @@ The core LineagesIO.jl package will be extended (using Julia's package extension
     - `AbstractTrees.jl` interface will be added through wrapper functions on appropriate `MetaGraphsNextIO.jl` types.
 - `PhyloNetworksIO`
     - Triggered on `PhyloNetworks.jl`, as above for native object materialization from any supported data source.
-- `PhyloIO`
-    - Triggered on `Phylo.jl`, as above for native object materialization from any supported data source.
+
+Current native-construction scope in this companion brief is limited to
+`MetaGraphsNextIO` and `PhyloNetworksIO`. Additional native consumer packages
+are deferred and must not be treated as current tranche, tasking, or
+user-story-fulfillment targets unless explicitly reauthorized.
 
 - which ecosystem packages receive first-class extension support, as reference examples of how consumer packages can black-box wide-spectrum deserialization and materialize custom native phylogenetic data types
 - what kind of support each package receives in terms of data
@@ -240,7 +242,7 @@ without requiring LineagesIO core to own those semantics.
 It must provide organic idiomatic support for seamless downstream 
 interoperability with domain-standard ecosystem packages and traversers:
 
-- `MetaGraphsNext.jl`, `PhyloNetworks.jl`, `Phylo.jl`
+- `MetaGraphsNext.jl`, `PhyloNetworks.jl`
     - Building from parser directly into (appropriate) native concrete types from (appropriate) data sources of (supported) data formats
 - `AbstractTrees.jl` 
     - Add wrappers around `MetaGraphsNext.jl` concrete types to provide `AbstractTree` interface
@@ -258,7 +260,6 @@ Phase 1 focal graph-construction targets:
 
 - `MetaGraphsNext.jl`
 - `PhyloNetworks.jl`
-- `Phylo.jl`
 
 ### Category 2 — Downstream consumer compatibility
 
@@ -288,7 +289,8 @@ Phase 2 and future targets include:
 First-class ecosystem integrations must be implemented as Julia package
 extensions.
 
-Core `LineagesIO` must not depend hard on `MetaGraphsNext.jl`, `Phylo.jl` or `PhyloNetworks.jl`.
+Core `LineagesIO` must not depend hard on `MetaGraphsNext.jl` or
+`PhyloNetworks.jl`.
 
 The extension loading model is:
 
@@ -304,8 +306,13 @@ Extension modules live under `ext/`.
 Phase 1 extension modules are:
 
 - `ext/MetaGraphsNextIO.jl`
-- `ext/PhyloExt.jl`
-- `ext/PhyloNetworksExt.jl`
+- `ext/MetaGraphsNextAbstractTreesIO.jl`
+- `ext/PhyloNetworksIO.jl`
+
+`ext/MetaGraphsNextIO.jl` and `ext/PhyloNetworksIO.jl` own direct native
+graph construction. `ext/MetaGraphsNextAbstractTreesIO.jl` owns the
+`AbstractTrees.jl` compatibility layer over `MetaGraphsNextIO` materialized
+graphs.
 
 Each extension module owns:
 
@@ -479,8 +486,7 @@ The minimum requirement is:
 |---|---|---|---|
 | `MetaGraphsNext.jl` | direct construct extension | single-parent, multi-parent, general graph | Phase 1 |
 | `AbstractTrees.jl` | downstream traversal compatibility target | consumer-facing | Phase 1 |
-| `PhyloNetworks.jl` | direct construction extension | multi-parent | Phase 1 |
-| `Phylo.jl` | direct construction extension | single-parent | Phase 1 |
+| `PhyloNetworks.jl` | direct construction extension | rooted single-parent, rooted multi-parent | Phase 1 |
 
 ### Phase 2
 
@@ -735,90 +741,29 @@ Phase 2 work may extend this to:
 - additional ratified core formats such as `format"Nexus"` where they are
   implemented in core and explicitly approved for this extension
 
-## Phylo.jl support objectives
+## Deferred additional native consumer packages
 
-### Role
+Additional native consumer-package integrations beyond `MetaGraphsNext.jl` and
+`PhyloNetworks.jl` are explicitly deferred beyond the current soft-release
+sequence.
 
-`Phylo.jl` is the primary phase 1 rooted-tree construction target.
+No current tranche, tasking file, user-story fulfillment claim, or acceptance
+gate may treat a deferred native consumer package as part of active phase-1
+scope.
 
-Its importance comes from:
+If later work authorizes another native consumer package, that work must first
+ratify:
 
-- broad Julia ecosystem familiarity
-- native rooted-tree constructors
-- existing metadata handling conventions
-- relevance for ordinary rooted-tree workflows
+- the upstream primary sources that govern the target package
+- the exact public `load` surfaces to expose
+- the structural tier the target can represent honestly
+- the extension-module filename and ownership boundaries
+- package-specific verification and rejection behavior
 
-### Construction tier
-
-`Phylo.jl` support must use the single-parent construction tier for rooted-tree
-formats.
-
-The extension must reject or decline formats whose structure requires the
-multi-parent construction tier if the target package cannot represent them.
-
-The public `Phylo.jl` load surface must be expressed in terms of native
-`RootedTree` or other ratified `Phylo.jl` target types or instances, not
-extension-private node-handle types.
-
-### Extension-private construction state responsibility
-
-The extension may define private cursor or helper state sufficient to carry:
-
-- the target `RootedTree` or equivalent target tree object
-- the current target node reference or node identifier needed for incremental
-  construction
-- any additional extension-local state needed to satisfy the construction
-  protocol cleanly
-
-Any such state is internal implementation detail unless explicitly ratified
-otherwise. The public surface must remain the native `Phylo.jl` target.
-
-The internal-state design must preserve concrete field types and follow
-`STYLE-julia.md`.
-
-### Structural mapping expectations
-
-The extension must map:
-
-- `nodekey` to stable node identity in its wrapper and any needed lookup path
-- `edgekey` to stable edge identity in any extension-local edge lookup path
-- `label` to target-package node naming as appropriate
-- `edgeweight` to target-package branch-length storage as appropriate
-
-If `Phylo.jl` requires unique node names for internal mechanics, any
-extension-local name normalization is the extension's responsibility. Such
-normalization does not change the authoritative `label` preserved by LineagesIO.
-
-### Annotation interpretation expectations
-
-`Phylo.jl` support may choose either of the following strategies, provided the
-behavior is documented and verified:
-
-- project selected retained fields into `Phylo.jl` node or branch metadata
-  stores
-- keep target-package objects structurally minimal and rely primarily on the
-  authoritative LineagesIO tables for annotation access
-
-In either case, semantic interpretation of retained annotation text values
-belongs to the extension or to later user-space wrappers, not to core.
-
-### Finalization expectations
-
-If `Phylo.jl` construction does not require post-build cleanup, the extension
-may rely on the default no-op `finalize_graph!`.
-
-If upstream-verified cleanup is required, the extension must implement and
-verify it explicitly.
-
-### Format support expectations
-
-Phase 1 `Phylo.jl` extension support must cover:
-
-- `format"Newick"` for rooted-tree construction
-
-Phase 2 work may extend this to:
-
-- `format"Nexus"` where ratified and implemented in core
+Until that reauthorization exists, current community-support scope is complete
+when `MetaGraphsNext.jl`, `MetaGraphsNextAbstractTreesIO`-mediated
+`AbstractTrees.jl` compatibility, and `PhyloNetworks.jl` behavior are
+correctly specified and verified.
 
 ## AbstractTrees.jl
 
@@ -885,14 +830,11 @@ Community support is successful when all of the following are true.
     - unrooted trees
     - rooted networks
     - structures isomorphic to `PhyloNetworks.jl` reticulation networks
-- `AbstractTreesIO` constructs
-    - rooted trees
-    - unrooted trees with a "distinguished node" serving as a head node
-  from phase 1 supported formats through the public core protocol
-- `PhyloIO` constructs rooted trees from phase 1 supported formats through the
-  public core protocol
-- `PhyloNetworksIO` constructs rooted networks from phase 1 supported formats
-  through the public core protocol
+- `MetaGraphsNextAbstractTreesIO` provides `AbstractTrees.jl`-compatible
+  wrappers over `MetaGraphsNextIO` materializations for rooted trees and
+  unrooted trees with a distinguished `rootnode`
+- `PhyloNetworksIO` constructs rooted networks and tree-compatible rooted
+  inputs from phase 1 supported formats through the public core protocol
 - users can choose library-created native-target construction or supplied-target
   binding where the extension supports both
 - authoritative `node_table` and `edge_table` remain available and useful after

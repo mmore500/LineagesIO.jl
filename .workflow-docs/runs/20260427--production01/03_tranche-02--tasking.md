@@ -74,10 +74,10 @@ full before implementation:
   `[extensions]`, and "Behavior of extensions" sections, because tranche 2
   establishes the core public protocol that later extension modules will own
   methods against.
-- `Phylo.jl/`
-  Read the upstream Newick parsing and tests only where needed to verify
-  simple rooted Newick structural reading expectations and retained-field
-  boundary decisions that affect annotation retention.
+- other locally verified Newick primary sources
+  Read any additional locally available Newick parsing and test sources only
+  where needed to verify simple rooted Newick structural reading expectations
+  and retained-field boundary decisions that affect annotation retention.
 - `PhyloNetworks.jl/`
   Read the simple and extended Newick reader behavior only where needed to
   distinguish tranche 2 simple rooted-tree annotation retention from later

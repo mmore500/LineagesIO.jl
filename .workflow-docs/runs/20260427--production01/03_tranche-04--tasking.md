@@ -166,7 +166,8 @@ This tranche does not yet own:
 - the `PhyloNetworks.jl` extension module or any native `HybridNetwork`
   materialization
 - new weak dependencies or package-extension wiring in `Project.toml`
-- `LineageGraphML`, `Phylo.jl`, or tranche 7 unrooted-network work
+- `LineageGraphML`, additional native consumer-package work, or tranche 7
+  unrooted-network work
 - any new format registration beyond `format"Newick"`
 - semantic coercion of retained `gamma`, support-like values, or other edge
   annotations in core
@@ -214,7 +215,8 @@ Not allowed in this tranche without further approval:
 - adding `PhyloNetworks.jl` as a weak dependency or creating a
   `PhyloNetworks` extension module
 - introducing a `LineageNetwork` format owner or any other new format
-- `LineageGraphML`, `Phylo.jl`, `Nexus`, `TskitTrees`, or serialization work
+- `LineageGraphML`, additional native consumer-package work, `Nexus`,
+  `TskitTrees`, or serialization work
 - semantic interpretation of `gamma` or support-like edge values in core
 - broad end-user docs, README workflow polish, or soft-release packaging work
   that belongs to tranche 6

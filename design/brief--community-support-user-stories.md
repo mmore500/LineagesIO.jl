@@ -122,21 +122,22 @@ AbstractTrees.children(tree_view)
 collect(AbstractTrees.PreOrderDFS(tree_view))
 ```
 
-## User story 5: Phylo.jl rooted-tree materialization is available from the same core load
+## User story 5: Tree-compatible rooted inputs share the same PhyloNetworks public load surface
 
-As a rooted-tree user in the Julia phylogenetics ecosystem, I want a supported
-Phylo.jl materialization path for simple Newick rooted trees through the same
-core package contract.
+As a user with ordinary rooted Newick inputs, I want them to load through the
+same native `HybridNetwork` path as rooted-network inputs so the soft release
+centers one production PhyloNetworks workflow rather than splitting tree and
+network usage across different native consumer targets.
 
 ```julia
 using FileIO: load
 using LineagesIO
-using Phylo: RootedTree
+using PhyloNetworks: HybridNetwork
 
-store = load("primates.nwk", RootedTree)
+store = load("primates.nwk", HybridNetwork)
 asset = first(store.graphs)
 
-asset.materialized isa RootedTree
+asset.materialized isa HybridNetwork
 asset.node_table
 asset.edge_table
 ```
@@ -151,12 +152,10 @@ materialization path.
 using FileIO: load
 using LineagesIO
 using MetaGraphsNext: MetaGraph
-using Phylo: RootedTree
 using PhyloNetworks: HybridNetwork
 
 meta_store = load("primates.nwk", MetaGraph)
-phylo_store = load("primates.nwk", RootedTree)
-network_store = load("primates.nwk", HybridNetwork)
+network_store = load("hybrid_example.nwk", HybridNetwork)
 ```
 
 ## User story 7: PhyloNetworks soft release centers the rooted-network public path
@@ -201,35 +200,30 @@ gamma = gamma_txt === nothing ? nothing : parse(Float64, gamma_txt)
 ## User story 9: The same source can materialize into different consumers
 
 As a user comparing ecosystem targets, I want the same source text to load
-through the same core parser and authoritative tables into different supported
-consumer packages.
+through the same core parser and authoritative tables into different currently
+supported consumer packages.
 
 ```julia
 using FileIO: load
 using MetaGraphsNext: MetaGraph
-using Phylo: RootedTree
 using PhyloNetworks: HybridNetwork
 
 meta_store = load("primates.nwk", MetaGraph)
-phylo_store = load("primates.nwk", RootedTree)
 network_store = load("primates.nwk", HybridNetwork)
 
 first(meta_store.graphs).node_table
-first(phylo_store.graphs).node_table
 first(network_store.graphs).node_table
 ```
 
-## User story 10: Unsupported structural cases fail specifically by target
+## User story 10: Unsupported structural or load-surface cases fail specifically
 
 As a user, I want target-specific rejection behavior rather than silent
-structure loss when a package cannot represent the loaded source cleanly.
+structure loss or leaky partial success when a target or load surface cannot
+represent the requested source cleanly.
 
 ```julia
-julia> load("reticulate_network.nwk", RootedTree)
-ERROR: The Phylo.jl extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.
-
-julia> load("posterior.trees", some_existing_target)
-ERROR: The supplied-root extension load surface is valid only for a source that yields exactly one graph.
+julia> load("posterior.trees", HybridNetwork())
+ERROR: The supplied-target `HybridNetwork` load surface is valid only for a source that yields exactly one graph.
 ```
 
 ## User story 11: Authoritative tables remain first-class after extension-based loads

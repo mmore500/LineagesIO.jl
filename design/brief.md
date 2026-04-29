@@ -89,9 +89,8 @@ Core technologies:
 | `Graphs.jl/` | Key consumer domain ecosystem, providing common abstractions, interfaces, etc. |
 | `MetaGraphsNext.jl/` | Key consumer support target package with concrete types for which we will provide first-class support for using the package extension mechanism |
 | `AbstractTrees.jl/` | Traversal traits and iteration interface; to be supported by wrapping appropriate `MetaGraphsNext.jl` types in the package extension |
-| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes parsing reference; Domain consumer support target; extension target to be provided with native support like  `MetaGraphsNext.jl`|
-| `Phylo.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
-| `Tables.jl/` | Julia Newick and NEXUS parsing reference; extension target, as above |
+| `PhyloNetworks.jl/` | Extended Newick with hybrid nodes parsing reference; Domain consumer support target; extension target to be provided with native support like `MetaGraphsNext.jl` |
+| `Tables.jl/` | Tables.jl interface and materialization contract for authoritative table ownership and retention |
 
 When upstream behavior matters, verified source text governs. Memory,
 secondary summaries, and plausible recollection do not.
@@ -1202,7 +1201,10 @@ The document `brief--community-support-objectives` describes product features th
 - MetaGraphsNext.jl
     - This is considered a **reference-standard** consumer that we will target for support and domain modeling. 
 - PhyloNetworks.jl
-- Phylo.jl 
+
+Additional native consumer packages may be considered later only through
+explicit reauthorization. They are not part of the current phase-1 delivery
+contract or current tranche/tasking fulfillment map.
 
 The document `design/brief--community-support-user-stories.md` is the
 community-support user-story annex for that companion brief and must be read
