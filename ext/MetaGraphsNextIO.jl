@@ -1,206 +1,412 @@
 module MetaGraphsNextIO
 
-using LineagesIO
-using MetaGraphsNext
+using LineagesIO:
+    LineagesIO,
+    EdgeRowRef,
+    EdgeWeightType,
+    LineageGraphAsset,
+    NodeRowRef,
+    NodeTable,
+    EdgeTable,
+    StructureKeyType,
+    graph_requires_multi_parent
+using MetaGraphsNext: MetaGraph, MetaGraphsNext
+using MetaGraphsNext.Graphs: SimpleDiGraph, add_edge!, add_vertex!, is_directed, nv
 
-struct MetaGraphsNextNodeLabel
-    nodekey::LineagesIO.StructureKeyType
-end
+# ---------------------------------------------------------------------------
+# Extension-private construction cursor.
+#
+# Carries the MetaGraph being built and the current node's StructureKeyType so
+# that add_child can connect parent → child without receiving the parent
+# nodekey again. Both fields are concrete at every instantiation.
+# ---------------------------------------------------------------------------
 
-Base.isless(a::MetaGraphsNextNodeLabel, b::MetaGraphsNextNodeLabel) = isless(a.nodekey, b.nodekey)
+"""
+    MetaGraphsNextBuildCursor{GraphT <: MetaGraph}
 
-struct MetaGraphsNextBuildCursor{GraphT <: MetaGraphsNext.MetaGraph}
+Extension-private construction handle returned by `bind_rootnode!` and
+`add_child`. Carries the MetaGraph under construction and the nodekey of the
+node most recently added, so that the next `add_child` call can draw the
+parent → child edge correctly.
+
+Not part of the public API. Users receive the completed `MetaGraph` from
+`load`, never this type.
+"""
+struct MetaGraphsNextBuildCursor{GraphT <: MetaGraph}
     graph::GraphT
-    nodekey::LineagesIO.StructureKeyType
+    nodekey::StructureKeyType
 end
 
+# ---------------------------------------------------------------------------
+# Extension-private AbstractTrees compatibility wrapper.
+#
+# ConcreteMetaGraphsNextTreeView is accessed by name from
+# MetaGraphsNextAbstractTreesIO via Base.get_extension, so its field names
+# (graph, nodekey, node_table, edge_table) must not be changed.
+# ---------------------------------------------------------------------------
+
+"""
+    ConcreteMetaGraphsNextTreeView{GraphT, NodeTableT, EdgeTableT}
+
+Extension-private struct returned by `MetaGraphsNextTreeView`. Wraps a
+materialized MetaGraph together with its authoritative tables and a current
+nodekey, making it traversable by AbstractTrees.jl.
+"""
 struct ConcreteMetaGraphsNextTreeView{
-    GraphT <: MetaGraphsNext.MetaGraph,
-    NodeTableT <: LineagesIO.NodeTable,
-    EdgeTableT <: LineagesIO.EdgeTable,
+    GraphT <: MetaGraph,
+    NodeTableT <: NodeTable,
+    EdgeTableT <: EdgeTable,
 }
     graph::GraphT
-    nodekey::LineagesIO.StructureKeyType
+    nodekey::StructureKeyType
     node_table::NodeTableT
     edge_table::EdgeTableT
 end
 
-function build_default_metagraph()
-    return MetaGraphsNext.MetaGraph(
-        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
-        MetaGraphsNextNodeLabel,
+# ---------------------------------------------------------------------------
+# Label conversion helpers.
+#
+# Symbol satisfies the MetaGraphsNext requirement that Label ≠ Code type
+# (metagraph.jl:16), has interned equality (O(1) Dict lookups), and produces
+# idiomatic user access: graph[:3], graph[:1, :2].
+#
+# node_label and label_nodekey are accessed by name from
+# MetaGraphsNextAbstractTreesIO (lines 20 and 29 of that extension), so
+# their names and signatures must be preserved.
+# ---------------------------------------------------------------------------
+
+"""
+    node_label(nodekey) -> Symbol
+
+Convert a `StructureKeyType` nodekey to the MetaGraph `Symbol` label used for
+that node. `Symbol(1)` → `:1`, `Symbol(2)` → `:2`, etc.
+"""
+node_label(nodekey::StructureKeyType)::Symbol = Symbol(nodekey)
+
+"""
+    label_nodekey(label) -> StructureKeyType
+
+Recover the `StructureKeyType` nodekey from a MetaGraph `Symbol` label.
+"""
+label_nodekey(label::Symbol)::StructureKeyType = StructureKeyType(parse(Int, String(label)))
+
+# ---------------------------------------------------------------------------
+# Default MetaGraph factory.
+#
+# Produces a directed MetaGraph with Symbol labels and Union{Nothing,Float64}
+# edge data so that source edge weights are stored natively and immediately
+# accessible via weights(graph)[i, j].
+#
+# Constructor form verified against metagraph.jl:61-89 (positional,
+# type-stable). Keyword form (metagraph.jl:107-125) is type-unstable and
+# is not used here.
+# ---------------------------------------------------------------------------
+
+"""
+    default_metagraph() -> MetaGraph
+
+Return an empty directed `MetaGraph` with `Symbol` labels, `Nothing` vertex
+data, and `Union{Nothing, Float64}` edge data. The weight function extracts
+the stored float, defaulting to `1.0` when no edge weight was present in the
+source.
+
+Used by the library-created load path (`load(src, MetaGraph)`).
+"""
+function default_metagraph()::MetaGraph
+    return MetaGraph(
+        SimpleDiGraph{Int}(),
+        Symbol,
         Nothing,
-        Nothing,
+        Union{Nothing, Float64},
+        nothing,
+        ed -> ed === nothing ? 1.0 : ed,
+        1.0,
     )
 end
 
-function metagraph_label_type(
-    ::Type{<:MetaGraphsNext.MetaGraph{<:Any, <:Any, LabelT}},
-) where {LabelT}
-    return LabelT
-end
+# ---------------------------------------------------------------------------
+# Validation.
+# ---------------------------------------------------------------------------
 
-function node_label(nodekey::LineagesIO.StructureKeyType)::MetaGraphsNextNodeLabel
-    return MetaGraphsNextNodeLabel(nodekey)
-end
+metagraph_label_type(::MetaGraph{<:Any, <:Any, LabelT}) where {LabelT} = LabelT
 
-function label_nodekey(label::MetaGraphsNextNodeLabel)::LineagesIO.StructureKeyType
-    return getfield(label, :nodekey)
-end
+"""
+    validate_empty_metagraph(graph) -> Nothing
 
-function require_empty_graph!(
-    graph::MetaGraphsNext.MetaGraph,
-)::Nothing
-    MetaGraphsNext.Graphs.is_directed(graph) || throw(
+Assert that `graph` is a directed, empty `MetaGraph` with `Symbol` as its
+`Label` type parameter. Throws `ArgumentError` if any condition fails.
+
+Called before the supplied-instance load path binds a root node.
+"""
+function validate_empty_metagraph(graph::MetaGraph)::Nothing
+    is_directed(graph) || throw(
         ArgumentError(
-            "A supplied `MetaGraph` must be directed for the current single-parent MetaGraphsNext load path.",
+            "A supplied `MetaGraph` must be directed. Use `SimpleDiGraph` " *
+            "as the underlying graph type.",
         ),
     )
-    MetaGraphsNext.Graphs.nv(graph) == 0 || throw(
+    nv(graph) == 0 || throw(
         ArgumentError(
-            "A supplied `MetaGraph` must be empty before loading.",
+            "A supplied `MetaGraph` must be empty before loading into it.",
         ),
     )
-    metagraph_label_type(typeof(graph)) === MetaGraphsNextNodeLabel || throw(
+    metagraph_label_type(graph) === Symbol || throw(
         ArgumentError(
-            "A supplied `MetaGraph` must use `MetaGraphsNextNodeLabel` as its label type for the current single-parent MetaGraphsNext load path.",
-        ),
-    )
-    return nothing
-end
-
-function add_metagraph_node!(
-    graph::MetaGraphsNext.MetaGraph,
-    nodekey::LineagesIO.StructureKeyType,
-)::Nothing
-    added = MetaGraphsNext.Graphs.add_vertex!(graph, node_label(nodekey))
-    added || throw(
-        ArgumentError(
-            "The MetaGraphsNext extension could not add nodekey $(nodekey) to the target `MetaGraph`.",
+            "A supplied `MetaGraph` must use `Symbol` as its `Label` type. " *
+            "Construct it with `Symbol` as the second positional argument, e.g.: " *
+            "`MetaGraph(SimpleDiGraph{Int}(), Symbol, VertexData, EdgeData, ...)`.",
         ),
     )
     return nothing
 end
 
-function add_metagraph_edge!(
-    graph::MetaGraphsNext.MetaGraph,
-    src_nodekey::LineagesIO.StructureKeyType,
-    dst_nodekey::LineagesIO.StructureKeyType,
+# ---------------------------------------------------------------------------
+# Node addition — dispatch on VertexData type parameter.
+#
+# Verified against graphs.jl:181-183 (Nothing path) and graphs.jl:163-179
+# (data path).
+# ---------------------------------------------------------------------------
+
+function add_node_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, Nothing},
+    nodekey::StructureKeyType,
+    ::NodeRowRef,
 )::Nothing
-    added = MetaGraphsNext.Graphs.add_edge!(
-        graph,
-        node_label(src_nodekey),
-        node_label(dst_nodekey),
-    )
-    added || throw(
+    add_vertex!(graph, node_label(nodekey)) || throw(
         ArgumentError(
-            "The MetaGraphsNext extension could not add edge $(src_nodekey) -> $(dst_nodekey) to the target `MetaGraph`.",
+            "Failed to add node with nodekey $(nodekey) to the MetaGraph.",
         ),
     )
     return nothing
 end
 
+function add_node_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:NodeRowRef},
+    nodekey::StructureKeyType,
+    nodedata::NodeRowRef,
+)::Nothing
+    add_vertex!(graph, node_label(nodekey), nodedata) || throw(
+        ArgumentError(
+            "Failed to add node with nodekey $(nodekey) to the MetaGraph.",
+        ),
+    )
+    return nothing
+end
+
+# ---------------------------------------------------------------------------
+# Edge addition — dispatch on EdgeData type parameter.
+#
+# Verified against graphs.jl:215-219 (Nothing path) and graphs.jl:195-213
+# (data paths).
+# ---------------------------------------------------------------------------
+
+function add_edge_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, Nothing},
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    ::EdgeWeightType,
+    ::EdgeRowRef,
+)::Nothing
+    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey)) || throw(
+        ArgumentError(
+            "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
+        ),
+    )
+    return nothing
+end
+
+function add_edge_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, Union{Nothing, Float64}},
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    edgeweight::EdgeWeightType,
+    ::EdgeRowRef,
+)::Nothing
+    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), edgeweight) ||
+        throw(
+            ArgumentError(
+                "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
+            ),
+        )
+    return nothing
+end
+
+function add_edge_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, <:Real},
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    edgeweight::EdgeWeightType,
+    ::EdgeRowRef,
+)::Nothing
+    w = edgeweight === nothing ? MetaGraphsNext.default_weight(graph) : edgeweight
+    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), w) || throw(
+        ArgumentError(
+            "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
+        ),
+    )
+    return nothing
+end
+
+function add_edge_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, <:EdgeRowRef},
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    ::EdgeWeightType,
+    edgedata::EdgeRowRef,
+)::Nothing
+    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), edgedata) ||
+        throw(
+            ArgumentError(
+                "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
+            ),
+        )
+    return nothing
+end
+
+# ---------------------------------------------------------------------------
+# Protocol: validate_extension_load_target
+# ---------------------------------------------------------------------------
+
+function LineagesIO.validate_extension_load_target(::Type{<:MetaGraph})::Nothing
+    return nothing
+end
+
 function LineagesIO.validate_extension_load_target(
-    node_type::Type{TargetT},
-)::Nothing where {TargetT <: MetaGraphsNext.MetaGraph}
-    node_type === MetaGraphsNext.MetaGraph && return nothing
+    ::Type{<:MetaGraph},
+    graph_asset::LineageGraphAsset,
+)::Nothing
+    graph_requires_multi_parent(graph_asset) || return nothing
     throw(
         ArgumentError(
-            "The MetaGraphsNext extension supports `load(src, MetaGraph)` for library-created materialization. To choose a specific MetaGraph parameterization, construct an empty `MetaGraph` instance yourself and call `load(src, graph)` instead.",
+            "The MetaGraphsNext extension does not support the multi-parent " *
+            "construction tier for `load(src, MetaGraph)`. Construct an empty " *
+            "`MetaGraph` with `Symbol` labels and call `load(src, my_graph)` " *
+            "instead, which supports both single-parent and multi-parent sources.",
         ),
     )
 end
 
 function LineagesIO.validate_extension_load_target(
-    ::Type{TargetT},
-    graph_asset::LineagesIO.LineageGraphAsset,
-)::Nothing where {TargetT <: MetaGraphsNext.MetaGraph}
-    LineagesIO.graph_requires_multi_parent(graph_asset) || return nothing
-    throw(
-        ArgumentError(
-            "The MetaGraphsNext extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.",
-        ),
-    )
+    graph::MetaGraph,
+    ::LineageGraphAsset,
+)::Nothing
+    validate_empty_metagraph(graph)
+    return nothing
 end
 
-function LineagesIO.validate_extension_load_target(
-    ::GraphT,
-    graph_asset::LineagesIO.LineageGraphAsset,
-)::Nothing where {GraphT <: MetaGraphsNext.MetaGraph}
-    LineagesIO.graph_requires_multi_parent(graph_asset) || return nothing
-    throw(
-        ArgumentError(
-            "The MetaGraphsNext extension supports the single-parent construction tier for this load surface and cannot materialize a multi-parent graph from this source.",
-        ),
-    )
-end
+# ---------------------------------------------------------------------------
+# Protocol: emit_rootnode (library-created path only).
+#
+# The generic emit_rootnode in construction.jl checks rootnode_handle isa NodeT
+# (construction.jl:528-529). Since NodeT = MetaGraph and our handles are
+# MetaGraphsNextBuildCursor, the check would fail without this override.
+# This override is the correct and necessary extension point for the
+# library-created (NodeTypeLoadRequest) path.
+# ---------------------------------------------------------------------------
 
 function LineagesIO.emit_rootnode(
-    request::LineagesIO.NodeTypeLoadRequest{TargetT},
-    nodekey::LineagesIO.StructureKeyType,
-    label::AbstractString,
-    nodedata::LineagesIO.NodeRowRef,
-) where {TargetT <: MetaGraphsNext.MetaGraph}
-    LineagesIO.validate_extension_load_target(request.node_type)
-    graph = build_default_metagraph()
-    add_metagraph_node!(graph, nodekey)
-    return MetaGraphsNextBuildCursor(graph, nodekey)
+    ::LineagesIO.NodeTypeLoadRequest{<:MetaGraph},
+    nodekey::StructureKeyType,
+    _label::AbstractString,
+    nodedata::NodeRowRef,
+)
+    graph = default_metagraph()
+    add_node_to_metagraph!(graph, nodekey, nodedata)
+    return MetaGraphsNextBuildCursor{typeof(graph)}(graph, nodekey)
 end
+
+# ---------------------------------------------------------------------------
+# Protocol: bind_rootnode! (supplied-instance path).
+# ---------------------------------------------------------------------------
 
 function LineagesIO.bind_rootnode!(
     graph::GraphT,
-    nodekey::LineagesIO.StructureKeyType,
-    label::AbstractString;
-    nodedata,
-) where {GraphT <: MetaGraphsNext.MetaGraph}
-    require_empty_graph!(graph)
-    add_metagraph_node!(graph, nodekey)
+    nodekey::StructureKeyType,
+    ::AbstractString;
+    nodedata::NodeRowRef,
+) where {GraphT <: MetaGraph}
+    validate_empty_metagraph(graph)
+    add_node_to_metagraph!(graph, nodekey, nodedata)
     return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
 end
+
+# ---------------------------------------------------------------------------
+# Protocol: add_child — single-parent.
+# ---------------------------------------------------------------------------
 
 function LineagesIO.add_child(
     parent::MetaGraphsNextBuildCursor{GraphT},
-    nodekey::LineagesIO.StructureKeyType,
-    label::AbstractString,
-    edgekey::LineagesIO.StructureKeyType,
-    edgeweight::LineagesIO.EdgeWeightType;
-    edgedata,
-    nodedata,
-) where {GraphT <: MetaGraphsNext.MetaGraph}
-    graph = getfield(parent, :graph)
-    add_metagraph_node!(graph, nodekey)
-    add_metagraph_edge!(graph, getfield(parent, :nodekey), nodekey)
+    nodekey::StructureKeyType,
+    ::AbstractString,
+    ::StructureKeyType,
+    edgeweight::EdgeWeightType;
+    edgedata::EdgeRowRef,
+    nodedata::NodeRowRef,
+) where {GraphT <: MetaGraph}
+    graph = parent.graph
+    add_node_to_metagraph!(graph, nodekey, nodedata)
+    add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgeweight, edgedata)
     return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
 end
 
-function LineagesIO.finalize_graph!(
-    cursor::MetaGraphsNextBuildCursor,
-)
-    return getfield(cursor, :graph)
-end
+# ---------------------------------------------------------------------------
+# Protocol: add_child — multi-parent (supplied-instance path only).
+# ---------------------------------------------------------------------------
 
-function root_nodekey(
-    graph::MetaGraphsNext.MetaGraph,
-)::LineagesIO.StructureKeyType
-    MetaGraphsNext.Graphs.nv(graph) > 0 || throw(
+function LineagesIO.add_child(
+    parents::AbstractVector{MetaGraphsNextBuildCursor{GraphT}},
+    nodekey::StructureKeyType,
+    ::AbstractString,
+    ::AbstractVector{StructureKeyType},
+    edgeweights::AbstractVector{EdgeWeightType};
+    edgedata::AbstractVector{<:EdgeRowRef},
+    nodedata::NodeRowRef,
+) where {GraphT <: MetaGraph}
+    length(parents) == length(edgeweights) == length(edgedata) || throw(
         ArgumentError(
-            "The MetaGraphsNext tree-view helper requires a non-empty `MetaGraph`.",
+            "Multi-parent construction requires equal-length `parents`, " *
+            "`edgeweights`, and `edgedata` collections.",
         ),
     )
-    return LineagesIO.StructureKeyType(1)
+    graph = first(parents).graph
+    add_node_to_metagraph!(graph, nodekey, nodedata)
+    for (parent, edgeweight, edgeref) in zip(parents, edgeweights, edgedata)
+        add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgeweight, edgeref)
+    end
+    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
 end
 
+# ---------------------------------------------------------------------------
+# Protocol: finalize_graph!
+# ---------------------------------------------------------------------------
+
+function LineagesIO.finalize_graph!(cursor::MetaGraphsNextBuildCursor)
+    return cursor.graph
+end
+
+# ---------------------------------------------------------------------------
+# MetaGraphsNextTreeView — AbstractTrees compatibility entry points.
+#
+# MetaGraphsNextTreeView is declared as an extensible function in
+# src/LineagesIO.jl:30. These methods extend it for MetaGraph-backed assets.
+# ---------------------------------------------------------------------------
+
 function LineagesIO.MetaGraphsNextTreeView(
-    asset::LineagesIO.LineageGraphAsset{GraphT, NodeTableT, EdgeTableT},
+    asset::LineageGraphAsset{GraphT, NodeTableT, EdgeTableT},
 ) where {
-    GraphT <: MetaGraphsNext.MetaGraph,
-    NodeTableT <: LineagesIO.NodeTable,
-    EdgeTableT <: LineagesIO.EdgeTable,
+    GraphT <: MetaGraph,
+    NodeTableT <: NodeTable,
+    EdgeTableT <: EdgeTable,
 }
     graph = asset.materialized
+    nv(graph) > 0 || throw(
+        ArgumentError(
+            "`MetaGraphsNextTreeView` requires a non-empty materialized MetaGraph.",
+        ),
+    )
     return ConcreteMetaGraphsNextTreeView(
         graph,
-        root_nodekey(graph),
+        StructureKeyType(1),
         asset.node_table,
         asset.edge_table,
     )
@@ -211,13 +417,18 @@ function LineagesIO.MetaGraphsNextTreeView(
     node_table::NodeTableT,
     edge_table::EdgeTableT,
 ) where {
-    GraphT <: MetaGraphsNext.MetaGraph,
-    NodeTableT <: LineagesIO.NodeTable,
-    EdgeTableT <: LineagesIO.EdgeTable,
+    GraphT <: MetaGraph,
+    NodeTableT <: NodeTable,
+    EdgeTableT <: EdgeTable,
 }
+    nv(graph) > 0 || throw(
+        ArgumentError(
+            "`MetaGraphsNextTreeView` requires a non-empty MetaGraph.",
+        ),
+    )
     return ConcreteMetaGraphsNextTreeView(
         graph,
-        root_nodekey(graph),
+        StructureKeyType(1),
         node_table,
         edge_table,
     )
