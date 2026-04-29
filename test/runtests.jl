@@ -41,6 +41,12 @@ end
     include("extensions/metagraphsnext_supplied_root.jl")
     include("extensions/metagraphsnext_abstracttrees.jl")
     include("extensions/metagraphsnext_network_rejection.jl")
+    include("extensions/phylonetworks_activation.jl")
+    include("extensions/phylonetworks_newick_networks.jl")
+    include("extensions/phylonetworks_annotation_paths.jl")
+    include("extensions/phylonetworks_tables_after_load.jl")
+    include("extensions/phylonetworks_tree_compatible_newick.jl")
+    include("extensions/phylonetworks_rejection_paths.jl")
 
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(LineagesIO)
