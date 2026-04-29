@@ -74,6 +74,17 @@ function LineagesIO.add_child(
     return child
 end
 
+function LineagesIO.add_child(
+    parent_collection::AbstractVector{ValidationBoundNode},
+    nodekey,
+    label,
+    edgekeys::AbstractVector{LineagesIO.StructureKeyType},
+    edgeweights::AbstractVector{LineagesIO.EdgeWeightType},
+)
+    push!(VALIDATION_BOUND_EVENTS, (:bad_multi, nodekey, collect(edgekeys), collect(edgeweights), length(parent_collection)))
+    return ValidationBoundNode(nodekey, String(label), ValidationBoundNode[])
+end
+
 mutable struct ValidationMultiParentNode
     nodekey::LineagesIO.StructureKeyType
     label::String
@@ -157,6 +168,17 @@ end
     @test single_parent_error isa ArgumentError
     @test occursin("multi-parent `LineagesIO.add_child(parent_collection", sprint(showerror, single_parent_error))
 
+    validation_sample = LineagesIO.build_multi_parent_protocol_sample(asset)
+    @test !LineagesIO.has_custom_multi_parent_add_child(
+        ValidationBoundNode[],
+        validation_sample.child_nodekey,
+        validation_sample.label,
+        validation_sample.edgekeys,
+        validation_sample.edgeweights;
+        edgedata = validation_sample.edgedata,
+        nodedata = validation_sample.nodedata,
+    )
+
     empty!(VALIDATION_BOUND_EVENTS)
     bound_root = ValidationBoundNode(nothing, "", ValidationBoundNode[])
     bound_error = capture_expected_load_error() do
@@ -167,11 +189,7 @@ end
     end
     @test bound_error isa ArgumentError
     @test occursin("supplied `rootnode` load surface", sprint(showerror, bound_error))
-    @test VALIDATION_BOUND_EVENTS == Any[
-        (:bind_rootnode, 1, "Root"),
-        (:child, 2, 1, 1),
-        (:child, 3, 2, 1),
-    ]
+    @test VALIDATION_BOUND_EVENTS == Any[]
 
     empty!(VALIDATION_BUILDER_EVENTS)
     single_parent_builder = function (parent, nodekey, label, edgekey, edgeweight; edgedata = nothing, nodedata)
@@ -193,11 +211,7 @@ end
     end
     @test builder_error isa ArgumentError
     @test occursin("supplied `builder` callback", sprint(showerror, builder_error))
-    @test VALIDATION_BUILDER_EVENTS == Any[
-        (:root, 1, "Root"),
-        (:child, 2, 1, 1),
-        (:child, 3, 2, 1),
-    ]
+    @test VALIDATION_BUILDER_EVENTS == Any[]
 
     empty!(VALIDATION_MULTI_PARENT_EVENTS)
     graph_assets = LineagesIO.materialize_graphs(

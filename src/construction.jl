@@ -156,13 +156,16 @@ function validate_materialization_request(
 )::Nothing
     graph_requires_multi_parent(graph_asset) || return nothing
     validate_extension_load_target(request.rootnode, graph_asset)
+    validate_multi_parent_root_binding_request(graph_asset, request)
     return nothing
 end
 
 function validate_materialization_request(
-    ::LineageGraphAsset,
-    ::BuilderLoadRequest,
+    graph_asset::LineageGraphAsset,
+    request::BuilderLoadRequest,
 )::Nothing
+    graph_requires_multi_parent(graph_asset) || return nothing
+    validate_multi_parent_builder_request(graph_asset, request)
     return nothing
 end
 
@@ -170,24 +173,61 @@ function validate_multi_parent_node_type_request(
     graph_asset::LineageGraphAsset,
     request::NodeTypeLoadRequest,
 )::Nothing
-    node_table = graph_asset.node_table
-    edge_table = graph_asset.edge_table
-    child_nodekey = first_multi_parent_nodekey(edge_table, lineagetable_nrows(node_table))
-    child_nodekey === nothing && return nothing
-
+    sample = build_multi_parent_protocol_sample(graph_asset)
+    sample === nothing && return nothing
     sample_parents = request.node_type[]
-    sample_edgekeys = StructureKeyType[]
-    sample_edgeweights = EdgeWeightType[]
-    sample_label = Tables.getcolumn(node_table, :label)[child_nodekey]
     has_custom_multi_parent_add_child(
         sample_parents,
-        child_nodekey,
-        sample_label,
-        sample_edgekeys,
-        sample_edgeweights,
+        sample.child_nodekey,
+        sample.label,
+        sample.edgekeys,
+        sample.edgeweights;
+        edgedata = sample.edgedata,
+        nodedata = sample.nodedata,
     ) && return nothing
 
     throw(ArgumentError("The `load(src, $(request.node_type))` surface cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
+end
+
+function validate_multi_parent_root_binding_request(
+    graph_asset::LineageGraphAsset,
+    request::RootBindingLoadRequest,
+)::Nothing
+    sample = build_multi_parent_protocol_sample(graph_asset)
+    sample === nothing && return nothing
+    sample_parents = typeof(request.rootnode)[]
+    has_custom_multi_parent_add_child(
+        sample_parents,
+        sample.child_nodekey,
+        sample.label,
+        sample.edgekeys,
+        sample.edgeweights;
+        edgedata = sample.edgedata,
+        nodedata = sample.nodedata,
+    ) && return nothing
+
+    throw(ArgumentError("The supplied `rootnode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
+end
+
+function validate_multi_parent_builder_request(
+    graph_asset::LineageGraphAsset,
+    request::BuilderLoadRequest,
+)::Nothing
+    sample = build_multi_parent_protocol_sample(graph_asset)
+    sample === nothing && return nothing
+    sample_parents = build_builder_parent_collection_sample(request.builder)
+    applicable(
+        request.builder,
+        sample_parents,
+        sample.child_nodekey,
+        sample.label,
+        sample.edgekeys,
+        sample.edgeweights;
+        edgedata = sample.edgedata,
+        nodedata = sample.nodedata,
+    ) && return nothing
+
+    throw(ArgumentError("The supplied `builder` callback cannot materialize this source because it does not accept the multi-parent `(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
 end
 
 function first_multi_parent_nodekey(
@@ -200,6 +240,32 @@ function first_multi_parent_nodekey(
         incoming_edge_counts[dst_nodekey] > 1 && return dst_nodekey
     end
     return nothing
+end
+
+function build_multi_parent_protocol_sample(
+    graph_asset::LineageGraphAsset,
+)
+    node_table = graph_asset.node_table
+    edge_table = graph_asset.edge_table
+    child_nodekey = first_multi_parent_nodekey(edge_table, lineagetable_nrows(node_table))
+    child_nodekey === nothing && return nothing
+
+    edgekeys = StructureKeyType[]
+    dst_nodekeys = Tables.getcolumn(edge_table, :dst_nodekey)
+    for edgekey in Tables.getcolumn(edge_table, :edgekey)
+        dst_nodekeys[edgekey] == child_nodekey || continue
+        push!(edgekeys, edgekey)
+    end
+
+    edgeweights = Tables.getcolumn(edge_table, :edgeweight)
+    return (
+        child_nodekey = child_nodekey,
+        label = Tables.getcolumn(node_table, :label)[child_nodekey],
+        edgekeys = edgekeys,
+        edgeweights = EdgeWeightType[edgeweights[edgekey] for edgekey in edgekeys],
+        edgedata = [EdgeRowRef(edge_table, edgekey) for edgekey in edgekeys],
+        nodedata = NodeRowRef(node_table, child_nodekey),
+    )
 end
 
 function materialize_graph(
@@ -737,7 +803,9 @@ function ensure_multi_parent_protocol_applicable(
         nodekey,
         label,
         edgekeys,
-        edgeweights,
+        edgeweights;
+        edgedata = edgedata,
+        nodedata = nodedata,
     ) && return nothing
     throw(ArgumentError("The `load(src, $(request.node_type))` surface cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
 end
@@ -757,7 +825,9 @@ function ensure_multi_parent_protocol_applicable(
         nodekey,
         label,
         edgekeys,
-        edgeweights,
+        edgeweights;
+        edgedata = edgedata,
+        nodedata = nodedata,
     ) && return nothing
     throw(ArgumentError("The supplied `rootnode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
 end
@@ -790,16 +860,75 @@ function ensure_constructed_handle(handle, phase::AbstractString)::Nothing
     return nothing
 end
 
+function build_builder_parent_collection_sample(
+    builder,
+)::AbstractVector
+    parent_handle_types = Type[]
+    for method in methods(builder)
+        collect_builder_parent_handle_types!(
+            parent_handle_types,
+            builder_parent_argument_type(method),
+        )
+    end
+    isempty(parent_handle_types) && return Any[]
+    ParentHandleT = reduce(typejoin, parent_handle_types)
+    return ParentHandleT[]
+end
+
+function builder_parent_argument_type(method::Method)
+    signature_parameters = Base.unwrap_unionall(method.sig).parameters
+    length(signature_parameters) >= 2 || return Any
+    return signature_parameters[2]
+end
+
+function collect_builder_parent_handle_types!(
+    parent_handle_types::Vector{Type},
+    parent_argument_type,
+)::Nothing
+    parent_argument_type === Any && begin
+        push!(parent_handle_types, Any)
+        return nothing
+    end
+    for candidate_type in builder_parent_argument_types(parent_argument_type)
+        candidate_type === Nothing && continue
+        candidate_type === Any && begin
+            push!(parent_handle_types, Any)
+            continue
+        end
+        candidate_type isa UnionAll && begin
+            push!(parent_handle_types, Any)
+            continue
+        end
+        if candidate_type <: AbstractVector
+            push!(parent_handle_types, eltype(candidate_type))
+        else
+            push!(parent_handle_types, candidate_type)
+        end
+    end
+    return nothing
+end
+
+function builder_parent_argument_types(parent_argument_type)::Vector{Any}
+    parent_argument_type isa Union && return collect(Base.uniontypes(parent_argument_type))
+    return Any[parent_argument_type]
+end
+
 function has_custom_multi_parent_add_child(
     parent_collection::AbstractVector,
     nodekey,
     label,
     edgekeys::AbstractVector,
     edgeweights::AbstractVector,
+    ;
+    edgedata,
+    nodedata,
 )::Bool
+    keyword_values = (; edgedata = edgedata, nodedata = nodedata)
     selected_method = which(
-        add_child,
+        Core.kwcall,
         Tuple{
+            typeof(keyword_values),
+            typeof(add_child),
             typeof(parent_collection),
             typeof(nodekey),
             typeof(label),
@@ -808,8 +937,16 @@ function has_custom_multi_parent_add_child(
         },
     )
     fallback_method = which(
-        add_child,
-        Tuple{AbstractVector, Any, Any, AbstractVector, AbstractVector},
+        Core.kwcall,
+        Tuple{
+            typeof(keyword_values),
+            typeof(add_child),
+            AbstractVector,
+            Any,
+            Any,
+            AbstractVector,
+            AbstractVector,
+        },
     )
     return selected_method !== fallback_method
 end
