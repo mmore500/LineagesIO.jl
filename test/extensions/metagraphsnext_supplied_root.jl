@@ -6,7 +6,7 @@ using MetaGraphsNext
 
     graph = MetaGraphsNext.MetaGraph(
         MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
-        extension.MetaGraphsNextNodeLabel,
+        Symbol,
         Nothing,
         Nothing,
     )
@@ -20,16 +20,13 @@ using MetaGraphsNext
 
     multi_graph_path = abspath(joinpath(@__DIR__, "..", "fixtures", "multi_graph_root_binding_source.trees"))
     multi_graph_error = capture_expected_load_error() do
-        load(multi_graph_path, extension.build_default_metagraph())
+        load(multi_graph_path, extension.default_metagraph())
     end
     @test multi_graph_error isa ArgumentError
     @test occursin("exactly one graph", sprint(showerror, multi_graph_error))
 
-    occupied_graph = extension.build_default_metagraph()
-    MetaGraphsNext.Graphs.add_vertex!(
-        occupied_graph,
-        extension.MetaGraphsNextNodeLabel(999),
-    )
+    occupied_graph = extension.default_metagraph()
+    MetaGraphsNext.Graphs.add_vertex!(occupied_graph, Symbol(999))
     occupied_error = capture_expected_load_error() do
         load(fixture_path, occupied_graph)
     end
@@ -46,5 +43,49 @@ using MetaGraphsNext
         load(fixture_path, wrong_label_graph)
     end
     @test wrong_label_error isa ArgumentError
-    @test occursin("must use `MetaGraphsNextNodeLabel`", sprint(showerror, wrong_label_error))
+    @test occursin("must use `Symbol`", sprint(showerror, wrong_label_error))
+end
+
+@testset "MetaGraphsNext supplied-instance EdgeData dispatch" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+
+    float_graph = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        Nothing,
+        Float64,
+        nothing,
+        identity,
+        0.0,
+    )
+    float_store = load(fixture_path, float_graph)
+    float_asset = first(float_store.graphs)
+
+    @test float_asset.materialized === float_graph
+    @test MetaGraphsNext.Graphs.nv(float_graph) == 5
+    @test MetaGraphsNext.Graphs.ne(float_graph) == 4
+    @test float_graph[Symbol(1), Symbol(2)] ≈ 2.0   # Root→Inner
+    @test float_graph[Symbol(2), Symbol(3)] ≈ 1.5   # Inner→A
+    @test float_graph[Symbol(2), Symbol(4)] ≈ 0.25  # Inner→(unnamed)
+
+    rowref_graph = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        LineagesIO.NodeRowRef,
+        LineagesIO.EdgeRowRef,
+        nothing,
+        ed -> begin
+            w = LineagesIO.edge_property(ed, :edgeweight)
+            w === nothing ? 1.0 : w
+        end,
+        1.0,
+    )
+    rowref_store = load(fixture_path, rowref_graph)
+    rowref_asset = first(rowref_store.graphs)
+    rowref_graph_out = rowref_asset.materialized
+
+    @test rowref_graph_out === rowref_graph
+    @test MetaGraphsNext.Graphs.nv(rowref_graph_out) == 5
+    @test LineagesIO.node_property(rowref_graph_out[Symbol(1)], :label) == "Root"
+    @test LineagesIO.edge_property(rowref_graph_out[Symbol(1), Symbol(2)], :edgeweight) ≈ 2.0
 end

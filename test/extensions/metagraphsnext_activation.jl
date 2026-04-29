@@ -25,9 +25,9 @@ using MetaGraphsNext
     @test asset.materialized isa MetaGraphsNext.MetaGraph
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]
 
-    parameterized_target_error = capture_expected_load_error() do
-        load(fixture_path, typeof(asset.materialized))
-    end
-    @test parameterized_target_error isa ArgumentError
-    @test occursin("construct an empty `MetaGraph` instance", sprint(showerror, parameterized_target_error))
+    parameterized_store = load(fixture_path, typeof(asset.materialized))
+    parameterized_asset = first(parameterized_store.graphs)
+    @test parameterized_asset.materialized isa MetaGraphsNext.MetaGraph
+    @test MetaGraphsNext.Graphs.nv(parameterized_asset.materialized) == 5
+    @test MetaGraphsNext.Graphs.ne(parameterized_asset.materialized) == 4
 end

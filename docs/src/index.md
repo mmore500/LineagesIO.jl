@@ -105,11 +105,15 @@ The current PhyloNetworks soft-release workflow is documented on the
 
 ## MetaGraphsNext extension
 
-Loading `MetaGraphsNext` activates the LineagesIO package extension for the
-current single-parent rooted-tree reference path. The extension implementation
-remains behind the weak-dependency boundary, while the public load surface
-stays on native `MetaGraphsNext` types and rejects multi-parent sources
-specifically.
+Loading `MetaGraphsNext` activates the LineagesIO package extension for
+MetaGraph materialization. Nodes are labelled with `Symbol` keys so that
+standard MetaGraph access works without wrapper types: `graph[:3]` for vertex
+data, `graph[:1, :2]` for edge data. The library-created path (`load(src,
+MetaGraph)`) always produces a directed MetaGraph with `Union{Nothing, Float64}`
+edge data, making source edge weights immediately accessible via
+`Graphs.weights(graph)`. The library-created path supports only single-parent
+(tree) sources; pass an empty MetaGraph instance to `load` for multi-parent
+(network) sources.
 
 ```julia
 using FileIO: load
@@ -119,10 +123,32 @@ using MetaGraphsNext
 store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-graph = asset.materialized
-graph
+graph = asset.materialized   # MetaGraph{Int, SimpleDiGraph{Int}, Symbol, ...}
+Graphs.weights(graph)[1, 2]  # source edge weight, Root→second node
+graph[:3]                     # vertex data (nothing by default)
 asset.node_table
 asset.edge_table
+```
+
+To load multi-parent sources or to customise `VertexData`/`EdgeData` types,
+pass an empty MetaGraph instance with `Symbol` labels:
+
+```julia
+using MetaGraphsNext: MetaGraph
+using MetaGraphsNext.Graphs: SimpleDiGraph
+
+my_graph = MetaGraph(
+    SimpleDiGraph{Int}(),
+    Symbol,
+    Nothing,
+    Float64,       # EdgeData: stores edge weight as Float64
+    nothing,
+    identity,      # weight_function: edge weight IS the stored Float64
+    0.0,
+)
+store = load("annotated_network.nwk", my_graph)
+graph = first(store.graphs).materialized
+graph[:1, :2]    # → Float64 edge weight
 ```
 
 If `AbstractTrees.jl` is also loaded, the same extension-owned tree-view type
