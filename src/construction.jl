@@ -144,8 +144,8 @@ function validate_materialization_request(
     graph_asset::LineageGraphAsset,
     request::NodeTypeLoadRequest,
 )::Nothing
-    graph_requires_multi_parent(graph_asset) || return nothing
     validate_extension_load_target(request.node_type, graph_asset)
+    graph_requires_multi_parent(graph_asset) || return nothing
     validate_multi_parent_node_type_request(graph_asset, request)
     return nothing
 end
@@ -154,8 +154,8 @@ function validate_materialization_request(
     graph_asset::LineageGraphAsset,
     request::RootBindingLoadRequest,
 )::Nothing
-    graph_requires_multi_parent(graph_asset) || return nothing
     validate_extension_load_target(request.rootnode, graph_asset)
+    graph_requires_multi_parent(graph_asset) || return nothing
     validate_multi_parent_root_binding_request(graph_asset, request)
     return nothing
 end

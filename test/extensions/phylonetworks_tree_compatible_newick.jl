@@ -21,6 +21,13 @@ using PhyloNetworks
     @test phylonetworks_child_numbers(root) == [2, 5]
     @test phylonetworks_child_numbers(inner) == [3, 4]
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]
+    @test all(!isempty, [node.name for node in graph.leaf])
+
+    roundtrip_text = PhyloNetworks.writenewick(graph)
+    roundtrip_graph = PhyloNetworks.readnewick(roundtrip_text)
+
+    @test roundtrip_graph isa PhyloNetworks.HybridNetwork
+    @test roundtrip_graph.numtaxa == graph.numtaxa
 end
 
 @testset "PhyloNetworks supplied-target binding" begin

@@ -68,3 +68,16 @@ end
         if edge.hybrid && PhyloNetworks.getchild(edge) === hybrid
     ]) == [3, 6]
 end
+
+@testset "PhyloNetworks downstream mutation keeps node numbers unique" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
+    store = load(fixture_path, PhyloNetworks.HybridNetwork)
+    graph = first(store.graphs).materialized
+
+    original_numbers = [node.number for node in graph.node]
+    new_leaf = PhyloNetworks.addChild!(graph, only(graph.hybrid))
+    updated_numbers = [node.number for node in graph.node]
+
+    @test new_leaf.number ∉ original_numbers
+    @test length(unique(updated_numbers)) == length(updated_numbers)
+end

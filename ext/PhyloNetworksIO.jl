@@ -32,6 +32,22 @@ function normalize_label(label::AbstractString)::String
     return String(label)
 end
 
+function normalized_leaf_name(
+    nodekey::LineagesIO.StructureKeyType,
+)::String
+    return "LineagesIO__unnamed_leaf__$(nodekey)"
+end
+
+function normalize_phylonetworks_node_name(
+    nodekey::LineagesIO.StructureKeyType,
+    label::AbstractString,
+    is_leaf::Bool,
+)::String
+    normalized_label = normalize_label(label)
+    is_leaf && isempty(normalized_label) && return normalized_leaf_name(nodekey)
+    return normalized_label
+end
+
 function normalize_edgeweight(
     edgeweight::LineagesIO.EdgeWeightType,
 )::Float64
@@ -245,12 +261,26 @@ function node_is_hybrid(
     return getfield(state, :incoming_edge_count_by_nodekey)[nodekey] > 1
 end
 
+function ensure_name_slot!(
+    graph::PhyloNetworks.HybridNetwork,
+    node_number::Int,
+)::Nothing
+    node_number > 0 || return nothing
+    names = getfield(graph, :names)
+    while length(names) < node_number
+        push!(names, "")
+    end
+    return nothing
+end
+
 function record_node_name!(
     graph::PhyloNetworks.HybridNetwork,
-    node_label::AbstractString,
+    node::PhyloNetworks.Node,
 )::Nothing
-    isempty(node_label) && return nothing
-    push!(getfield(graph, :names), String(node_label))
+    node_number = getfield(node, :number)
+    node_number > 0 || return nothing
+    ensure_name_slot!(graph, node_number)
+    getfield(graph, :names)[node_number] = String(getfield(node, :name))
     return nothing
 end
 
@@ -259,8 +289,6 @@ function register_node!(
     state::PhyloNetworksBuildState,
     nodekey::LineagesIO.StructureKeyType,
     node::PhyloNetworks.Node,
-    ;
-    record_name::Bool = true,
 )::Nothing
     haskey(getfield(state, :node_by_nodekey), nodekey) && throw(
         ArgumentError(
@@ -268,7 +296,7 @@ function register_node!(
         ),
     )
     PhyloNetworks.pushNode!(graph, node)
-    record_name && record_node_name!(graph, getfield(node, :name))
+    record_node_name!(graph, node)
     getfield(state, :node_by_nodekey)[nodekey] = node
     return nothing
 end
@@ -296,7 +324,11 @@ function build_root_node(
 )::PhyloNetworks.Node
     root_is_leaf = node_count(node_table) == 1
     root_node = PhyloNetworks.Node(Int(nodekey), root_is_leaf, false)
-    root_node.name = normalize_label(label)
+    root_node.name = normalize_phylonetworks_node_name(
+        nodekey,
+        label,
+        root_is_leaf,
+    )
     return root_node
 end
 
@@ -313,8 +345,7 @@ function build_graph_cursor(
         graph,
         state,
         nodekey,
-        root_node;
-        record_name = getfield(root_node, :leaf),
+        root_node,
     )
     graph.rooti = 1
     return PhyloNetworksBuildCursor(graph, target, root_node, nodekey, state)
@@ -345,12 +376,13 @@ function build_network_node(
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString,
 )::PhyloNetworks.Node
+    is_leaf = node_is_leaf(state, nodekey)
     node = PhyloNetworks.Node(
         Int(nodekey),
-        node_is_leaf(state, nodekey),
+        is_leaf,
         node_is_hybrid(state, nodekey),
     )
-    node.name = normalize_label(label)
+    node.name = normalize_phylonetworks_node_name(nodekey, label, is_leaf)
     return node
 end
 
