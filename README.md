@@ -7,15 +7,20 @@
 
 LineagesIO.jl provides FileIO-compatible loading of rooted lineage graphs into
 package-owned authoritative tables and, when requested, through a
-single-parent graph-construction protocol.
+single-parent or multi-parent graph-construction protocol.
 
-Phase 1 currently supports simple rooted Newick sources through:
+Phase 1 currently supports rooted-tree and rooted-network-capable Newick
+sources through:
 
 - safe bare `load("tree.nwk")` loads for supported Newick extensions
 - explicit overrides through `load(File{format"Newick"}(...))`
 - stream-based loads through `load(Stream{format"Newick"}(...))`
 - library-created-root construction through `load("tree.nwk", NodeT)`
 - supplied-root binding through `load("tree.nwk", rootnode)`
+- optional `PhyloNetworks.jl` materialization through
+  `load("network.nwk", HybridNetwork)`
+- tree-compatible rooted `HybridNetwork` loads through the same public surface
+- secondary supplied-target `HybridNetwork()` binding on one-graph sources
 - optional `MetaGraphsNext.jl` materialization through the package-extension path
 - explicit builder callbacks through `load("tree.nwk"; builder = fn)`
 - lazy `LineageGraphStore.graphs` iteration with authoritative `node_table`
@@ -95,9 +100,42 @@ store = load("annotated_tree.nwk", DemoNode)
 rootnode = first(store.graphs).materialized
 ```
 
+## PhyloNetworks soft release
+
+Loading `PhyloNetworks` activates the package extension that materializes
+native `HybridNetwork` values from rooted-network-capable and tree-compatible
+rooted `format"Newick"` sources while keeping authoritative `node_table` and
+`edge_table` access attached to each `LineageGraphAsset`.
+
+```julia
+using FileIO
+using LineagesIO
+using PhyloNetworks: HybridNetwork
+
+network_store = load("hybrid_example.nwk", HybridNetwork)
+network_asset = first(network_store.graphs)
+
+tree_store = load(File{format"Newick"}("primates.txt"), HybridNetwork)
+tree_asset = first(tree_store.graphs)
+```
+
+The current soft-release contract includes:
+
+- rooted-network native loads through `load(path, HybridNetwork)`
+- explicit override through `load(File{format"Newick"}(...), HybridNetwork)`
+- tree-compatible rooted loads through the same `HybridNetwork` surface
+- secondary supplied-target binding through `load(path, HybridNetwork())`
+- first-class authoritative `node_table` and `edge_table` retention after load
+
+The current soft-release contract does not include unrooted-network support,
+additional format owners, or serialization. See
+`examples/src/phylonetworks_mwe01.jl` and `examples/src/phylonetworks_mwe02.jl`
+for runnable package examples.
+
 ## MetaGraphsNext extension
 
-Loading `MetaGraphsNext` activates the pacakge extension that provides for materialization of a native `MetaGraphs.MetaGraph` type directly from the source.
+Loading `MetaGraphsNext` activates the package extension that materializes a
+native `MetaGraphsNext.MetaGraph` type directly from the source.
 
 ```julia
 using FileIO: load

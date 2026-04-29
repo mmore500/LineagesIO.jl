@@ -34,6 +34,9 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 - `load(Stream{format"Newick"}(io, "tree.txt"))` for already-open I/O
 - `load("tree.nwk", NodeT)` for library-created-root construction
 - `load("tree.nwk", rootnode)` for supplied-root binding on one-graph sources
+- the optional `PhyloNetworks.jl` extension path for rooted-network and
+  tree-compatible rooted `HybridNetwork` materialization
+- secondary supplied-target `HybridNetwork()` binding on one-graph sources
 - the optional `MetaGraphsNext.jl` extension path for MetaGraph materialization
 - `load("tree.nwk"; builder = fn)` for explicit builder callbacks
 
@@ -87,6 +90,17 @@ end
 store = load("annotated_tree.nwk", DemoNode)
 rootnode = first(store.graphs).materialized
 ```
+
+## PhyloNetworks extension
+
+The current PhyloNetworks soft-release workflow is documented on the
+[PhyloNetworks workflow](phylonetworks.md) page. That workflow covers:
+
+- rooted-network native loads through `load(path, HybridNetwork)`
+- explicit overrides through `load(File{format"Newick"}(...), HybridNetwork)`
+- tree-compatible rooted loads through the same public surface
+- authoritative `node_table` and `edge_table` retention after load
+- secondary supplied-target binding for an empty `HybridNetwork()`
 
 ## MetaGraphsNext extension
 
