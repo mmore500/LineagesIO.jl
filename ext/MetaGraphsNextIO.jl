@@ -412,6 +412,20 @@ function LineagesIO.finalize_graph!(cursor::MetaGraphsNextBuildCursor)
 end
 
 # ---------------------------------------------------------------------------
+# basenode
+# ---------------------------------------------------------------------------
+
+function LineagesIO.basenode(
+    ::LineageGraphAsset{GraphT, NodeTableT, EdgeTableT},
+) where {
+    GraphT <: MetaGraph,
+    NodeTableT <: NodeTable,
+    EdgeTableT <: EdgeTable,
+}
+    return Symbol(StructureKeyType(1))
+end
+
+# ---------------------------------------------------------------------------
 # MetaGraphsNextTreeView — AbstractTrees compatibility entry points.
 #
 # MetaGraphsNextTreeView is declared as an extensible function in

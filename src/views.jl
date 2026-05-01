@@ -182,10 +182,20 @@ end
 """
     basenode(asset::LineageGraphAsset)
 
-Return the materialized graph result from a construction load.
+Return the root node (basenode) of the graph from a construction load.
+
+The concrete return type depends on the load surface used:
+
+- **Native LineagesIO protocol**: returns the user-supplied root node object
+  (the type passed to `load` or returned by the `builder` callback).
+- **PhyloNetworks extension**: returns the root `PhyloNetworks.Node` of the
+  materialized `HybridNetwork` (i.e., `net.node[net.root]`).
+- **MetaGraphsNext extension**: returns the vertex label `Symbol` of the
+  basenode (always `:1`), which is the key used to dereference vertex data
+  and edges from the `MetaGraph` (e.g., `asset.materialized[:1]`).
 
 Raises `ArgumentError` for tables-only assets where no construction target
-was supplied and `materialized === nothing`.
+was supplied and `asset.materialized === nothing`.
 """
 function basenode(asset::LineageGraphAsset{MaterializedT})::MaterializedT where {MaterializedT}
     asset.materialized === nothing && throw(
