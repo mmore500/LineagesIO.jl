@@ -59,7 +59,7 @@ and the direction of the modeled process. Has two values:
 - `:forward` — increasing process coordinates move in the root-to-leaf
   direction (forward time). `lineageunits` values `:edgeweights`,
   `:branchingtime`, `:nodedepths`, and `:nodelevels` produce forward
-  process coordinates (rootnode = 0, increases toward leaves).
+  process coordinates (basenode = 0, increases toward leaves).
 - `:backward` — increasing process coordinates move in the leaf-to-root
   direction (backward time, as in coalescent models). `lineageunits` values
   `:coalescenceage` and `:nodeheights` produce backward process coordinates
@@ -96,12 +96,12 @@ Written as one word without underscore.
 **Part of speech:** noun (data concept); accessor name
 
 **Definition (concept):** IFF `edgeweight` values represent time in a time-indexed branching process, 
-then this is the cumulative sum of `edgeweight` values on the directed path from `rootnode` to a given node. 
+then this is the cumulative sum of `edgeweight` values on the directed path from `basenode` to a given node. 
 Represents the total
 evolutionary or temporal distance accumulated since the root. Also called
 "divergence time" in phylogenetic prose.
 
-- `branchingtime(rootnode) = 0` by definition.
+- `branchingtime(basenode) = 0` by definition.
 - `branchingtime(child) = branchingtime(parent) + edgeweight(parent, child)`.
 - Polarity: increases in the forward-time direction (root → leaves), i.e., the
   x-axis reads left = past, right = present for a standard chronogram.
@@ -114,7 +114,7 @@ from per-edge weights.
 
 **Relationship to `lineageunits = :edgeweights`:** The `:edgeweights`
 `lineageunits` value computes `branchingtime` on the fly by summing the
-`edgeweight` accessor along the path from `rootnode`. The `:branchingtime`
+`edgeweight` accessor along the path from `basenode`. The `:branchingtime`
 `lineageunits` value bypasses that traversal and reads the value directly from
 the `branchingtime` accessor. Both `lineageunits` values produce identical
 node x-coordinates when the supplied times are consistent with the edge
@@ -258,11 +258,11 @@ along the lineage axis. Has two values:
 - `:standard` (default) — increasing process coordinates map to increasing
   screen position along `lineage_orientation` (right in `:left_to_right`
   orientation, up in `:bottom_to_top`). With forward axis polarity, this places
-  the rootnode at the left and leaves at the right.
+  the basenode at the left and leaves at the right.
 - `:reversed` — increasing process coordinates map to decreasing screen
   position. Allows, for example, a forward-time tree to be drawn root-at-right
   (paleontological or stratigraphic convention), or a `:coalescenceage` tree to
-  be drawn with the rootnode at the left and leaves at the right.
+  be drawn with the basenode at the left and leaves at the right.
 
 `display_polarity` is independent of `axis_polarity`. The combination of the
 two determines how the biological direction of the process maps to the screen.
@@ -471,17 +471,17 @@ The value of `lineageunits` determines which accessor is consulted to compute
 the process coordinate (x in rectangular layouts, radial in circular) of each
 node, and what `axis_polarity` `LineageAxis` infers:
 
-- `:edgeweights` — cumulative edge weights from rootnode; requires `edgeweight`
+- `:edgeweights` — cumulative edge weights from basenode; requires `edgeweight`
   accessor; `:forward` polarity.
 - `:branchingtime` — pre-supplied branching times; requires `branchingtime`
   accessor; `:forward` polarity.
 - `:coalescenceage` — pre-supplied coalescence ages; requires `coalescenceage`
   accessor; leaf = 0, increases toward root; `:backward` polarity.
-- `:nodedepths` — cumulative path distance (edge count) from rootnode; no
+- `:nodedepths` — cumulative path distance (edge count) from basenode; no
   accessor required; `:forward` polarity.
 - `:nodeheights` — edge count to farthest leaf; leaves at 0; default when no
   `edgeweight` accessor is supplied; `:backward` polarity.
-- `:nodelevels` — integer level from rootnode; equal inter-level spacing;
+- `:nodelevels` — integer level from basenode; equal inter-level spacing;
   no accessor required; `:forward` polarity.
 - `:nodecoordinates` — user-supplied data coordinates; requires `nodecoordinates`
   accessor; polarity is user-defined.
@@ -509,9 +509,9 @@ corresponds to the transverse (leaf-spacing) dimension.
 
 Values:
 - `:left_to_right` (default for rectangular layouts) — the lineage axis runs
-  along the x-axis; the transverse axis is y; rootnode is at the left by
+  along the x-axis; the transverse axis is y; basenode is at the left by
   default.
-- `:right_to_left` — lineage axis runs along x, transverse is y; rootnode
+- `:right_to_left` — lineage axis runs along x, transverse is y; basenode
   is at the right by default (use with `:standard` `display_polarity` and a
   leaf-relative `lineageunits` such as `:coalescenceage`, or with `:reversed`
   `display_polarity` and a root-relative `lineageunits` value).
@@ -567,19 +567,52 @@ process-coordinate values; `display_polarity` describes their screen direction.
 
 ---
 
-### `rootnode`
+### `basenode`
 
-**Part of speech:** positional argument name; prose form is "root node"
+**Part of speech:** positional argument name; prose form is "base node" 
+when referring to this class of nodes or abstraction in general (i.e. to rooted as well
+as unrooted graphs) or when referring to project concepts and abstractions. 
 
-**Definition:** The unique node with no parent; the starting point of tree
-traversal. Passed as the first positional argument to `lineageplot`,
+
+**Definition:** The *distinguished node* of a 
+phylogenetic X-tree [@steel2006phylogeentics], rooted or unrooted, or
+a phylogenetic network, rooted or unrooted.
+In rooted graphs, this corresponds to the root node. 
+In unrooted graphs, this is an arbitrary node (and can be an existing leaf or 
+internal node of the tree, or an artifactual (augmented) node inserted into
+the structure.
+
+
+In the internal mechanics of this project, this will be a unique node with no parent 
+that serves as the starting point of graph traversal. 
+Passed as the first positional argument to `lineageplot`,
 `rectangular_layout`, `circular_layout`, and related functions. In
-reader-facing prose, write "root node". Use `rootnode` only when referring to
+reader-facing prose, write "root node". 
+Use `basenode` only when referring to
 the exact API argument or identifier.
 
+In first use in user-facing documents it should clarified or explained 
+as per guidelines, as this is a non-standard term.
+We recognize the domain-standard "root"/"root node" when applicable, but unfortunately
+many implementations and the domain use the term "root"/"root node" for 
+this abstraction when the structure is actually non-rooted.
+Distinguished node/vertex is the more general and correct term, but it is too long.
+We adopt and mandate use of "base node" (`basenode` in code; never "base" or `base` 
+as this is too generic) as an internal alternative that is shorter, and clean of 
+conflicting collisions and semantics. 
+In user-facing or application domain-centric prose we may continue to "root node" 
+and/or "distinguished node" as appropropriate, but only when exactly correct with
+respect to the particular structures referenced, and link to the project term for 
+clarity. 
+For e.g. "When materializing a rooted phylogenetic tree, the root node (the distinguished 
+node; called a  "base node" in this project), may be found using 
+the `basenode()` function)."
+Similarly when introducing the term or something related to the term for the 
+first time in a document.
+
 **Proscribed alternates (as project-owned identifiers):**
-`root`, `rootvertex`, `root_node`, `root_vertex`, `seed`, `seed_node`,
-`source`, `origin`.
+`base`, `basevertex`, `base_node`, `base_vertex`, `seed`, `seed_node`,
+`source`, `origin`, `root`.
 
 ---
 
@@ -877,12 +910,12 @@ required artifact set.
 
 | Symbol | Accessor required | x-coordinate source | Polarity | `axis_polarity` |
 |---|---|---|---|---|
-| `:edgeweights` | `edgeweight` | Cumulative `edgeweight(src, dst)` from `rootnode`; computes `branchingtime` on the fly | Root = 0, increases toward leaves | `:forward` |
+| `:edgeweights` | `edgeweight` | Cumulative `edgeweight(src, dst)` from `basenode`; computes `branchingtime` on the fly | Root = 0, increases toward leaves | `:forward` |
 | `:branchingtime` | `branchingtime` | `branchingtime(node)` directly; user pre-supplies divergence times | Root = 0, increases toward leaves | `:forward` |
 | `:coalescenceage` | `coalescenceage` | `coalescenceage(node)`; requires ultrametric tree (or `nonultrametric` policy) | Leaf = 0, increases toward root | `:backward` |
-| `:nodedepths` | none | Cumulative path distance (edge count) from `rootnode` (all edge weights = 1) | Root = 0, increases toward leaves | `:forward` |
+| `:nodedepths` | none | Cumulative path distance (edge count) from `basenode` (all edge weights = 1) | Root = 0, increases toward leaves | `:forward` |
 | `:nodeheights` | none | Per-node height (path distance to farthest leaf); all leaves at x = 0; clade graph (unweighted) analogue of `:coalescenceage` | Leaf = 0, increases toward root | `:backward` |
-| `:nodelevels` | none | Integer level = edge count from `rootnode`; equal spacing between levels; clade graph (unweighted) analogue of `:branchingtime` | Root = 0, increases toward leaves | `:forward` |
+| `:nodelevels` | none | Integer level = edge count from `basenode`; equal spacing between levels; clade graph (unweighted) analogue of `:branchingtime` | Root = 0, increases toward leaves | `:forward` |
 | `:nodecoordinates` | `nodecoordinates` | User-supplied `(x, y)` in data coordinates | User-defined | User-defined |
 | `:nodepos` | `nodepos` | User-supplied `(x, y)` in pixel coordinates | User-defined | User-defined |
 
@@ -897,14 +930,14 @@ leaves. `lineageunits` values that are leaf-relative (`:coalescenceage`,
 increasing toward the root. With the default `display_polarity = :standard`
 and `lineage_orientation = :left_to_right`, forward `lineageunits` values
 place leaves at the right; backward `lineageunits` values place the
-rootnode at the right.
+basenode at the right.
 
 ## Compound-word naming convention
 
 Compound accessor names and domain-specific identifiers in this package are
 written without underscores when the compound reads naturally as a single
 concept: `edgeweight`, `nodevalue`, `coalescenceage`, `branchingtime`,
-`rootnode`, `boundingbox`, `lineageunits`. This is consistent with
+`basenode`, `boundingbox`, `lineageunits`. This is consistent with
 STYLE-julia.md §2.1, which permits omitting underscores when the name is not
 hard to read.
 
@@ -927,7 +960,7 @@ names, or symbols, including code examples.
 | Concept | Canonical form | Type-param form | Proscribed short forms |
 |---|---|---|---|
 | A generic graph node | `node` (full word) | `NodeT` | `n`, `nd`, `v`, `V` |
-| Root node | `rootnode` (one word) | — | `root`, `rootvertex`, `root_node` |
+| Distinguished node ("root" in rooted structures | `basenode` (one word) | — | `base`, `basevertex`, `base_node` |
 | Edge source (parent node) | `src` | — | `fromnode`, `fromvertex`, `s`, `from_node` |
 | Edge destination (child node) | `dst` | — | `tonode`, `tovertex`, `d`, `to_node` |
 | Indexed nodes | `node1`, `node2` | — | `n1`, `n2`, `v1`, `v2` |
