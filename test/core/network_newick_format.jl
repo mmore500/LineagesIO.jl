@@ -130,8 +130,8 @@ end
         end
     end
     builder_store = load(fixture_path; builder = builder)
-    builder_root = first(builder_store.graphs).materialized
-    @test builder_root.label == "Root"
+    builder_basenode = first(builder_store.graphs).materialized
+    @test builder_basenode.label == "Root"
     @test (:multi, 4, [2, 6], [3, 6]) in NETWORK_BUILDER_EVENTS
 
     single_parent_target_error = capture_expected_load_error() do

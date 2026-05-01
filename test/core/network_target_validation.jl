@@ -218,7 +218,7 @@ end
         [asset],
         LineagesIO.NodeTypeLoadRequest(ValidationMultiParentNode),
     )
-    materialized_root = only(graph_assets).materialized
-    @test materialized_root.finalized
+    materialized_basenode = only(graph_assets).materialized
+    @test materialized_basenode.finalized
     @test (:multi, 4, [2, 3], [3, 4], [0.8, 0.2], ["major", "minor"], "0.44") in VALIDATION_MULTI_PARENT_EVENTS
 end
