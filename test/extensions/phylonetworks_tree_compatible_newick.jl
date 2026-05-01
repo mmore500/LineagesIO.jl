@@ -4,9 +4,10 @@ using PhyloNetworks
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === graph.node[graph.rooti]
     @test graph.numhybrids == 0
     @test graph.numnodes == 5
     @test graph.numedges == 4
@@ -35,9 +36,10 @@ end
     target = PhyloNetworks.HybridNetwork()
     store = load(fixture_path, target)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph === target
+    @test asset.basenode === graph.node[graph.rooti]
     @test graph.numnodes == 7
     @test graph.numedges == 7
     @test graph.numhybrids == 1

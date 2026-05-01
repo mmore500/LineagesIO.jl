@@ -93,6 +93,7 @@
         node_table,
         edge_table,
         nothing,
+        nothing,
         "synthetic.nwk",
     )
     graphs = LineagesIO.GraphAssetIterator([graph_asset])
@@ -108,7 +109,8 @@
     @test asset.collection_graph_idx == 3
     @test asset.collection_label == "posterior block"
     @test asset.graph_label == "graph 3"
-    @test asset.materialized === nothing
+    @test asset.graph === nothing
+    @test asset.basenode === nothing
     @test asset.source_path == "synthetic.nwk"
     @test asset.node_table === node_table
     @test asset.edge_table === edge_table
@@ -117,6 +119,7 @@ end
 @testset "basenode accessor — tables-only error" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
     tables_only_asset = first(load(File{LineagesIO.NewickFormat}(fixture_path)).graphs)
-    @test tables_only_asset.materialized === nothing
+    @test tables_only_asset.graph === nothing
+    @test tables_only_asset.basenode === nothing
     @test_throws ArgumentError basenode(tables_only_asset)
 end

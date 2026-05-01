@@ -1,11 +1,13 @@
 """
-    LineageGraphAsset{MaterializedT}
+    LineageGraphAsset{GraphT, BasenodeT}
 
 Single-graph load result that carries authoritative package-owned tables and
-graph/source coordinates together with any optional materialized graph result.
+graph/source coordinates together with any optional constructed graph container
+and basenode.
 """
 struct LineageGraphAsset{
-    MaterializedT,
+    GraphT,
+    BasenodeT,
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
@@ -17,7 +19,8 @@ struct LineageGraphAsset{
     graph_label::OptionalString
     node_table::NodeTableT
     edge_table::EdgeTableT
-    materialized::MaterializedT
+    graph::GraphT
+    basenode::BasenodeT
     source_path::OptionalString
 end
 
@@ -26,13 +29,14 @@ struct GraphAssetIterator{GraphAssetVectorT <: AbstractVector}
 end
 
 """
-    LineageGraphStore{MaterializedT}
+    LineageGraphStore{GraphT, BasenodeT}
 
 Top-level load result. `graphs` is a lazy iterator of
-`LineageGraphAsset{MaterializedT}` values.
+`LineageGraphAsset{GraphT, BasenodeT}` values.
 """
 struct LineageGraphStore{
-    MaterializedT,
+    GraphT,
+    BasenodeT,
     SourceTableT <: SourceTable,
     CollectionTableT <: CollectionTable,
     GraphTableT <: GraphTable,
@@ -56,9 +60,10 @@ function LineageGraphStore(
     GraphAssetVectorT <: AbstractVector,
 }
     graph_asset_type = eltype(GraphAssetVectorT)
-    materialized_type = fieldtype(graph_asset_type, 9)
+    graph_type = fieldtype(graph_asset_type, 9)
+    basenode_type = fieldtype(graph_asset_type, 10)
     graph_iterator_type = typeof(graphs)
-    return LineageGraphStore{materialized_type, SourceTableT, CollectionTableT, GraphTableT, graph_iterator_type}(
+    return LineageGraphStore{graph_type, basenode_type, SourceTableT, CollectionTableT, GraphTableT, graph_iterator_type}(
         source_table,
         collection_table,
         graph_table,
@@ -182,29 +187,31 @@ end
 """
     basenode(asset::LineageGraphAsset)
 
-Return the root node (basenode) of the graph from a construction load.
+Return the basenode of the graph from a construction load.
 
 The concrete return type depends on the load surface used:
 
-- **Native LineagesIO protocol**: returns the user-supplied root node object
+- **Native LineagesIO protocol**: returns the user-supplied basenode object
   (the type passed to `load` or returned by the `builder` callback).
-- **PhyloNetworks extension**: returns the root `PhyloNetworks.Node` of the
-  materialized `HybridNetwork` (i.e., `net.node[net.root]`).
+- **PhyloNetworks extension**: returns the basenode `PhyloNetworks.Node` of
+  the constructed `HybridNetwork` (i.e., `net.node[net.rooti]`).
 - **MetaGraphsNext extension**: returns the vertex label `Symbol` of the
-  basenode (always `:1`), which is the key used to dereference vertex data
-  and edges from the `MetaGraph` (e.g., `asset.materialized[:1]`).
+  basenode (always `Symbol(1)`), which is the key used to dereference vertex
+  data and edges from the `MetaGraph` (e.g., `asset.graph[Symbol(1)]`).
 
 Raises `ArgumentError` for tables-only assets where no construction target
-was supplied and `asset.materialized === nothing`.
+was supplied and `asset.basenode === nothing`.
 """
-function basenode(asset::LineageGraphAsset{MaterializedT})::MaterializedT where {MaterializedT}
-    asset.materialized === nothing && throw(
+function basenode(
+    asset::LineageGraphAsset{<:Any, BasenodeT, <:NodeTable, <:EdgeTable},
+)::BasenodeT where {BasenodeT}
+    asset.basenode === nothing && throw(
         ArgumentError(
             "Cannot extract a `basenode` from a tables-only `LineageGraphAsset`. " *
-            "Supply a construction target to `load` to obtain a materialized result."
+            "Supply a construction target to `load` to obtain constructed `graph` and `basenode` values."
         )
     )
-    return asset.materialized
+    return asset.basenode
 end
 
 """
@@ -212,17 +219,19 @@ end
     Base.length(::LineageGraphAsset)
 
 Enable assignment and loop destructuring of a `LineageGraphAsset` in the stable
-public order `(materialized, node_table, edge_table)`.
+public order `(graph, basenode, node_table, edge_table)`.
 
-For tables-only loads, the first destructured value is `nothing`.
+For tables-only loads, the destructured `graph` and `basenode` values are both
+`nothing`.
 """
 Base.IteratorSize(::Type{<:LineageGraphAsset}) = Base.HasLength()
-Base.length(::LineageGraphAsset)::Int = 3
+Base.length(::LineageGraphAsset)::Int = 4
 
 function Base.iterate(asset::LineageGraphAsset, state::Int = 1)
-    state == 1 && return asset.materialized, 2
-    state == 2 && return asset.node_table, 3
-    state == 3 && return asset.edge_table, 4
+    state == 1 && return asset.graph, 2
+    state == 2 && return asset.basenode, 3
+    state == 3 && return asset.node_table, 4
+    state == 4 && return asset.edge_table, 5
     return nothing
 end
 

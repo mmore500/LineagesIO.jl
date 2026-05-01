@@ -20,9 +20,10 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-materialized, node_table, edge_table = asset
+graph, basenode, node_table, edge_table = asset
 
-materialized === nothing
+graph === nothing
+basenode === nothing
 node_table === asset.node_table
 edge_table === asset.edge_table
 ```
@@ -45,8 +46,8 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
 `edge_table` objects. Each asset destructures in the stable public order
-`(materialized, node_table, edge_table)`. For the tables-only path, the first
-destructured value is `nothing`.
+`(graph, basenode, node_table, edge_table)`. For the tables-only path, the
+destructured `graph` and `basenode` values are both `nothing`.
 
 Construction loads reuse the same authoritative tables and expose retained
 annotation values through `NodeRowRef`, `EdgeRowRef`, `node_property`, and
@@ -92,10 +93,10 @@ function LineagesIO.add_child(
 end
 
 store = load("annotated_tree.nwk", DemoNode)
-basenode = first(store.graphs).materialized
-
-graph, node_table, edge_table = first(store.graphs)
-graph === basenode
+asset = first(store.graphs)
+graph, basenode, node_table, edge_table = asset
+graph === nothing
+LineagesIO.basenode(asset) === basenode
 ```
 
 ## PhyloNetworks extension
@@ -132,7 +133,7 @@ store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
 # MetaGraph{Int, SimpleDiGraph{Int}, Symbol, Nothing, Union{Nothing,Float64}, ...}
-graph = asset.materialized
+graph = asset.graph
 graph[Symbol(1), Symbol(2)]   # source edge weight (Union{Nothing,Float64})
 graph[Symbol(3)]              # vertex data (nothing — VertexData=Nothing)
 asset.node_table
@@ -156,7 +157,7 @@ my_graph = MetaGraph(
     0.0,
 )
 store = load("annotated_network.nwk", my_graph)
-graph = first(store.graphs).materialized
+graph = first(store.graphs).graph
 graph[Symbol(1), Symbol(2)]   # → Float64 edge weight
 ```
 

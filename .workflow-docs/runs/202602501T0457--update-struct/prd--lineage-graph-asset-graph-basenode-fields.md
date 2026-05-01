@@ -16,17 +16,17 @@ surface:
 | Load surface | Current `materialized` value |
 |---|---|
 | Tables-only | `nothing` |
-| Native protocol (`add_child` / `bind_basenode!`) | the user's root node object |
+| Native protocol (`add_child` / `bind_basenode!`) | the user's basenode object |
 | MetaGraphsNext extension | a `MetaGraph{...}` container |
 | PhyloNetworks extension | a `HybridNetwork` container |
 
-This creates a semantic mismatch: for native-protocol loads, `materialized` is a root
-node; for extension loads, it is a graph container. The field name communicates neither
+This creates a semantic mismatch: for native-protocol loads, `materialized` is a basenode;
+for extension loads, it is a graph container. The field name communicates neither
 distinction. Callers cannot know what they hold without reading extension-specific
 documentation.
 
 Splitting into `graph` (always a library container or `nothing`) and `basenode` (always
-a root node or `nothing`) makes the contract explicit at the type level.
+a basenode or `nothing`) makes the contract explicit at the type level.
 
 ---
 
@@ -37,9 +37,9 @@ a root node or `nothing`) makes the contract explicit at the type level.
 | Load surface | `asset.graph` | `asset.basenode` |
 |---|---|---|
 | Tables-only | `nothing` | `nothing` |
-| Native protocol | `nothing` | user's root node object |
-| MetaGraphsNext extension | `MetaGraph{...}` | `:1` (`Symbol`) |
-| PhyloNetworks extension | `HybridNetwork` | `net.node[net.root]` |
+| Native protocol | `nothing` | user's basenode object |
+| MetaGraphsNext extension | `MetaGraph{...}` | `Symbol(1)` |
+| PhyloNetworks extension | `HybridNetwork` | `net.node[net.rooti]` |
 
 ### Destructuring Contract
 
@@ -203,7 +203,7 @@ end
 #### 1d. `basenode(asset)` function
 
 The current implementation returns `asset.materialized` and is overridden per extension
-to return the correct root node. After this change, the correct value is stored in
+to return the correct basenode. After this change, the correct value is stored in
 `asset.basenode` at construction time. The base implementation simplifies; extension
 overrides are deleted.
 
@@ -213,7 +213,7 @@ function basenode(asset::LineageGraphAsset{MaterializedT})::MaterializedT where 
     asset.materialized === nothing && throw(
         ArgumentError(
             "Cannot extract a `basenode` from a tables-only `LineageGraphAsset`. " *
-            "Supply a construction target to `load` to obtain a materialized result."
+            "Supply a construction target to `load` to obtain constructed `graph` and `basenode` values."
         )
     )
     return asset.materialized
@@ -225,13 +225,13 @@ end
 """
     basenode(asset::LineageGraphAsset)
 
-Return the root node of the graph from a construction load.
+Return the basenode of the graph from a construction load.
 
 The concrete type depends on the load surface:
 
-- **Native protocol**: the user-supplied root node object.
-- **MetaGraphsNext extension**: the vertex label `Symbol` `:1`.
-- **PhyloNetworks extension**: the root `PhyloNetworks.Node` (`net.node[net.root]`).
+- **Native protocol**: the user-supplied basenode object.
+- **MetaGraphsNext extension**: the vertex label `Symbol(1)`.
+- **PhyloNetworks extension**: the basenode `PhyloNetworks.Node` (`net.node[net.rooti]`).
 
 Raises `ArgumentError` for tables-only assets where no construction target was supplied.
 """
@@ -269,7 +269,7 @@ Extension authors must add a method for their container type if they override
 `finalize_graph!` to return one.
 
 # Default behaviour
-Returns `nothing`. Applies to native-protocol loads where the user's root node
+Returns `nothing`. Applies to native-protocol loads where the user's basenode
 IS the graph and no separate container exists.
 """
 graph_from_finalized(::Any)::Nothing = nothing
@@ -277,14 +277,14 @@ graph_from_finalized(::Any)::Nothing = nothing
 """
     basenode_from_finalized(result) -> BasenodeT
 
-Return the root node from a finalized construction result.
+Return the basenode from a finalized construction result.
 
 Extension authors must add a method for their container type if they override
-`finalize_graph!` to return a container rather than a root node.
+`finalize_graph!` to return a container rather than a basenode.
 
 # Default behaviour
 Returns `result` unchanged. Applies to native-protocol loads where `finalize_graph!`
-returns the root node directly.
+returns the basenode directly.
 """
 basenode_from_finalized(result::T)::T where {T} = result
 ```
@@ -427,7 +427,7 @@ end
 """
     basenode_from_finalized(::MetaGraph) -> Symbol
 
-Return `:1`, the vertex label of the basenode in any `MetaGraph` built by this
+Return `Symbol(1)`, the vertex label of the basenode in any `MetaGraph` built by this
 extension. The basenode is always assigned nodekey `1` during construction.
 """
 LineagesIO.basenode_from_finalized(::MetaGraph)::Symbol = Symbol(StructureKeyType(1))
@@ -467,10 +467,10 @@ LineagesIO.graph_from_finalized(net::HybridNetwork)::HybridNetwork = net
 """
     basenode_from_finalized(net::HybridNetwork) -> PhyloNetworks.Node
 
-Return the root node of the finalized `HybridNetwork`.
+Return the basenode of the finalized `HybridNetwork`.
 """
 function LineagesIO.basenode_from_finalized(net::HybridNetwork)::PhyloNetworks.Node
-    return net.node[net.root]
+    return net.node[net.rooti]
 end
 ```
 
@@ -482,7 +482,7 @@ The following method is no longer needed and must be removed:
 # DELETE this entire block:
 function LineagesIO.basenode(asset::LineageGraphAsset{<:HybridNetwork, <:NodeTable, <:EdgeTable})
     net = asset.materialized
-    return net.node[net.root]
+    return net.node[net.rooti]
 end
 ```
 
@@ -509,7 +509,7 @@ graph, basenode, node_table, edge_table = asset
 @test node_table === asset.node_table
 @test edge_table === asset.edge_table
 
-# For native-protocol assets: graph is nothing, basenode is the root node
+# For native-protocol assets: graph is nothing, basenode is the basenode object
 @test graph === nothing
 @test basenode isa FixtureNetworkNode  # or whatever the concrete native type is
 
@@ -542,7 +542,7 @@ In `test/extensions/metagraphsnext_activation.jl` (or equivalent):
 asset = only(store.graphs)
 graph, basenode_label, node_table, edge_table = asset
 @test graph isa MetaGraph
-@test basenode_label === :1
+@test basenode_label === Symbol(1)
 ```
 
 In `test/extensions/phylonetworks_activation.jl` (or equivalent):
@@ -552,7 +552,7 @@ asset = only(store.graphs)
 graph, basenode_node, node_table, edge_table = asset
 @test graph isa HybridNetwork
 @test basenode_node isa PhyloNetworks.Node
-@test basenode_node === graph.node[graph.root]
+@test basenode_node === graph.node[graph.rooti]
 ```
 
 #### 7c. Grep and update all remaining `asset.materialized` references
@@ -564,7 +564,7 @@ grep -rn "\.materialized" test/ src/ ext/
 ```
 
 For each hit, replace with `asset.graph` (when the caller used the value as a graph
-container) or `asset.basenode` (when the caller used the value as a root node), based
+container) or `asset.basenode` (when the caller used the value as a basenode), based
 on context.
 
 ---

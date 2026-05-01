@@ -26,6 +26,7 @@ function synthetic_network_asset_for_protocol()
         edge_table,
         nothing,
         nothing,
+        nothing,
     )
 end
 
@@ -57,6 +58,7 @@ function synthetic_tree_asset_for_protocol()
         edge_table,
         nothing,
         nothing,
+        nothing,
     )
 end
 
@@ -83,6 +85,7 @@ function synthetic_impossible_network_asset()
         nothing,
         node_table,
         edge_table,
+        nothing,
         nothing,
         nothing,
     )
@@ -179,7 +182,8 @@ end
         network_asset,
         LineagesIO.NodeTypeLoadRequest(SchedulerProtocolNode),
     )
-    @test materialized_asset.materialized.finalized
+    @test materialized_asset.graph === nothing
+    @test materialized_asset.basenode.finalized
     @test MULTI_PARENT_PROTOCOL_EVENTS == Any[
         (:root, 1, "Root", "0.99"),
         (:single, 2, 1, 1, 2.0, 1, nothing, "0.81"),
@@ -195,7 +199,8 @@ end
         tree_asset,
         LineagesIO.NodeTypeLoadRequest(SchedulerProtocolNode),
     )
-    @test tree_materialized.materialized.finalized
+    @test tree_materialized.graph === nothing
+    @test tree_materialized.basenode.finalized
     @test MULTI_PARENT_PROTOCOL_EVENTS == Any[
         (:root, 1, "Root", "0.99"),
         (:single, 2, 1, 1, 2.0, 1, nothing, "0.81"),

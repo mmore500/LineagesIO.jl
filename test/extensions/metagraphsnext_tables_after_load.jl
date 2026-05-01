@@ -7,7 +7,8 @@ using MetaGraphsNext
 
     @test asset.node_table isa LineagesIO.NodeTable
     @test asset.edge_table isa LineagesIO.EdgeTable
-    @test asset.materialized isa MetaGraphsNext.MetaGraph
+    @test asset.graph isa MetaGraphsNext.MetaGraph
+    @test asset.basenode === Symbol(1)
     @test LineagesIO.node_property(asset.node_table, 1, :posterior) == "0.99"
     @test LineagesIO.node_property(asset.node_table, 4, :posterior) == "0.52"
     @test LineagesIO.edge_property(asset.edge_table, 2, :bootstrap) == "97"

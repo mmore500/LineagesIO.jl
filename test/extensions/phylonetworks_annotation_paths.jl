@@ -4,7 +4,7 @@ using PhyloNetworks
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     hybrid = phylonetworks_node(graph, 4)
     major_edge = phylonetworks_edge(graph, 3)

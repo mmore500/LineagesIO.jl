@@ -12,9 +12,10 @@ end
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
     store = load(fixture_path, MetaGraphsNext.MetaGraph)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph isa MetaGraphsNext.MetaGraph
+    @test asset.basenode === Symbol(1)
     @test MetaGraphsNext.Graphs.nv(graph) == 5
     @test MetaGraphsNext.Graphs.ne(graph) == 4
 

@@ -17,13 +17,13 @@ example_path = normpath(
 store = load(example_path, HybridNetwork)
 asset = first(store.graphs)
 
-net = asset.materialized
+net = asset.graph
 node_table = asset.node_table
 edge_table = asset.edge_table
 
 println("source: ", example_path)
-println("materialized type: ", typeof(net))
-println("root node number: ", net.node[net.rooti].number)
+println("constructed graph type: ", typeof(net))
+println("basenode number: ", asset.basenode.number)
 println("node count: ", net.numnodes)
 println("edge count: ", net.numedges)
 println("hybrid count: ", net.numhybrids)

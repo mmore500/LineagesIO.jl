@@ -16,9 +16,11 @@ export SourceTable
 export StructureKeyType
 export add_child
 export basenode
+export basenode_from_finalized
 export bind_basenode!
 export edge_property
 export finalize_graph!
+export graph_from_finalized
 export node_property
 
 """

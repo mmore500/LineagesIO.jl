@@ -35,9 +35,10 @@ end
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === graph.node[graph.rooti]
     @test graph.numnodes == 7
     @test graph.numedges == 7
     @test graph.numhybrids == 1
@@ -72,7 +73,7 @@ end
 @testset "PhyloNetworks downstream mutation keeps node numbers unique" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
-    graph = first(store.graphs).materialized
+    graph = first(store.graphs).graph
 
     original_numbers = [node.number for node in graph.node]
     new_leaf = PhyloNetworks.addChild!(graph, only(graph.hybrid))

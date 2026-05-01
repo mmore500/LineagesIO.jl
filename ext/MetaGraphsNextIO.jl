@@ -49,7 +49,7 @@ end
     ConcreteMetaGraphsNextTreeView{GraphT, NodeTableT, EdgeTableT}
 
 Extension-private struct returned by `MetaGraphsNextTreeView`. Wraps a
-materialized MetaGraph together with its authoritative tables and a current
+constructed MetaGraph together with its authoritative tables and a current
 nodekey, making it traversable by AbstractTrees.jl.
 """
 struct ConcreteMetaGraphsNextTreeView{
@@ -68,7 +68,7 @@ end
 #
 # Symbol satisfies the MetaGraphsNext requirement that Label ≠ Code type
 # (metagraph.jl:16), has interned equality (O(1) Dict lookups), and produces
-# idiomatic user access: graph[:3], graph[:1, :2].
+# idiomatic user access: graph[Symbol(3)], graph[Symbol(1), Symbol(2)].
 #
 # node_label and label_nodekey are accessed by name from
 # MetaGraphsNextAbstractTreesIO (lines 20 and 29 of that extension), so
@@ -79,7 +79,7 @@ end
     node_label(nodekey) -> Symbol
 
 Convert a `StructureKeyType` nodekey to the MetaGraph `Symbol` label used for
-that node. `Symbol(1)` → `:1`, `Symbol(2)` → `:2`, etc.
+that node. For example, `1` becomes `Symbol(1)` and `2` becomes `Symbol(2)`.
 """
 node_label(nodekey::StructureKeyType)::Symbol = Symbol(nodekey)
 
@@ -412,18 +412,14 @@ function LineagesIO.finalize_graph!(cursor::MetaGraphsNextBuildCursor)
 end
 
 # ---------------------------------------------------------------------------
-# basenode
+# Finalized-result projections.
 # ---------------------------------------------------------------------------
 
-function LineagesIO.basenode(
-    ::LineageGraphAsset{GraphT, NodeTableT, EdgeTableT},
-) where {
-    GraphT <: MetaGraph,
-    NodeTableT <: NodeTable,
-    EdgeTableT <: EdgeTable,
-}
-    return Symbol(StructureKeyType(1))
+function LineagesIO.graph_from_finalized(graph::GraphT)::GraphT where {GraphT <: MetaGraph}
+    return graph
 end
+
+LineagesIO.basenode_from_finalized(::MetaGraph)::Symbol = Symbol(StructureKeyType(1))
 
 # ---------------------------------------------------------------------------
 # MetaGraphsNextTreeView — AbstractTrees compatibility entry points.
@@ -433,16 +429,16 @@ end
 # ---------------------------------------------------------------------------
 
 function LineagesIO.MetaGraphsNextTreeView(
-    asset::LineageGraphAsset{GraphT, NodeTableT, EdgeTableT},
+    asset::LineageGraphAsset{GraphT, <:Any, NodeTableT, EdgeTableT},
 ) where {
     GraphT <: MetaGraph,
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
-    graph = asset.materialized
+    graph = asset.graph
     nv(graph) > 0 || throw(
         ArgumentError(
-            "`MetaGraphsNextTreeView` requires a non-empty materialized MetaGraph.",
+            "`MetaGraphsNextTreeView` requires a non-empty MetaGraph-backed asset.",
         ),
     )
     return ConcreteMetaGraphsNextTreeView(

@@ -23,9 +23,10 @@ end
     )
     store = load(network_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === graph.node[graph.rooti]
     @test asset.index == 1
     @test asset.source_idx == 1
     @test asset.collection_idx == 1
@@ -84,9 +85,10 @@ end
         PhyloNetworks.HybridNetwork,
     )
     asset = first(store.graphs)
-    graph = asset.materialized
+    graph = asset.graph
 
     @test graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === graph.node[graph.rooti]
     @test asset.source_path == ambiguous_tree_path
     @test graph.isrooted
     @test graph.numnodes == 5
@@ -117,7 +119,8 @@ end
     store = load(network_path, target)
     asset = first(store.graphs)
 
-    @test asset.materialized === target
+    @test asset.graph === target
+    @test asset.basenode === target.node[target.rooti]
     @test target.isrooted
     @test target.numnodes == 7
     @test target.numedges == 7

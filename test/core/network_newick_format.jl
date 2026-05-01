@@ -70,7 +70,8 @@ end
     store = load(File{LineagesIO.NewickFormat}(fixture_path))
     asset = first(store.graphs)
 
-    @test asset.materialized === nothing
+    @test asset.graph === nothing
+    @test asset.basenode === nothing
     @test Tables.columnnames(asset.node_table) == (:nodekey, :label, :posterior)
     @test Tables.columnnames(asset.edge_table) == (:edgekey, :src_nodekey, :dst_nodekey, :edgeweight, :phase, :branch, :gamma, :support)
     @test Tables.getcolumn(asset.node_table, :nodekey) == [1, 2, 3, 4, 5, 6, 7]
@@ -88,7 +89,8 @@ end
     empty!(NETWORK_FIXTURE_EVENTS)
     materialized_store = load(fixture_path, FixtureNetworkNode)
     materialized_asset = first(materialized_store.graphs)
-    basenode = materialized_asset.materialized
+    @test materialized_asset.graph === nothing
+    basenode = materialized_asset.basenode
     @test basenode.finalized
     @test basenode.label == "Root"
     @test length(basenode.child_collection) == 2
@@ -130,7 +132,7 @@ end
         end
     end
     builder_store = load(fixture_path; builder = builder)
-    builder_basenode = first(builder_store.graphs).materialized
+    builder_basenode = first(builder_store.graphs).basenode
     @test builder_basenode.label == "Root"
     @test (:multi, 4, [2, 6], [3, 6]) in NETWORK_BUILDER_EVENTS
 

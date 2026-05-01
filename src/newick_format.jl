@@ -128,6 +128,7 @@ function build_graph_asset(
         node_table,
         edge_table,
         nothing,
+        nothing,
         source_path,
     )
 end

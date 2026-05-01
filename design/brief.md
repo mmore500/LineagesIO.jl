@@ -393,14 +393,14 @@ Their meanings are:
 
 - `load(src)` loads into package-owned tables only and does not require a user
   graph materialization target
-- `load(src, NodeT)` asks LineagesIO to create a materialized result through
+- `load(src, NodeT)` asks LineagesIO to create a constructed graph result through
   the public construction protocol for that target type
-- `load(src, basenode::NodeT)` asks LineagesIO to bind the parsed root node
+- `load(src, basenode::NodeT)` asks LineagesIO to bind the parsed basenode
   onto the supplied construction target and then construct descendants through
   the public construction protocol
 - `load(src; builder = fn)` asks LineagesIO to use an explicit builder callback
 
-For user-defined protocol implementations, `NodeT` is often a root-node or
+For user-defined protocol implementations, `NodeT` is often a basenode or
 node-handle type. For first-class package extensions, `NodeT` may instead be a
 native graph or container type from the target package. Public extension load
 surfaces must prefer native target-package types where that can be supported
@@ -427,16 +427,16 @@ The public graph-construction protocol consists of three functions:
 - `add_child`
 - `finalize_graph!`
 
-`bind_basenode!` binds a parsed root node onto a supplied construction target.
+`bind_basenode!` binds a parsed basenode onto a supplied construction target.
 `add_child` materializes descendants. `finalize_graph!` performs optional
 post-build cleanup after the final `add_child` call for a graph and before
-`LineageGraphAsset` assembly, returning the value stored as the graph's
-materialized result.
+`LineageGraphAsset` assembly, returning the finalized construction result that
+is projected into `graph` and `basenode`.
 
 ### `bind_basenode!`
 
 When the caller supplies `load(src, basenode::NodeT)`, LineagesIO binds the
-parsed root node onto that supplied target through:
+parsed basenode onto that supplied target through:
 
 ```julia
 function bind_basenode!(
@@ -452,16 +452,16 @@ The contract of `bind_basenode!` is:
 
 - it is called exactly once for each graph loaded through
   `load(src, basenode::NodeT)`
-- it binds the distinguished structural root-node properties of the parsed
+- it binds the distinguished structural basenode properties of the parsed
   graph onto the supplied target
 - it may mutate the supplied target, validate it, or return an equivalent
   target
 - it receives `nodedata` as a row reference into the authoritative node table
 - it does not receive an `edgekey`, `edgeweight`, or `edgedata`, because the
-  root node has no incoming edge
+  basenode has no incoming edge
 
 After `bind_basenode!` returns, all descendant construction proceeds through
-`add_child`, using the bound root return value as the parent handle where
+`add_child`, using the bound basenode return value as the parent handle where
 appropriate.
 
 ### `add_child`
@@ -473,10 +473,10 @@ Everything in the parsing pipeline converges on calls to `bind_basenode!`,
 `add_child`, and `finalize_graph!`. LineagesIO calls them. User code or
 extension code implements them.
 
-### Library-created root node
+### Library-created basenode
 
 When the caller uses `load(src, NodeT)` and LineagesIO is responsible for
-creating the root node, the basenode-construction call is:
+creating the basenode, the basenode-construction call is:
 
 ```julia
 function add_child(
@@ -492,10 +492,10 @@ end
 ```
 
 This basenode-construction call is used for rooted trees and rooted networks
-alike. The root node still has no incoming edge.
+alike. The basenode still has no incoming edge.
 
 For generic user-defined protocol implementations, the returned `NodeT` is
-typically the root node or root handle itself. For native package-extension
+typically the basenode or basenode handle itself. For native package-extension
 loads, the public requested result type may instead be a graph or container
 type, while any extension-private per-node cursor state remains internal and
 non-public.
@@ -556,7 +556,7 @@ in scope.
 For generic user-defined protocol implementations, the returned `NodeT` is the
 library's stored handle for that node in all subsequent protocol calls.
 Native package extensions may keep additional private construction state
-internally so long as the public requested materialized type remains the user-
+internally so long as the public requested graph or basenode type remains the user-
 facing result.
 
 ### Builder callbacks
@@ -964,18 +964,18 @@ It must carry:
 
 `basenode` is:
 
-- the root node object when the caller requested graph construction: the user's
-  custom root node for native-protocol loads, or the root node within the
+- the basenode object when the caller requested graph construction: the user's
+  custom basenode for native-protocol loads, or the basenode within the
   container for extension loads
 - `nothing` when the caller did not request graph construction
 
 Both fields are `nothing` for tables-only loads.
 
 For native LineagesIO protocol construction, `graph` is always `nothing`; `basenode`
-holds the user's custom root node returned by `finalize_graph!`.
+holds the user's custom basenode returned by `finalize_graph!`.
 
 For first-class extension loads (e.g., MetaGraphsNext, PhyloNetworks), `graph` holds
-the library container and `basenode` holds the root node within it.
+the library container and `basenode` holds the basenode within it.
 
 ### `LineageGraphStore`
 
@@ -1165,9 +1165,9 @@ Registration itself is out of scope for this document.
 
 The package is successful when all of the following are true.
 
-- `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` through the
+- `load("file.nwk", MyNode)` returns `LineageGraphStore{Nothing, MyNode}` through the
   public root-creation and child-construction protocol
-- `load("file.nwk", basenode(lgraph))` binds the parsed root node onto the
+- `load("file.nwk", basenode(lgraph))` binds the parsed basenode onto the
   supplied basenode handle through `bind_basenode!` and then constructs
   descendants through `add_child`
 - `load("file.nwk")` returns a `LineageGraphStore` whose graphs expose

@@ -36,7 +36,7 @@ using PhyloNetworks: HybridNetwork
 store = load("hybrid_example.nwk", HybridNetwork)
 asset = first(store.graphs)
 
-graph = asset.materialized
+graph = asset.graph
 asset.node_table
 asset.edge_table
 ```
@@ -71,7 +71,7 @@ using PhyloNetworks: HybridNetwork
 store = load(File{format"Newick"}("primates.txt"), HybridNetwork)
 asset = first(store.graphs)
 
-graph = asset.materialized
+graph = asset.graph
 asset.node_table
 asset.edge_table
 ```
@@ -110,7 +110,7 @@ target = HybridNetwork()
 store = load("hybrid_example.nwk", target)
 asset = first(store.graphs)
 
-asset.materialized === target
+asset.graph === target
 ```
 
 The supplied target must be empty before loading. This path is secondary to

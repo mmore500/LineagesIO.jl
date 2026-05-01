@@ -62,8 +62,9 @@ end
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
     store = load(fixture_path, SingleParentProtocolNode)
     asset = first(store.graphs)
-    basenode = asset.materialized
+    basenode = asset.basenode
 
+    @test asset.graph === nothing
     @test basenode isa SingleParentProtocolNode
     @test basenode.finalized
     @test basenode.nodekey == 1
@@ -109,7 +110,7 @@ end
         (:finalize, 1, nothing, "Root", "0.99", nothing, nothing),
     ]
 
-    @test LineagesIO.basenode(asset) === asset.materialized
+    @test LineagesIO.basenode(asset) === asset.basenode
     @test LineagesIO.basenode(asset) isa SingleParentProtocolNode
 end
 
@@ -119,22 +120,25 @@ end
     materialized_store = load(fixture_path, SingleParentProtocolNode)
     materialized_asset = first(materialized_store.graphs)
 
-    graph, node_table, edge_table = materialized_asset
-    @test graph === materialized_asset.materialized
+    graph, basenode, node_table, edge_table = materialized_asset
+    @test graph === materialized_asset.graph
+    @test basenode === materialized_asset.basenode
     @test node_table === materialized_asset.node_table
     @test edge_table === materialized_asset.edge_table
-    @test length(materialized_asset) == 3
+    @test length(materialized_asset) == 4
 
-    materialized_only, _, _ = materialized_asset
-    @test materialized_only === materialized_asset.materialized
+    graph_only, basenode_only, _, _ = materialized_asset
+    @test graph_only === materialized_asset.graph
+    @test basenode_only === materialized_asset.basenode
 
-    _, materialized_node_table, materialized_edge_table = materialized_asset
+    _, _, materialized_node_table, materialized_edge_table = materialized_asset
     @test materialized_node_table === materialized_asset.node_table
     @test materialized_edge_table === materialized_asset.edge_table
 
     iteration_count = 0
-    for (graph, node_table, edge_table) in materialized_store.graphs
-        @test graph === materialized_asset.materialized
+    for (graph, basenode, node_table, edge_table) in materialized_store.graphs
+        @test graph === materialized_asset.graph
+        @test basenode === materialized_asset.basenode
         @test node_table === materialized_asset.node_table
         @test edge_table === materialized_asset.edge_table
         iteration_count += 1
@@ -144,13 +148,14 @@ end
     tables_only_store = load(fixture_path)
     tables_only_asset = first(tables_only_store.graphs)
 
-    materialized, node_table, edge_table = tables_only_asset
-    @test materialized === nothing
+    graph, basenode, node_table, edge_table = tables_only_asset
+    @test graph === nothing
+    @test basenode === nothing
     @test node_table === tables_only_asset.node_table
     @test edge_table === tables_only_asset.edge_table
-    @test length(tables_only_asset) == 3
+    @test length(tables_only_asset) == 4
 
-    _, tables_only_node_table, tables_only_edge_table = tables_only_asset
+    _, _, tables_only_node_table, tables_only_edge_table = tables_only_asset
     @test tables_only_node_table === tables_only_asset.node_table
     @test tables_only_edge_table === tables_only_asset.edge_table
 end

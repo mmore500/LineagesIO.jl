@@ -5,7 +5,8 @@ using PhyloNetworks
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
 
-    @test asset.materialized isa PhyloNetworks.HybridNetwork
+    @test asset.graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === asset.graph.node[asset.graph.rooti]
     @test Tables.columnnames(asset.node_table) == (:nodekey, :label, :posterior)
     @test Tables.columnnames(asset.edge_table) == (:edgekey, :src_nodekey, :dst_nodekey, :edgeweight, :phase, :branch, :gamma, :support)
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Left", "A", "H1", "B", "Right", "C"]

@@ -3,7 +3,8 @@
     store = load(File{LineagesIO.NewickFormat}(fixture_path))
     asset = first(store.graphs)
 
-    @test asset.materialized === nothing
+    @test asset.graph === nothing
+    @test asset.basenode === nothing
     @test asset.source_path == fixture_path
     @test asset.collection_label === nothing
     @test asset.graph_label === nothing

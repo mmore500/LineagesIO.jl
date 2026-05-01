@@ -15,11 +15,11 @@ tree_path = normpath(
 )
 tree_store = load(File{format"Newick"}(tree_path), HybridNetwork)
 tree_asset = first(tree_store.graphs)
-tree = tree_asset.materialized
+tree = tree_asset.graph
 
 println("explicit override path: ", tree_path)
-println("tree-compatible materialized type: ", typeof(tree))
-println("tree root node number: ", tree.node[tree.rooti].number)
+println("tree-compatible graph type: ", typeof(tree))
+println("tree basenode number: ", tree_asset.basenode.number)
 println("tree node labels from authoritative table: ", Tables.getcolumn(tree_asset.node_table, :label))
 println("tree leaf names in native HybridNetwork: ", [node.name for node in tree.leaf])
 println("round-trip tree newick: ", writenewick(tree))
@@ -37,7 +37,7 @@ network_store = load(network_path, target)
 network_asset = first(network_store.graphs)
 
 println("supplied-target rooted-network path: ", network_path)
-println("supplied target reused: ", network_asset.materialized === target)
+println("supplied target reused: ", network_asset.graph === target)
 println(
     "graph coordinates: ",
     (

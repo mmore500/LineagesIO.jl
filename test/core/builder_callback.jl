@@ -29,8 +29,9 @@ end
 
     store = load(fixture_path; builder = builder)
     asset = first(store.graphs)
-    basenode = asset.materialized
+    basenode = asset.basenode
 
+    @test asset.graph === nothing
     @test basenode isa BuilderCallbackNode
     @test basenode.finalized
     @test basenode.label == "Root"

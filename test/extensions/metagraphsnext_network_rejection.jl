@@ -18,7 +18,8 @@ using MetaGraphsNext
     store = load(fixture_path, graph)
     asset = first(store.graphs)
 
-    @test asset.materialized === graph
+    @test asset.graph === graph
+    @test asset.basenode === Symbol(1)
     @test MetaGraphsNext.Graphs.nv(graph) == 7
     @test MetaGraphsNext.Graphs.ne(graph) == 7
 end

@@ -64,12 +64,29 @@ function add_child(
 end
 
 """
-    finalize_graph!(materialized)
+    finalize_graph!(result)
 
 Optional post-build cleanup hook. The default implementation is a no-op.
 """
-function finalize_graph!(materialized)
-    return materialized
+function finalize_graph!(result)
+    return result
+end
+
+"""
+    graph_from_finalized(result) -> Union{Nothing, GraphT}
+
+Return the graph container from a finalized construction result, or `nothing`
+if the load surface does not produce a separate graph container.
+"""
+graph_from_finalized(::Any)::Nothing = nothing
+
+"""
+    basenode_from_finalized(result) -> BasenodeT
+
+Return the basenode from a finalized construction result.
+"""
+function basenode_from_finalized(result::T)::T where {T}
+    return result
 end
 
 function graph_requires_multi_parent(edge_table::EdgeTable)::Bool
@@ -114,10 +131,12 @@ function materialize_graphs(
     validate_materialization_request(graph_assets, request)
     first_graph = materialize_graph(first(graph_assets), request)
     materialized_graphs = [first_graph]
-    expected_materialized_type = typeof(first_graph.materialized)
+    expected_graph_type = typeof(first_graph.graph)
+    expected_basenode_type = typeof(first_graph.basenode)
     for graph_asset in Iterators.drop(graph_assets, 1)
         materialized_graph = materialize_graph(graph_asset, request)
-        typeof(materialized_graph.materialized) == expected_materialized_type || throw(ArgumentError("All graphs materialized through one construction request must return the same concrete materialized type, but saw both `$(expected_materialized_type)` and `$(typeof(materialized_graph.materialized))`."))
+        typeof(materialized_graph.graph) == expected_graph_type || throw(ArgumentError("All graphs materialized through one construction request must return the same concrete `graph` type, but saw both `$(expected_graph_type)` and `$(typeof(materialized_graph.graph))`."))
+        typeof(materialized_graph.basenode) == expected_basenode_type || throw(ArgumentError("All graphs materialized through one construction request must return the same concrete `basenode` type, but saw both `$(expected_basenode_type)` and `$(typeof(materialized_graph.basenode))`."))
         push!(materialized_graphs, materialized_graph)
     end
     return materialized_graphs
@@ -269,13 +288,13 @@ function build_multi_parent_protocol_sample(
 end
 
 function materialize_graph(
-    graph_asset::LineageGraphAsset{Nothing, NodeTableT, EdgeTableT},
+    graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
     request::AbstractLoadRequest,
 ) where {
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
-    materialized = materialize_graph_basenode(graph_asset, request)
+    graph_val, basenode_val = materialize_graph_basenode(graph_asset, request)
     return LineageGraphAsset(
         graph_asset.index,
         graph_asset.source_idx,
@@ -285,13 +304,14 @@ function materialize_graph(
         graph_asset.graph_label,
         graph_asset.node_table,
         graph_asset.edge_table,
-        materialized,
+        graph_val,
+        basenode_val,
         graph_asset.source_path,
     )
 end
 
 function materialize_graph_basenode(
-    graph_asset::LineageGraphAsset{Nothing, NodeTableT, EdgeTableT},
+    graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
     request::AbstractLoadRequest,
 ) where {
     NodeTableT <: NodeTable,
@@ -325,7 +345,8 @@ function materialize_graph_basenode(
             node_table,
             edge_table,
         )
-        return finalize_graph!(basenode_handle)
+        finalized = finalize_graph!(basenode_handle)
+        return graph_from_finalized(finalized), basenode_from_finalized(finalized)
     end
 
     materialized_handles = Any[nothing for _ in 1:node_count]
@@ -382,7 +403,8 @@ function materialize_graph_basenode(
     end
 
     all(materialized_ready) || throw_impossible_materialization_schedule(materialized_ready)
-    return finalize_graph!(basenode_handle)
+    finalized = finalize_graph!(basenode_handle)
+    return graph_from_finalized(finalized), basenode_from_finalized(finalized)
 end
 
 function build_child_edgekeys(

@@ -40,9 +40,10 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-materialized, node_table, edge_table = asset
+graph, basenode, node_table, edge_table = asset
 
-materialized === nothing
+graph === nothing
+basenode === nothing
 node_table === asset.node_table
 edge_table === asset.edge_table
 ```
@@ -99,10 +100,12 @@ function LineagesIO.add_child(
 end
 
 store = load("annotated_tree.nwk", DemoNode)
-basenode = first(store.graphs).materialized
+asset = first(store.graphs)
 
-graph, node_table, edge_table = first(store.graphs)
-graph === basenode
+graph, basenode, node_table, edge_table = asset
+graph === nothing
+basenode === asset.basenode
+LineagesIO.basenode(asset) === basenode
 ```
 
 ## PhyloNetworks soft release
@@ -160,7 +163,7 @@ using MetaGraphsNext: MetaGraph
 store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
-graph = asset.materialized
+graph = asset.graph
 graph[Symbol(1), Symbol(2)]  # source edge weight (Union{Nothing,Float64})
 asset.node_table
 asset.edge_table

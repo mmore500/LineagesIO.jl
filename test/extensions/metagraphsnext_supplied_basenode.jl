@@ -13,7 +13,8 @@ using MetaGraphsNext
     store = load(fixture_path, graph)
     asset = first(store.graphs)
 
-    @test asset.materialized === graph
+    @test asset.graph === graph
+    @test asset.basenode === Symbol(1)
     @test MetaGraphsNext.Graphs.nv(graph) == 5
     @test MetaGraphsNext.Graphs.ne(graph) == 4
     @test LineagesIO.node_property(asset.node_table, 1, :posterior) == "0.99"
@@ -61,7 +62,8 @@ end
     float_store = load(fixture_path, float_graph)
     float_asset = first(float_store.graphs)
 
-    @test float_asset.materialized === float_graph
+    @test float_asset.graph === float_graph
+    @test float_asset.basenode === Symbol(1)
     @test MetaGraphsNext.Graphs.nv(float_graph) == 5
     @test MetaGraphsNext.Graphs.ne(float_graph) == 4
     @test float_graph[Symbol(1), Symbol(2)] ≈ 2.0   # Root→Inner
@@ -82,9 +84,10 @@ end
     )
     rowref_store = load(fixture_path, rowref_graph)
     rowref_asset = first(rowref_store.graphs)
-    rowref_graph_out = rowref_asset.materialized
+    rowref_graph_out = rowref_asset.graph
 
     @test rowref_graph_out === rowref_graph
+    @test rowref_asset.basenode === Symbol(1)
     @test MetaGraphsNext.Graphs.nv(rowref_graph_out) == 5
     @test LineagesIO.node_property(rowref_graph_out[Symbol(1)], :label) == "Root"
     @test LineagesIO.edge_property(rowref_graph_out[Symbol(1), Symbol(2)], :edgeweight) ≈ 2.0

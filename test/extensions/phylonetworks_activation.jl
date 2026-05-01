@@ -5,7 +5,8 @@
     store = load(fixture_path)
     asset = first(store.graphs)
 
-    @test asset.materialized === nothing
+    @test asset.graph === nothing
+    @test asset.basenode === nothing
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]
 end
 
@@ -20,6 +21,7 @@ using PhyloNetworks
     store = load(fixture_path, PhyloNetworks.HybridNetwork)
     asset = first(store.graphs)
 
-    @test asset.materialized isa PhyloNetworks.HybridNetwork
+    @test asset.graph isa PhyloNetworks.HybridNetwork
+    @test asset.basenode === asset.graph.node[asset.graph.rooti]
     @test Tables.getcolumn(asset.node_table, :label) == ["Root", "Inner", "A", "", "C"]
 end

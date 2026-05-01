@@ -51,7 +51,8 @@ end
     store = load(fixture_path, basenode)
     asset = first(store.graphs)
 
-    @test asset.materialized === basenode
+    @test asset.graph === nothing
+    @test asset.basenode === basenode
     @test basenode.finalized
     @test basenode.nodekey == 1
     @test basenode.label == "Root"

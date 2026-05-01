@@ -715,9 +715,12 @@ function LineagesIO.finalize_graph!(
     return target
 end
 
-function LineagesIO.basenode(asset::LineageGraphAsset{<:HybridNetwork, <:NodeTable, <:EdgeTable})
-    net = asset.materialized
-    return net.node[net.root]
+LineagesIO.graph_from_finalized(net::HybridNetwork)::HybridNetwork = net
+
+function LineagesIO.basenode_from_finalized(
+    net::HybridNetwork,
+)::PhyloNetworks.Node
+    return net.node[net.rooti]
 end
 
 end
