@@ -166,10 +166,10 @@ function LineagesIO.add_child(
     return child
 end
 
-function LineagesIO.finalize_graph!(rootnode::SchedulerProtocolNode)
-    push!(MULTI_PARENT_PROTOCOL_EVENTS, (:finalize, rootnode.nodekey))
-    rootnode.finalized = true
-    return rootnode
+function LineagesIO.finalize_graph!(basenode::SchedulerProtocolNode)
+    push!(MULTI_PARENT_PROTOCOL_EVENTS, (:finalize, basenode.nodekey))
+    basenode.finalized = true
+    return basenode
 end
 
 @testset "Multi-parent scheduler behavior" begin

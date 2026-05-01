@@ -24,7 +24,7 @@ using MetaGraphsNext.Graphs: SimpleDiGraph, add_edge!, add_vertex!, is_directed,
 """
     MetaGraphsNextBuildCursor{GraphT <: MetaGraph}
 
-Extension-private construction handle returned by `bind_rootnode!` and
+Extension-private construction handle returned by `bind_basenode!` and
 `add_child`. Carries the MetaGraph under construction and the nodekey of the
 node most recently added, so that the next `add_child` call can draw the
 parent → child edge correctly.
@@ -136,7 +136,7 @@ metagraph_label_type(::MetaGraph{<:Any, <:Any, LabelT}) where {LabelT} = LabelT
 Assert that `graph` is a directed, empty `MetaGraph` with `Symbol` as its
 `Label` type parameter. Throws `ArgumentError` if any condition fails.
 
-Called before the supplied-instance load path binds a root node.
+Called before the supplied-instance load path binds a basenode.
 """
 function validate_empty_metagraph(graph::MetaGraph)::Nothing
     is_directed(graph) || throw(
@@ -295,16 +295,16 @@ function LineagesIO.validate_extension_load_target(
 end
 
 # ---------------------------------------------------------------------------
-# Protocol: emit_rootnode (library-created path only).
+# Protocol: emit_basenode (library-created path only).
 #
-# The generic emit_rootnode in construction.jl checks rootnode_handle isa NodeT
+# The generic emit_basenode in construction.jl checks basenode_handle isa NodeT
 # (construction.jl:528-529). Since NodeT = MetaGraph and our handles are
 # MetaGraphsNextBuildCursor, the check would fail without this override.
 # This override is the correct and necessary extension point for the
 # library-created (NodeTypeLoadRequest) path.
 # ---------------------------------------------------------------------------
 
-function LineagesIO.emit_rootnode(
+function LineagesIO.emit_basenode(
     ::LineagesIO.NodeTypeLoadRequest{<:MetaGraph},
     nodekey::StructureKeyType,
     _label::AbstractString,
@@ -316,10 +316,10 @@ function LineagesIO.emit_rootnode(
 end
 
 # ---------------------------------------------------------------------------
-# Protocol: bind_rootnode! (supplied-instance path).
+# Protocol: bind_basenode! (supplied-instance path).
 # ---------------------------------------------------------------------------
 
-function LineagesIO.bind_rootnode!(
+function LineagesIO.bind_basenode!(
     graph::GraphT,
     nodekey::StructureKeyType,
     ::AbstractString;
@@ -353,10 +353,10 @@ end
 # Protocol: add_child — multi-parent probe shim.
 #
 # construction.jl:198 probes for multi-parent add_child support using
-# typeof(request.rootnode)[] — a Vector{MetaGraph{...}} — via which(). This
+# typeof(request.basenode)[] — a Vector{MetaGraph{...}} — via which(). This
 # overload satisfies that probe so the supplied-instance path passes pre-flight
 # validation for multi-parent sources. During actual construction, parent handles
-# are MetaGraphsNextBuildCursor values (returned by bind_rootnode!), and
+# are MetaGraphsNextBuildCursor values (returned by bind_basenode!), and
 # build_parent_collection derives the cursor type via typejoin, so the cursor
 # overload below is called instead — this shim is never reached at runtime.
 # ---------------------------------------------------------------------------

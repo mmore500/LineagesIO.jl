@@ -41,11 +41,11 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `bind_rootnode!`, `add_child`,
+  `edgeweight`, `basenode`, `bind_basenode!`, `add_child`,
   `finalize_graph!`, `node_table`, `edge_table`, `NodeRowRef`, `EdgeRowRef`,
   `LineageGraphAsset`, and `LineageGraphStore` exactly where those concepts
   are in scope
-- write "root node" and "edge weight" in prose, but use `rootnode` and
+- write "basenode" and "edge weight" in prose, but use `basenode` and
   `edgeweight` for project-owned identifiers
 - use upstream `PhyloNetworks.jl` terms such as `HybridNetwork`, `Node`,
   `Edge`, `gamma`, `ismajor`, and `RootMismatch` only at the extension

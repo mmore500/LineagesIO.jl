@@ -29,7 +29,7 @@ function fileio_load(stream::FileIO.Stream{NewickFormat}, args...; builder = not
 end
 
 function assert_supported_load_keywords(kwargs)::Nothing
-    isempty(kwargs) || throw(ArgumentError("Unsupported keyword options for Newick loads. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, rootnode)`, and `load(src; builder = fn)`."))
+    isempty(kwargs) || throw(ArgumentError("Unsupported keyword options for Newick loads. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, basenode)`, and `load(src; builder = fn)`."))
     return nothing
 end
 
@@ -45,13 +45,13 @@ function build_load_request(args::Tuple{Type}, builder)::AbstractLoadRequest
     return NodeTypeLoadRequest(node_type)
 end
 
-function build_load_request(args::Tuple{RootNodeT}, builder)::AbstractLoadRequest where {RootNodeT}
-    builder === nothing || throw(ArgumentError("An explicit `builder` callback cannot be combined with a supplied `rootnode`; choose one construction ownership model."))
-    return RootBindingLoadRequest(first(args))
+function build_load_request(args::Tuple{BasenodeT}, builder)::AbstractLoadRequest where {BasenodeT}
+    builder === nothing || throw(ArgumentError("An explicit `builder` callback cannot be combined with a supplied `basenode`; choose one construction ownership model."))
+    return BasenodeLoadRequest(first(args))
 end
 
 function build_load_request(args::Tuple, builder)::AbstractLoadRequest
-    throw(ArgumentError("Newick loads accept at most one positional construction target. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, rootnode)`, and `load(src; builder = fn)`."))
+    throw(ArgumentError("Newick loads accept at most one positional construction target. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, basenode)`, and `load(src; builder = fn)`."))
 end
 
 function normalize_source_path(source_path::Nothing)::OptionalString

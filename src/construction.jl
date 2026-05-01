@@ -6,8 +6,8 @@ struct NodeTypeLoadRequest{NodeT} <: AbstractLoadRequest
     node_type::Type{NodeT}
 end
 
-struct RootBindingLoadRequest{RootNodeT} <: AbstractLoadRequest
-    rootnode::RootNodeT
+struct BasenodeLoadRequest{BasenodeT} <: AbstractLoadRequest
+    basenode::BasenodeT
 end
 
 struct BuilderLoadRequest{BuilderT} <: AbstractLoadRequest
@@ -15,17 +15,17 @@ struct BuilderLoadRequest{BuilderT} <: AbstractLoadRequest
 end
 
 """
-    bind_rootnode!(rootnode, nodekey, label; nodedata)
+    bind_basenode!(basenode, nodekey, label; nodedata)
 
-Bind a parsed root node onto a caller-supplied `rootnode` handle.
+Bind a parsed basenode onto a caller-supplied `basenode` handle.
 """
-function bind_rootnode!(
-    rootnode,
+function bind_basenode!(
+    basenode,
     nodekey,
     label;
     nodedata,
 )
-    throw(ArgumentError("No `LineagesIO.bind_rootnode!` method is defined for `$(typeof(rootnode))`. Implement `bind_rootnode!(rootnode, nodekey, label; nodedata)` for the supplied rootnode or materialization target, or choose a different load surface."))
+    throw(ArgumentError("No `LineagesIO.bind_basenode!` method is defined for `$(typeof(basenode))`. Implement `bind_basenode!(basenode, nodekey, label; nodedata)` for the supplied basenode or materialization target, or choose a different load surface."))
 end
 
 """
@@ -33,7 +33,7 @@ end
     add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)
 
 Materialize a descendant node through the LineagesIO construction protocol.
-The root-construction event uses `add_child(::Nothing, ...)`.
+The basenode-construction event uses `add_child(::Nothing, ...)`.
 """
 function add_child(
     parent,
@@ -45,7 +45,7 @@ function add_child(
     nodedata,
 )
     if parent === nothing
-        throw(ArgumentError("No `LineagesIO.add_child(::Nothing, ...)` root-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)` or use `load(src; builder = fn)` instead."))
+        throw(ArgumentError("No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)` or use `load(src; builder = fn)` instead."))
     end
     throw(ArgumentError("No single-parent `LineagesIO.add_child` method is defined for parent handles of type `$(typeof(parent))`. Implement `add_child(parent, nodekey, label, edgekey, edgeweight; edgedata, nodedata)` for this node-handle type."))
 end
@@ -98,9 +98,9 @@ end
 
 function materialize_graphs(
     graph_assets::GraphAssetVectorT,
-    request::RootBindingLoadRequest,
+    request::BasenodeLoadRequest,
 ) where {GraphAssetVectorT <: AbstractVector}
-    length(graph_assets) == 1 || throw(ArgumentError("The supplied-root load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use `load(src)` for tables-only access or a library-created-root construction surface instead."))
+    length(graph_assets) == 1 || throw(ArgumentError("The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use `load(src)` for tables-only access or a library-created-basenode construction surface instead."))
     validate_materialization_request(graph_assets, request)
     first_graph = materialize_graph(first(graph_assets), request)
     return [first_graph]
@@ -152,11 +152,11 @@ end
 
 function validate_materialization_request(
     graph_asset::LineageGraphAsset,
-    request::RootBindingLoadRequest,
+    request::BasenodeLoadRequest,
 )::Nothing
-    validate_extension_load_target(request.rootnode, graph_asset)
+    validate_extension_load_target(request.basenode, graph_asset)
     graph_requires_multi_parent(graph_asset) || return nothing
-    validate_multi_parent_root_binding_request(graph_asset, request)
+    validate_multi_parent_basenode_binding_request(graph_asset, request)
     return nothing
 end
 
@@ -189,13 +189,13 @@ function validate_multi_parent_node_type_request(
     throw(ArgumentError("The `load(src, $(request.node_type))` surface cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
 end
 
-function validate_multi_parent_root_binding_request(
+function validate_multi_parent_basenode_binding_request(
     graph_asset::LineageGraphAsset,
-    request::RootBindingLoadRequest,
+    request::BasenodeLoadRequest,
 )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
-    sample_parents = typeof(request.rootnode)[]
+    sample_parents = typeof(request.basenode)[]
     has_custom_multi_parent_add_child(
         sample_parents,
         sample.child_nodekey,
@@ -206,7 +206,7 @@ function validate_multi_parent_root_binding_request(
         nodedata = sample.nodedata,
     ) && return nothing
 
-    throw(ArgumentError("The supplied `rootnode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
+    throw(ArgumentError("The supplied `basenode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
 end
 
 function validate_multi_parent_builder_request(
@@ -275,7 +275,7 @@ function materialize_graph(
     NodeTableT <: NodeTable,
     EdgeTableT <: EdgeTable,
 }
-    materialized = materialize_graph_rootnode(graph_asset, request)
+    materialized = materialize_graph_basenode(graph_asset, request)
     return LineageGraphAsset(
         graph_asset.index,
         graph_asset.source_idx,
@@ -290,7 +290,7 @@ function materialize_graph(
     )
 end
 
-function materialize_graph_rootnode(
+function materialize_graph_basenode(
     graph_asset::LineageGraphAsset{Nothing, NodeTableT, EdgeTableT},
     request::AbstractLoadRequest,
 ) where {
@@ -308,16 +308,16 @@ function materialize_graph_rootnode(
     edgeweights = Tables.getcolumn(edge_table, :edgeweight)
 
     child_nodekeys_by_parent, incoming_edgekeys_by_child = build_graph_structure(edge_table, node_count)
-    rootnodekey = validate_and_find_rootnodekey(incoming_edgekeys_by_child)
+    basenodekey = validate_and_find_basenodekey(incoming_edgekeys_by_child)
 
-    rootnodedata = NodeRowRef(node_table, rootnodekey)
-    rootnode_handle = emit_rootnode(request, rootnodekey, labels[rootnodekey], rootnodedata)
+    basenodedata = NodeRowRef(node_table, basenodekey)
+    basenode_handle = emit_basenode(request, basenodekey, labels[basenodekey], basenodedata)
     if !graph_requires_multi_parent(graph_asset)
         child_edgekeys_by_parent = build_child_edgekeys(edge_table, node_count)
         construct_single_parent_descendants!(
             request,
-            rootnode_handle,
-            rootnodekey,
+            basenode_handle,
+            basenodekey,
             labels,
             dst_nodekeys,
             edgeweights,
@@ -325,17 +325,17 @@ function materialize_graph_rootnode(
             node_table,
             edge_table,
         )
-        return finalize_graph!(rootnode_handle)
+        return finalize_graph!(basenode_handle)
     end
 
     materialized_handles = Any[nothing for _ in 1:node_count]
     materialized_ready = falses(node_count)
-    materialized_handles[rootnodekey] = rootnode_handle
-    materialized_ready[rootnodekey] = true
+    materialized_handles[basenodekey] = basenode_handle
+    materialized_ready[basenodekey] = true
 
     ready_nodekeys = StructureKeyType[]
     ready_nodekeys_queued = falses(node_count)
-    for child_nodekey in child_nodekeys_by_parent[rootnodekey]
+    for child_nodekey in child_nodekeys_by_parent[basenodekey]
         maybe_queue_ready_node!(
             ready_nodekeys,
             ready_nodekeys_queued,
@@ -382,7 +382,7 @@ function materialize_graph_rootnode(
     end
 
     all(materialized_ready) || throw_impossible_materialization_schedule(materialized_ready)
-    return finalize_graph!(rootnode_handle)
+    return finalize_graph!(basenode_handle)
 end
 
 function build_child_edgekeys(
@@ -460,18 +460,18 @@ function build_graph_structure(
     return child_nodekeys_by_parent, incoming_edgekeys_by_child
 end
 
-function validate_and_find_rootnodekey(
+function validate_and_find_basenodekey(
     incoming_edgekeys_by_child::Vector{Vector{StructureKeyType}},
 )::StructureKeyType
-    rootnodekeys = StructureKeyType[]
+    basenodekeys = StructureKeyType[]
     for (nodekey, incoming_edgekeys) in enumerate(incoming_edgekeys_by_child)
         isempty(incoming_edgekeys) || continue
-        push!(rootnodekeys, StructureKeyType(nodekey))
+        push!(basenodekeys, StructureKeyType(nodekey))
     end
-    length(rootnodekeys) == 1 || throw(ArgumentError("The authoritative graph tables must describe exactly one `rootnode`, but this graph yielded $(length(rootnodekeys)) candidate root nodes."))
-    rootnodekey = only(rootnodekeys)
-    rootnodekey == StructureKeyType(1) || throw(ArgumentError("The authoritative graph tables must preserve the tranche-4 `rootnodekey == 1` invariant for materialization, but this graph placed the root node at nodekey $(rootnodekey)."))
-    return rootnodekey
+    length(basenodekeys) == 1 || throw(ArgumentError("The authoritative graph tables must describe exactly one `basenode`, but this graph yielded $(length(basenodekeys)) candidate basenodes."))
+    basenodekey = only(basenodekeys)
+    basenodekey == StructureKeyType(1) || throw(ArgumentError("The authoritative graph tables must preserve the tranche-4 `basenodekey == 1` invariant for materialization, but this graph placed the basenode at nodekey $(basenodekey)."))
+    return basenodekey
 end
 
 function maybe_queue_ready_node!(
@@ -510,13 +510,13 @@ function throw_impossible_materialization_schedule(
     throw(ArgumentError("Could not materialize the authoritative graph because some nodes never became ready after parent scheduling. This usually indicates a cycle or an impossible rooted-network parent schedule. Unresolved nodekeys: $(join(unresolved_nodekeys, ", "))."))
 end
 
-function emit_rootnode(
+function emit_basenode(
     request::NodeTypeLoadRequest{NodeT},
     nodekey::StructureKeyType,
     label::AbstractString,
     nodedata::NodeRowRef,
 ) where {NodeT}
-    rootnode_handle = add_child(
+    basenode_handle = add_child(
         nothing,
         nodekey,
         label,
@@ -525,29 +525,29 @@ function emit_rootnode(
         edgedata = nothing,
         nodedata = nodedata,
     )
-    ensure_constructed_handle(rootnode_handle, "root-construction")
-    rootnode_handle isa NodeT || throw(ArgumentError("The root-construction `LineagesIO.add_child(::Nothing, ...)` call returned `$(typeof(rootnode_handle))`, but `load(src, $(request.node_type))` requires a value compatible with `$(request.node_type)`."))
-    return rootnode_handle
+    ensure_constructed_handle(basenode_handle, "basenode-construction")
+    basenode_handle isa NodeT || throw(ArgumentError("The basenode-construction `LineagesIO.add_child(::Nothing, ...)` call returned `$(typeof(basenode_handle))`, but `load(src, $(request.node_type))` requires a value compatible with `$(request.node_type)`."))
+    return basenode_handle
 end
 
-function emit_rootnode(
-    request::RootBindingLoadRequest,
+function emit_basenode(
+    request::BasenodeLoadRequest,
     nodekey::StructureKeyType,
     label::AbstractString,
     nodedata::NodeRowRef,
 )
-    rootnode_handle = bind_rootnode!(request.rootnode, nodekey, label; nodedata = nodedata)
-    ensure_constructed_handle(rootnode_handle, "root-binding")
-    return rootnode_handle
+    basenode_handle = bind_basenode!(request.basenode, nodekey, label; nodedata = nodedata)
+    ensure_constructed_handle(basenode_handle, "basenode-binding")
+    return basenode_handle
 end
 
-function emit_rootnode(
+function emit_basenode(
     request::BuilderLoadRequest,
     nodekey::StructureKeyType,
     label::AbstractString,
     nodedata::NodeRowRef,
 )
-    rootnode_handle = request.builder(
+    basenode_handle = request.builder(
         nothing,
         nodekey,
         label,
@@ -556,8 +556,8 @@ function emit_rootnode(
         edgedata = nothing,
         nodedata = nodedata,
     )
-    ensure_constructed_handle(rootnode_handle, "builder root-construction")
-    return rootnode_handle
+    ensure_constructed_handle(basenode_handle, "builder basenode-construction")
+    return basenode_handle
 end
 
 function emit_childnode(
@@ -644,7 +644,7 @@ function emit_single_parent_childnode(
 end
 
 function emit_single_parent_childnode(
-    ::RootBindingLoadRequest,
+    ::BasenodeLoadRequest,
     parent_handle,
     nodekey::StructureKeyType,
     label::AbstractString,
@@ -723,7 +723,7 @@ function emit_multi_parent_childnode(
 end
 
 function emit_multi_parent_childnode(
-    request::RootBindingLoadRequest,
+    request::BasenodeLoadRequest,
     parent_collection::AbstractVector,
     nodekey::StructureKeyType,
     label::AbstractString,
@@ -811,7 +811,7 @@ function ensure_multi_parent_protocol_applicable(
 end
 
 function ensure_multi_parent_protocol_applicable(
-    request::RootBindingLoadRequest,
+    ::BasenodeLoadRequest,
     parent_collection::AbstractVector,
     nodekey::StructureKeyType,
     label::AbstractString,
@@ -829,7 +829,7 @@ function ensure_multi_parent_protocol_applicable(
         edgedata = edgedata,
         nodedata = nodedata,
     ) && return nothing
-    throw(ArgumentError("The supplied `rootnode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
+    throw(ArgumentError("The supplied `basenode` load surface cannot materialize this source because its construction path does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` tier required by this source."))
 end
 
 function ensure_multi_parent_protocol_applicable(

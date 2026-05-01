@@ -40,11 +40,11 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `bind_rootnode!`, `add_child`,
+  `edgeweight`, `basenode`, `bind_basenode!`, `add_child`,
   `finalize_graph!`, `node_table`, `edge_table`, `NodeRowRef`, `EdgeRowRef`,
   `LineageGraphAsset`, and `LineageGraphStore` exactly where those concepts
   are in scope
-- write "root node" and "edge weight" in prose, but use `rootnode` and
+- write "basenode" and "edge weight" in prose, but use `basenode` and
   `edgeweight` for project-owned identifiers
 - use upstream `PhyloNetworks.jl` terms such as `HybridNetwork`, `Node`,
   `Edge`, `gamma`, `ismajor`, and `RootMismatch` only at the extension
@@ -108,7 +108,7 @@ Revalidated observations on 2026-04-28:
 
 - `src/construction.jl` now owns multi-parent materialization, early
   compatibility validation, and no-partial-mutation failure boundaries for
-  unsupported multi-parent supplied-root and builder loads
+  unsupported multi-parent supplied-basenode and builder loads
 - `src/newick_format.jl` and the tranche-4 test suite already cover the
   rooted-network-capable `format"Newick"` core owner, repeated hybrid-label
   merge, and raw `gamma` retention in authoritative edge tables
@@ -117,7 +117,7 @@ Revalidated observations on 2026-04-28:
   weakdep, no extension entry, and no test-environment dependency yet
 - `ext/MetaGraphsNextIO.jl` is the current reference extension owner. It uses
   `validate_extension_load_target`, a private build cursor, extension-owned
-  `emit_rootnode` and `bind_rootnode!` behavior, and `finalize_graph!` to turn
+  `emit_basenode` and `bind_basenode!` behavior, and `finalize_graph!` to turn
   public LineagesIO protocol events into a native target package graph
 - there is currently no `PhyloNetworks` extension module and no
   `test/extensions/phylonetworks_*` verification layer
@@ -347,7 +347,7 @@ Extend the same extension owner rather than creating a second tree-only path.
 Add `test/extensions/phylonetworks_tree_compatible_newick.jl` and
 `test/extensions/phylonetworks_rejection_paths.jl`. If the tranche-1 review
 confirmed that mutating an empty caller-supplied `HybridNetwork()` is clean and
-upstream-aligned, implement `bind_rootnode!` and any required empty-target
+upstream-aligned, implement `bind_basenode!` and any required empty-target
 validation plus a focused supplied-target test. If that path is not clean
 enough, keep the public support to `load(src, HybridNetwork)` and add a
 specific rejection that fires before partial mutation or vague downstream

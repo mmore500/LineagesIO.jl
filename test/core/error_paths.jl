@@ -1,6 +1,6 @@
 struct MissingConstructionProtocolNode end
 
-mutable struct MissingRootBindingProtocolNode
+mutable struct MissingBasenodeProtocolNode
     payload::Int
 end
 
@@ -13,14 +13,14 @@ end
     @test missing_construction_error isa ArgumentError
     @test occursin("add_child(::Nothing", sprint(showerror, missing_construction_error))
 
-    missing_root_binding_error = capture_expected_load_error() do
-        load(fixture_path, MissingRootBindingProtocolNode(0))
+    missing_basenode_error = capture_expected_load_error() do
+        load(fixture_path, MissingBasenodeProtocolNode(0))
     end
-    @test missing_root_binding_error isa ArgumentError
-    @test occursin("bind_rootnode!", sprint(showerror, missing_root_binding_error))
+    @test missing_basenode_error isa ArgumentError
+    @test occursin("bind_basenode!", sprint(showerror, missing_basenode_error))
 
     invalid_combination_error = capture_expected_load_error() do
-        load(fixture_path, MissingRootBindingProtocolNode(0); builder = (args...; kwargs...) -> nothing)
+        load(fixture_path, MissingBasenodeProtocolNode(0); builder = (args...; kwargs...) -> nothing)
     end
     @test invalid_combination_error isa ArgumentError
     @test occursin("cannot be combined", sprint(showerror, invalid_combination_error))

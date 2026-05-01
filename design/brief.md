@@ -305,13 +305,13 @@ All public contracts, tables, helper APIs, and row-reference objects that
 traffic in package-assigned structural keys must use `StructureKeyType`
 semantically, even when the concrete underlying type remains `Int`.
 
-### One rootnode per graph
+### One basenode per graph
 
 Each loaded graph asset has exactly one graph entry point, referred to in exact
-API names as `rootnode`.
+API names as `basenode`.
 
 This applies to rooted trees and rooted networks alike. Rooted networks still
-have one `rootnode`. Reticulation is represented by multi-parent interior nodes,
+have one `basenode`. Reticulation is represented by multi-parent interior nodes,
 not by multiple roots.
 
 ### Node identity
@@ -386,7 +386,7 @@ The package supports the following public loading surfaces:
 
 - `load(src)`
 - `load(src, NodeT)`
-- `load(src, rootnode::NodeT)`
+- `load(src, basenode::NodeT)`
 - `load(src; builder = fn)`
 
 Their meanings are:
@@ -395,7 +395,7 @@ Their meanings are:
   graph materialization target
 - `load(src, NodeT)` asks LineagesIO to create a materialized result through
   the public construction protocol for that target type
-- `load(src, rootnode::NodeT)` asks LineagesIO to bind the parsed root node
+- `load(src, basenode::NodeT)` asks LineagesIO to bind the parsed root node
   onto the supplied construction target and then construct descendants through
   the public construction protocol
 - `load(src; builder = fn)` asks LineagesIO to use an explicit builder callback
@@ -410,12 +410,12 @@ Explicit format override is provided through FileIO wrappers such as
 `File{format"..."}(...)` and `Stream{fmt}(io)`. This design does not define a
 separate positional `load(src, FormatType())` signature.
 
-A supplied `rootnode` target binds one graph. If a source yields more than one
+A supplied `basenode` target binds one graph. If a source yields more than one
 graph, that loading surface is invalid and the package must raise an
 informative error that directs the caller to a one-graph load surface or a
 different construction path.
 
-An explicit `builder = ...` callback and a supplied `rootnode::NodeT` target
+An explicit `builder = ...` callback and a supplied `basenode::NodeT` target
 represent different construction ownership models and must not be combined
 implicitly.
 
@@ -423,24 +423,24 @@ implicitly.
 
 The public graph-construction protocol consists of three functions:
 
-- `bind_rootnode!`
+- `bind_basenode!`
 - `add_child`
 - `finalize_graph!`
 
-`bind_rootnode!` binds a parsed root node onto a supplied construction target.
+`bind_basenode!` binds a parsed root node onto a supplied construction target.
 `add_child` materializes descendants. `finalize_graph!` performs optional
 post-build cleanup after the final `add_child` call for a graph and before
 `LineageGraphAsset` assembly, returning the value stored as the graph's
 materialized result.
 
-### `bind_rootnode!`
+### `bind_basenode!`
 
-When the caller supplies `load(src, rootnode::NodeT)`, LineagesIO binds the
+When the caller supplies `load(src, basenode::NodeT)`, LineagesIO binds the
 parsed root node onto that supplied target through:
 
 ```julia
-function bind_rootnode!(
-    rootnode::NodeT,
+function bind_basenode!(
+    basenode::NodeT,
     nodekey::StructureKeyType,
     label::AbstractString;
     nodedata,
@@ -448,10 +448,10 @@ function bind_rootnode!(
 end
 ```
 
-The contract of `bind_rootnode!` is:
+The contract of `bind_basenode!` is:
 
 - it is called exactly once for each graph loaded through
-  `load(src, rootnode::NodeT)`
+  `load(src, basenode::NodeT)`
 - it binds the distinguished structural root-node properties of the parsed
   graph onto the supplied target
 - it may mutate the supplied target, validate it, or return an equivalent
@@ -460,7 +460,7 @@ The contract of `bind_rootnode!` is:
 - it does not receive an `edgekey`, `edgeweight`, or `edgedata`, because the
   root node has no incoming edge
 
-After `bind_rootnode!` returns, all descendant construction proceeds through
+After `bind_basenode!` returns, all descendant construction proceeds through
 `add_child`, using the bound root return value as the parent handle where
 appropriate.
 
@@ -469,14 +469,14 @@ appropriate.
 `add_child` is the central public function through which parsed descendants are
 communicated to user code.
 
-Everything in the parsing pipeline converges on calls to `bind_rootnode!`,
+Everything in the parsing pipeline converges on calls to `bind_basenode!`,
 `add_child`, and `finalize_graph!`. LineagesIO calls them. User code or
 extension code implements them.
 
 ### Library-created root node
 
 When the caller uses `load(src, NodeT)` and LineagesIO is responsible for
-creating the root node, the root-construction call is:
+creating the root node, the basenode-construction call is:
 
 ```julia
 function add_child(
@@ -491,7 +491,7 @@ function add_child(
 end
 ```
 
-This root-construction call is used for rooted trees and rooted networks
+This basenode-construction call is used for rooted trees and rooted networks
 alike. The root node still has no incoming edge.
 
 For generic user-defined protocol implementations, the returned `NodeT` is
@@ -565,7 +565,7 @@ An explicit `builder = fn` callback is a package-owned convenience surface. It
 does not define a different graph contract.
 
 If the package supports a callback builder, that callback path must receive or
-be internally adapted to the same root-binding, child-construction, and
+be internally adapted to the same basenode-binding, child-construction, and
 finalization events defined above, with the same structural values and the same
 row-reference delivery contract.
 
@@ -592,7 +592,7 @@ work begins.
 
 ### Parse order
 
-Parsers emit `bind_rootnode!` and `add_child` calls in top-down pre-order
+Parsers emit `bind_basenode!` and `add_child` calls in top-down pre-order
 traversal after completing whatever source analysis the format requires.
 
 The package may pre-parse a graph or an entire source before emission if the
@@ -1088,7 +1088,7 @@ override rather than silently guessing.
 The package must support:
 
 - method-extension graph construction through `load(src, NodeT)`
-- rootnode binding through `load(src, rootnode::NodeT)`
+- basenode binding through `load(src, basenode::NodeT)`
 - explicit builder callbacks through `load(src; builder = fn)`
 - `StructureKeyType` as the semantic key type for all package-assigned
   structural keys
@@ -1110,16 +1110,16 @@ The package must distinguish:
 - ambiguous formats
 - lossy conversions
 - invalid field-name mappings
-- invalid rootnode-target loads
+- invalid basenode-target loads
 - invalid property lookups
 
 Errors must include source location where possible.
 
-If a caller supplies `load(src, rootnode::NodeT)` and the source yields more
+If a caller supplies `load(src, basenode::NodeT)` and the source yields more
 than one graph, the package must raise an informative error rather than trying
 to guess how the caller wanted multiple graphs to bind.
 
-Builder compatibility and root-binding compatibility errors should be raised
+Builder compatibility and basenode-binding compatibility errors should be raised
 before parse work begins where possible.
 
 Invalid field-name mappings must raise informative errors for:
@@ -1153,8 +1153,8 @@ The package is successful when all of the following are true.
 
 - `load("file.nwk", MyNode)` returns `LineageGraphStore{MyNode}` through the
   public root-creation and child-construction protocol
-- `load("file.nwk", rootnode(lgraph))` binds the parsed root node onto the
-  supplied rootnode handle through `bind_rootnode!` and then constructs
+- `load("file.nwk", basenode(lgraph))` binds the parsed root node onto the
+  supplied basenode handle through `bind_basenode!` and then constructs
   descendants through `add_child`
 - `load("file.nwk")` returns a `LineageGraphStore` whose graphs expose
   authoritative package-owned node and edge tables even when no graph
@@ -1166,7 +1166,7 @@ The package is successful when all of the following are true.
   after load through the authoritative tables and their row references
 - client code can interpret retained annotations eagerly during construction or
   defer interpretation until later without per-node copied annotation bags
-- rooted network formats parse with one rootnode and multi-parent interior-node
+- rooted network formats parse with one basenode and multi-parent interior-node
   construction through the multi-parent `add_child` protocol
 - format-specific and consumer-specific code can build wrappers such as
   `bootstrap(...)` and `hybrid_gamma(...)` without any core field-promotion
@@ -1236,8 +1236,8 @@ with the LineagesIO-specific core identifiers ratified by this document:
 - `src_nodekey`
 - `dst_nodekey`
 - `edgeweight`
-- `rootnode`
-- `bind_rootnode!`
+- `basenode`
+- `bind_basenode!`
 - `add_child`
 - `finalize_graph!`
 

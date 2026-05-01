@@ -317,19 +317,19 @@ function register_edge!(
     return nothing
 end
 
-function build_root_node(
+function build_basenode(
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString,
     node_table::LineagesIO.NodeTable,
 )::PhyloNetworks.Node
-    root_is_leaf = node_count(node_table) == 1
-    root_node = PhyloNetworks.Node(Int(nodekey), root_is_leaf, false)
-    root_node.name = normalize_phylonetworks_node_name(
+    is_leaf = node_count(node_table) == 1
+    basenode = PhyloNetworks.Node(Int(nodekey), is_leaf, false)
+    basenode.name = normalize_phylonetworks_node_name(
         nodekey,
         label,
-        root_is_leaf,
+        is_leaf,
     )
-    return root_node
+    return basenode
 end
 
 function build_graph_cursor(
@@ -340,18 +340,18 @@ function build_graph_cursor(
 ) where {TargetT}
     graph = PhyloNetworks.HybridNetwork()
     state = build_phylonetworks_state(getfield(nodedata, :table))
-    root_node = build_root_node(nodekey, label, getfield(nodedata, :table))
+    basenode = build_basenode(nodekey, label, getfield(nodedata, :table))
     register_node!(
         graph,
         state,
         nodekey,
-        root_node,
+        basenode,
     )
     graph.rooti = 1
-    return PhyloNetworksBuildCursor(graph, target, root_node, nodekey, state)
+    return PhyloNetworksBuildCursor(graph, target, basenode, nodekey, state)
 end
 
-function LineagesIO.emit_rootnode(
+function LineagesIO.emit_basenode(
     request::LineagesIO.NodeTypeLoadRequest{PhyloNetworks.HybridNetwork},
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString,
@@ -361,7 +361,7 @@ function LineagesIO.emit_rootnode(
     return build_graph_cursor(nothing, nodekey, label, nodedata)
 end
 
-function LineagesIO.bind_rootnode!(
+function LineagesIO.bind_basenode!(
     target::PhyloNetworks.HybridNetwork,
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString;
@@ -673,16 +673,16 @@ function LineagesIO.add_child(
     return child_cursor(first_parent, child_node, nodekey)
 end
 
-function normalize_singleton_root!(
+function normalize_singleton_basenode!(
     graph::PhyloNetworks.HybridNetwork,
 )::Nothing
     getfield(graph, :numnodes) == 1 || return nothing
     getfield(graph, :numedges) == 0 || return nothing
-    root_node = only(getfield(graph, :node))
-    getfield(root_node, :leaf) && return nothing
-    root_node.leaf = true
+    basenode = only(getfield(graph, :node))
+    getfield(basenode, :leaf) && return nothing
+    basenode.leaf = true
     graph.numtaxa = 1
-    graph.leaf = PhyloNetworks.Node[root_node]
+    graph.leaf = PhyloNetworks.Node[basenode]
     return nothing
 end
 
@@ -700,7 +700,7 @@ function LineagesIO.finalize_graph!(
     cursor::PhyloNetworksBuildCursor,
 )
     graph = getfield(cursor, :graph)
-    normalize_singleton_root!(graph)
+    normalize_singleton_basenode!(graph)
     PhyloNetworks.storeHybrids!(graph)
     PhyloNetworks.checkNumHybEdges!(graph)
     PhyloNetworks.directedges!(graph; checkMajor = true)

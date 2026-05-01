@@ -51,10 +51,10 @@ function LineagesIO.add_child(
     return child
 end
 
-function LineagesIO.finalize_graph!(rootnode::SingleParentProtocolNode)
-    push!(SINGLE_PARENT_PROTOCOL_EVENTS, (:finalize, rootnode.nodekey, nothing, rootnode.label, rootnode.posterior, nothing, nothing))
-    rootnode.finalized = true
-    return rootnode
+function LineagesIO.finalize_graph!(basenode::SingleParentProtocolNode)
+    push!(SINGLE_PARENT_PROTOCOL_EVENTS, (:finalize, basenode.nodekey, nothing, basenode.label, basenode.posterior, nothing, nothing))
+    basenode.finalized = true
+    return basenode
 end
 
 @testset "Single-parent construction protocol" begin
@@ -62,17 +62,17 @@ end
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
     store = load(fixture_path, SingleParentProtocolNode)
     asset = first(store.graphs)
-    rootnode = asset.materialized
+    basenode = asset.materialized
 
-    @test rootnode isa SingleParentProtocolNode
-    @test rootnode.finalized
-    @test rootnode.nodekey == 1
-    @test rootnode.label == "Root"
-    @test rootnode.posterior == "0.99"
-    @test length(rootnode.child_collection) == 2
+    @test basenode isa SingleParentProtocolNode
+    @test basenode.finalized
+    @test basenode.nodekey == 1
+    @test basenode.label == "Root"
+    @test basenode.posterior == "0.99"
+    @test length(basenode.child_collection) == 2
 
-    inner = rootnode.child_collection[1]
-    right = rootnode.child_collection[2]
+    inner = basenode.child_collection[1]
+    right = basenode.child_collection[2]
     @test inner.nodekey == 2
     @test inner.label == "Inner"
     @test inner.posterior == "0.81"

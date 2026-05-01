@@ -138,13 +138,13 @@ end
 
 store = load("primates.nwk", DemoNode)
 asset = first(store.graphs)
-rootnode = asset.materialized
+basenode = asset.materialized
 ```
 
-## User story 5: Root binding onto a caller-supplied rootnode
+## User story 5: Root binding onto a caller-supplied basenode
 
 As a user who already owns the root graph object, I want LineagesIO to bind the
-parsed root node onto my supplied `rootnode` and then continue descendant
+parsed basenode onto my supplied `basenode` and then continue descendant
 construction through `add_child`.
 
 ```julia
@@ -158,16 +158,16 @@ mutable struct BoundNode{NodeRefT}
     child_collection::Vector{BoundNode{NodeRefT}}
 end
 
-function LineagesIO.bind_rootnode!(
-    rootnode::BoundNode,
+function LineagesIO.bind_basenode!(
+    basenode::BoundNode,
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString;
     nodedata,
 )
-    rootnode.nodekey = nodekey
-    rootnode.label = String(label)
-    rootnode.nodedata = nodedata
-    return rootnode
+    basenode.nodekey = nodekey
+    basenode.label = String(label)
+    basenode.nodedata = nodedata
+    return basenode
 end
 
 function LineagesIO.add_child(
@@ -184,10 +184,10 @@ function LineagesIO.add_child(
     return child
 end
 
-rootnode = BoundNode(nothing, "", nothing, BoundNode{Any}[])
-store = load("primates.nwk", rootnode)
+basenode = BoundNode(nothing, "", nothing, BoundNode{Any}[])
+store = load("primates.nwk", basenode)
 asset = first(store.graphs)
-asset.materialized === rootnode
+asset.materialized === basenode
 ```
 
 ## User story 6: Eager annotation interpretation during construction
@@ -253,7 +253,7 @@ hybrid_gamma(7)
 ## User story 8: Multi-parent rooted-network construction
 
 As a user working with rooted networks, I want the same core package to emit a
-multi-parent `add_child` call with one `rootnode` and retained row references.
+multi-parent `add_child` call with one `basenode` and retained row references.
 
 ```julia
 using LineagesIO
@@ -300,15 +300,15 @@ asset.graph_label
 ## User story 10: Informative errors for ambiguous or invalid loads
 
 As a user, I want the package to fail loudly and specifically when it cannot
-safely infer a format or when I use a one-graph root-binding surface on a
+safely infer a format or when I use a one-graph basenode-binding surface on a
 multi-graph source.
 
 ```julia
 julia> load("primates.txt")
 ERROR: Ambiguous format. Supply an explicit override such as `File{format\"Newick\"}(...)`.
 
-julia> load("posterior.trees", my_rootnode)
-ERROR: The supplied `rootnode` load surface is valid only for a source that yields exactly one graph.
+julia> load("posterior.trees", my_basenode)
+ERROR: The supplied `basenode` load surface is valid only for a source that yields exactly one graph.
 
 julia> LineagesIO.node_property(asset.node_table, 4, :missing_field)
 ERROR: Requested node property `:missing_field` is not present in the authoritative node table.

@@ -39,9 +39,9 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `node_table`, `edge_table`, `LineageGraphAsset`,
+  `edgeweight`, `basenode`, `node_table`, `edge_table`, `LineageGraphAsset`,
   and `LineageGraphStore` exactly where those concepts are in scope
-- write "root node" and "edge weight" in prose, but use `rootnode` and
+- write "basenode" and "edge weight" in prose, but use `basenode` and
   `edgeweight` for project-owned identifiers
 - use `node` rather than `vertex`, `edge` rather than `branch` in code
   identifiers, and `leaf` rather than `tip`
@@ -110,7 +110,7 @@ Tranche 1 establishes the core owner for:
 
 This tranche does not yet own:
 
-- `bind_rootnode!`, `add_child`, or `finalize_graph!` graph-construction
+- `bind_basenode!`, `add_child`, or `finalize_graph!` graph-construction
   surfaces
 - row-reference delivery contracts
 - consumer-package materialization
@@ -269,7 +269,7 @@ preserve graph/source coordinates into the returned assets and store.
 Preserve retained annotations only where tranche 1 simple-Newick scope
 actually supports them; reject out-of-scope or structurally ambiguous constructs
 with informative errors instead of inventing payload bags or silently dropping
-structure. Do not implement `bind_rootnode!`, `add_child`, row references, or
+structure. Do not implement `bind_basenode!`, `add_child`, row references, or
 consumer-package materialization here. Verify with
 `julia --project=test test/runtests.jl`.
 
@@ -333,7 +333,7 @@ return lazy `LineageGraphStore` results whose first graph asset exposes the
 authoritative tables and `materialized === nothing`; ambiguous bare loads
 raise the required explicit-override error; unaffected baseline behavior
 remains green. Then perform a tranche-boundary review to ensure the code has
-not introduced `bind_rootnode!`, `add_child`, row-reference contracts, weak
+not introduced `bind_basenode!`, `add_child`, row-reference contracts, weak
 extension coupling, or multi-parent logic ahead of tranche 2 and tranche 6.
 Finish with both `julia --project=test test/runtests.jl` and
 `julia --project=docs docs/make.jl` passing.

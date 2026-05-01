@@ -39,11 +39,11 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `bind_rootnode!`, `add_child`,
+  `edgeweight`, `basenode`, `bind_basenode!`, `add_child`,
   `finalize_graph!`, `node_table`, `edge_table`, `NodeRowRef`, `EdgeRowRef`,
   `LineageGraphAsset`, and `LineageGraphStore` exactly where those concepts
   are in scope
-- write "root node" and "edge weight" in prose, but use `rootnode` and
+- write "basenode" and "edge weight" in prose, but use `basenode` and
   `edgeweight` for project-owned identifiers
 - use `node` rather than `vertex`, `edge` rather than `branch` in project-owned
   identifiers, and `leaf` rather than `tip`
@@ -144,7 +144,7 @@ Tranche 3 establishes the extension owner for:
 - any extension-private cursor or helper state needed for single-parent
   materialization into `MetaGraph`, kept out of the public API
 - the required non-integer MetaGraphsNext label wrapper around `nodekey`
-- extension-owned `bind_rootnode!`, `add_child`, and `finalize_graph!` methods
+- extension-owned `bind_basenode!`, `add_child`, and `finalize_graph!` methods
   for the rooted simple-Newick MetaGraphsNext path
 - an initial `AbstractTrees.jl` compatibility wrapper over the
   MetaGraphsNext-backed tree view
@@ -249,7 +249,7 @@ The implementation must preserve the tranche 3 scope boundary:
 - AbstractTrees traversal must follow the same root/child structure implied by
   the authoritative core tables and the built MetaGraphsNext graph, not an
   extension-local parsing shortcut
-- supplied-root behavior must remain valid only for one-graph sources
+- supplied-basenode behavior must remain valid only for one-graph sources
 
 ## Tasks
 
@@ -318,7 +318,7 @@ that `load(src)` for the tables-only path continues to work and returns
 authoritative tables with `materialized === nothing`. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 4. Implement the MetaGraphsNext native-target library-created-root path
+### 4. Implement the MetaGraphsNext native-target library-created-basenode path
 
 **Type**: WRITE
 **Output**: the extension defines any private construction state it genuinely
@@ -363,31 +363,31 @@ equivalent graph-level checks rather than weak proxies. These tests must fail
 for the pre-tranche-3 repository state. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 6. Implement supplied-root binding for MetaGraphsNext targets
+### 6. Implement supplied-basenode binding for MetaGraphsNext targets
 
 **Type**: WRITE
-**Output**: the extension provides the approved `bind_rootnode!` path for the
+**Output**: the extension provides the approved `bind_basenode!` path for the
 MetaGraphsNext supplied native target and any required extension-local
 `finalize_graph!` behavior for the rooted simple-Newick single-parent tier
 **Depends on**: 5
 
-Extend `ext/MetaGraphsNextIO.jl` so `load(src, rootnode)` can bind rooted
+Extend `ext/MetaGraphsNextIO.jl` so `load(src, basenode)` can bind rooted
 simple-Newick materialization onto a caller-supplied MetaGraphsNext target
 through the same core protocol owner. Reuse the same extension-owned graph
 container, label-wrapper, and structural mapping strategy as the
-library-created-root path rather than inventing a second owner. Validate the
+library-created-basenode path rather than inventing a second owner. Validate the
 supported initial state explicitly and implement `finalize_graph!` only if the
 MetaGraphsNext construction mechanics genuinely require a post-build cleanup or
 normalization step. Do not widen this task into multi-parent, unrooted, or
 cross-graph binding behavior. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 7. Verify supplied-root behavior and one-graph rejection paths
+### 7. Verify supplied-basenode behavior and one-graph rejection paths
 
 **Type**: TEST
 **Output**: `test/extensions/metagraphsnext_supplied_root.jl` proves successful
 one-graph binding, preserved authoritative tables, and informative rejection of
-unsupported supplied-root cases
+unsupported supplied-basenode cases
 **Depends on**: 6
 
 Add `test/extensions/metagraphsnext_supplied_root.jl` and use the existing
@@ -396,7 +396,7 @@ strictly required. Verify successful one-graph binding for the approved root
 target shape, including the expected post-load relationship between
 `asset.materialized` and the supplied target. Assert that authoritative
 tables remain available after the bound load. Verify that multi-graph sources
-and any other unsupported supplied-root combinations fail informatively rather
+and any other unsupported supplied-basenode combinations fail informatively rather
 than guessing. End the task green with `julia --project=test test/runtests.jl`.
 
 ### 8. Implement the AbstractTrees wrapper over the MetaGraphsNext-backed tree view

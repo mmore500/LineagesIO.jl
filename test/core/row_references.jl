@@ -1,7 +1,7 @@
 @testset "Row references and lookup helpers" begin
     node_table = NodeTable(
         nodekey = [1, 2, 3],
-        label = ["root", "left", "right"],
+        label = ["basenode", "left", "right"],
         annotation_columns = (
             posterior = ["0.99", "0.91", nothing],
             species = [nothing, "human", "mouse"],

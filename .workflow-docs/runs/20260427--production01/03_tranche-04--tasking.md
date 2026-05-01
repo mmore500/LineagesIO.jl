@@ -40,13 +40,13 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `bind_rootnode!`, `add_child`,
+  `edgeweight`, `basenode`, `bind_basenode!`, `add_child`,
   `finalize_graph!`, `node_table`, `edge_table`, `NodeRowRef`, `EdgeRowRef`,
   `LineageGraphAsset`, and `LineageGraphStore` exactly where those concepts
   are in scope
-- write "root node" and "edge weight" in prose, but use `rootnode` and
+- write "basenode" and "edge weight" in prose, but use `basenode` and
   `edgeweight` for project-owned identifiers
-- rooted networks still have one `rootnode`; multi-parent refers to one child
+- rooted networks still have one `basenode`; multi-parent refers to one child
   node with multiple incoming parent edges, not to multiple roots
 - use the exact multi-parent construction call shape ratified in
   `design/brief--user-stories.md` user story 8:
@@ -112,7 +112,7 @@ owner in core before any `PhyloNetworks.jl` extension work can be honest.
 Revalidated observations on 2026-04-28:
 
 - `src/construction.jl` currently hard-codes tree recursion:
-  `materialize_graph_rootnode` assumes `rootnodekey == StructureKeyType(1)`,
+  `materialize_graph_basenode` assumes `basenodekey == StructureKeyType(1)`,
   `build_child_edgekeys` stores only outgoing child edges by parent, and
   `construct_descendants!` emits one child call per incoming edge rather than
   one call per child node
@@ -126,7 +126,7 @@ Revalidated observations on 2026-04-28:
   `parse_optional_label!` and `parse_unquoted_label!`
 - `src/newick_format.jl` also rejects extended edge fields after `:`,
   rejects incoming root edge data, and appends node and edge rows under the
-  assumption that each non-root node has exactly one parent edge
+  assumption that each non-basenode has exactly one parent edge
 - `src/fileio_integration.jl` still registers only `format"Newick"` and uses a
   no-op `validate_extension_load_target(::Type)` hook, so there is no current
   structural-tier compatibility gate for multi-parent graphs
@@ -157,7 +157,7 @@ Tranche 4 establishes the core owner for:
 - repeated hybrid-label merge into one structural node identity
 - authoritative node and edge tables for rooted networks, including retained
   raw edge annotations such as `gamma`
-- one-`rootnode` semantics for rooted networks
+- one-`basenode` semantics for rooted networks
 - the graph-materialization scheduler that waits until all parent handles exist
   before emitting a multi-parent child
 
@@ -244,7 +244,7 @@ Not allowed in this tranche without further approval:
   hybrid-label merge, positional edge-field naming, or root-edge handling,
   stop and ratify those points before implementation rather than letting them
   drift inside parser code
-- If the work would require widening the current implicit `rootnodekey == 1`
+- If the work would require widening the current implicit `basenodekey == 1`
   invariant into a new graph-level root storage contract, stop and raise that
   before changing the public data model
 - If the tranche diagnosis no longer matches reality, stop and raise that
@@ -271,7 +271,7 @@ The implementation must preserve the tranche 4 scope boundary:
 - tree inputs and the existing MetaGraphsNext extension path remain green
 - rooted-network-capable inputs must use the exact multi-parent `add_child`
   contract rather than an alternate public protocol
-- the core must emit one `rootnode`; it must not duplicate hybrid nodes to fake
+- the core must emit one `basenode`; it must not duplicate hybrid nodes to fake
   a tree
 - raw `gamma` text and other retained edge annotations remain in the
   authoritative `edge_table`; no semantic coercion belongs in core
@@ -320,7 +320,7 @@ multi-parent call shape ratified by core user story 8. Do not invent a second
 public construction function and do not move this contract into an extension.
 Add any internal trait, helper, or validation hook needed to distinguish
 single-parent targets from multi-parent-compatible targets for `load(src, NodeT)`,
-`load(src, rootnode)`, and `load(src; builder = fn)`. If a sound preflight
+`load(src, basenode)`, and `load(src; builder = fn)`. If a sound preflight
 check is impossible for one of these surfaces, define the earliest honest
 failure point and make the resulting error specific rather than relying on a
 generic method error or partial graph mutation. Keep the current tree-only
@@ -335,7 +335,7 @@ with `julia --project=test test/runtests.jl`.
 against synthetic authoritative tables
 **Depends on**: 2
 
-Add focused tests that use dummy node-handle types, supplied-root handles, and
+Add focused tests that use dummy node-handle types, supplied-basenode handles, and
 builder callbacks to verify the new validation boundary without waiting for the
 parser refactor. It is acceptable in this task to construct `NodeTable`,
 `EdgeTable`, and `LineageGraphAsset` values directly and exercise internal
@@ -350,7 +350,7 @@ core exposes. End this task with `julia --project=test test/runtests.jl`.
 
 **Type**: WRITE
 **Output**: the core can materialize a rooted DAG from authoritative tables by
-emitting each non-root node exactly once after all parent handles exist, while
+emitting each non-basenode exactly once after all parent handles exist, while
 preserving the current tree-path behavior for single-parent graphs
 **Depends on**: 2, 3
 
@@ -358,13 +358,13 @@ Refactor `src/construction.jl` so materialization is no longer hard-wired to
 recursive tree descent over outgoing child edges only. The new owner should
 build both incoming-edge and outgoing-edge structure, track materialized node
 handles by `nodekey`, and schedule node emission with a parent-count or
-equivalent topological algorithm. Emit the `rootnode` once, then emit each
+equivalent topological algorithm. Emit the `basenode` once, then emit each
 child node only after all its parent handles exist, passing parent handles and
 incoming edge metadata in aligned vectors. Detect cycle-like or impossible
 parent schedules and raise a specific core error instead of looping or
-duplicating nodes. Preserve root binding, builder callbacks, and the
+duplicating nodes. Preserve basenode binding, builder callbacks, and the
 single-parent fast path where it keeps the implementation clearer. If this work
-would require widening the current implicit `rootnodekey == 1` invariant into a
+would require widening the current implicit `basenodekey == 1` invariant into a
 new public graph-level root storage contract, stop and raise that before
 proceeding. End this task with `julia --project=test test/runtests.jl`.
 

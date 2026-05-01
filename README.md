@@ -15,8 +15,8 @@ sources through:
 - safe bare `load("tree.nwk")` loads for supported Newick extensions
 - explicit overrides through `load(File{format"Newick"}(...))`
 - stream-based loads through `load(Stream{format"Newick"}(...))`
-- library-created-root construction through `load("tree.nwk", NodeT)`
-- supplied-root binding through `load("tree.nwk", rootnode)`
+- library-created-basenode construction through `load("tree.nwk", NodeT)`
+- supplied-basenode binding through `load("tree.nwk", basenode)`
 - optional `PhyloNetworks.jl` materialization through
   `load("network.nwk", HybridNetwork)`
 - tree-compatible rooted `HybridNetwork` loads through the same public surface
@@ -97,7 +97,7 @@ function LineagesIO.add_child(
 end
 
 store = load("annotated_tree.nwk", DemoNode)
-rootnode = first(store.graphs).materialized
+basenode = first(store.graphs).materialized
 ```
 
 ## PhyloNetworks soft release

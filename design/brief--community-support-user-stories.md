@@ -82,10 +82,10 @@ LineagesIO.node_property(asset.node_table, 1, :bootstrap)
 asset.edge_table
 ```
 
-## User story 3: MetaGraphsNext can stage unrooted-tree support with a distinguished rootnode
+## User story 3: MetaGraphsNext can stage unrooted-tree support with a distinguished basenode
 
 As a user working with simple unrooted trees, I want the MetaGraphsNext path to
-support a distinguished entry node without weakening the one-`rootnode`
+support a distinguished entry node without weakening the one-`basenode`
 contract of the core package.
 
 ```julia

@@ -47,16 +47,16 @@ mutable struct ValidationBoundNode
     child_collection::Vector{ValidationBoundNode}
 end
 
-function LineagesIO.bind_rootnode!(
-    rootnode::ValidationBoundNode,
+function LineagesIO.bind_basenode!(
+    basenode::ValidationBoundNode,
     nodekey,
     label;
     nodedata,
 )
-    rootnode.nodekey = nodekey
-    rootnode.label = String(label)
-    push!(VALIDATION_BOUND_EVENTS, (:bind_rootnode, nodekey, String(label)))
-    return rootnode
+    basenode.nodekey = nodekey
+    basenode.label = String(label)
+    push!(VALIDATION_BOUND_EVENTS, (:bind_basenode, nodekey, String(label)))
+    return basenode
 end
 
 function LineagesIO.add_child(
@@ -148,10 +148,10 @@ function LineagesIO.add_child(
     return child
 end
 
-function LineagesIO.finalize_graph!(rootnode::ValidationMultiParentNode)
-    push!(VALIDATION_MULTI_PARENT_EVENTS, (:finalize, rootnode.nodekey))
-    rootnode.finalized = true
-    return rootnode
+function LineagesIO.finalize_graph!(basenode::ValidationMultiParentNode)
+    push!(VALIDATION_MULTI_PARENT_EVENTS, (:finalize, basenode.nodekey))
+    basenode.finalized = true
+    return basenode
 end
 
 @testset "Network target validation" begin
@@ -184,11 +184,11 @@ end
     bound_error = capture_expected_load_error() do
         LineagesIO.materialize_graphs(
             [asset],
-            LineagesIO.RootBindingLoadRequest(bound_root),
+            LineagesIO.BasenodeLoadRequest(bound_root),
         )
     end
     @test bound_error isa ArgumentError
-    @test occursin("supplied `rootnode` load surface", sprint(showerror, bound_error))
+    @test occursin("supplied `basenode` load surface", sprint(showerror, bound_error))
     @test VALIDATION_BOUND_EVENTS == Any[]
 
     empty!(VALIDATION_BUILDER_EVENTS)

@@ -1,6 +1,6 @@
 using MetaGraphsNext
 
-@testset "MetaGraphsNext supplied-root binding" begin
+@testset "MetaGraphsNext supplied-basenode binding" begin
     extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
 
@@ -18,7 +18,7 @@ using MetaGraphsNext
     @test MetaGraphsNext.Graphs.ne(graph) == 4
     @test LineagesIO.node_property(asset.node_table, 1, :posterior) == "0.99"
 
-    multi_graph_path = abspath(joinpath(@__DIR__, "..", "fixtures", "multi_graph_root_binding_source.trees"))
+    multi_graph_path = abspath(joinpath(@__DIR__, "..", "fixtures", "multi_graph_basenode_binding_source.trees"))
     multi_graph_error = capture_expected_load_error() do
         load(multi_graph_path, extension.default_metagraph())
     end

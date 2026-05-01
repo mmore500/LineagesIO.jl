@@ -53,10 +53,10 @@ function LineagesIO.add_child(
     return child
 end
 
-function LineagesIO.finalize_graph!(rootnode::FixtureNetworkNode)
-    push!(NETWORK_FIXTURE_EVENTS, (:finalize, rootnode.nodekey))
-    rootnode.finalized = true
-    return rootnode
+function LineagesIO.finalize_graph!(basenode::FixtureNetworkNode)
+    push!(NETWORK_FIXTURE_EVENTS, (:finalize, basenode.nodekey))
+    basenode.finalized = true
+    return basenode
 end
 
 mutable struct PublicSingleParentOnlyNode
@@ -88,10 +88,10 @@ end
     empty!(NETWORK_FIXTURE_EVENTS)
     materialized_store = load(fixture_path, FixtureNetworkNode)
     materialized_asset = first(materialized_store.graphs)
-    rootnode = materialized_asset.materialized
-    @test rootnode.finalized
-    @test rootnode.label == "Root"
-    @test length(rootnode.child_collection) == 2
+    basenode = materialized_asset.materialized
+    @test basenode.finalized
+    @test basenode.label == "Root"
+    @test length(basenode.child_collection) == 2
     @test NETWORK_FIXTURE_EVENTS == Any[
         (:root, 1, "Root"),
         (:single, 2, 1, 1),
@@ -102,8 +102,8 @@ end
         (:single, 5, 4, 4),
         (:finalize, 1),
     ]
-    left = rootnode.child_collection[1]
-    right = rootnode.child_collection[2]
+    left = basenode.child_collection[1]
+    right = basenode.child_collection[2]
     hybrid_from_left = left.child_collection[2]
     hybrid_from_right = right.child_collection[1]
     @test hybrid_from_left === hybrid_from_right
@@ -154,10 +154,10 @@ end
     @test repeated_internal_error isa ArgumentError
     @test occursin("more than one occurrence lists descendants", sprint(showerror, repeated_internal_error))
 
-    root_edge_path = abspath(joinpath(@__DIR__, "..", "fixtures", "invalid_network_root_edge_data.nwk"))
+    root_edge_path = abspath(joinpath(@__DIR__, "..", "fixtures", "invalid_network_basenode_edge_data.nwk"))
     root_edge_error = capture_expected_load_error() do
         load(File{LineagesIO.NewickFormat}(root_edge_path))
     end
     @test root_edge_error isa ArgumentError
-    @test occursin("Incoming root edge", sprint(showerror, root_edge_error))
+    @test occursin("Incoming basenode edge", sprint(showerror, root_edge_error))
 end

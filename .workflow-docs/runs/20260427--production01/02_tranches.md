@@ -49,8 +49,8 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use exact core identifiers such as `StructureKeyType`, `nodekey`,
-  `edgekey`, `src_nodekey`, `dst_nodekey`, `edgeweight`, `rootnode`,
-  `bind_rootnode!`, `add_child`, `finalize_graph!`, `node_table`,
+  `edgekey`, `src_nodekey`, `dst_nodekey`, `edgeweight`, `basenode`,
+  `bind_basenode!`, `add_child`, `finalize_graph!`, `node_table`,
   `edge_table`, `NodeRowRef`, and `EdgeRowRef`
 - do not substitute proscribed alternates such as `node_idx`, `edge_idx`,
   `edgelength`, `tip`, or generic `vertex` terminology in project-owned
@@ -317,13 +317,13 @@ trees.
 
 This tranche is foundational. It establishes:
 
-- `bind_rootnode!`, single-parent `add_child`, and `finalize_graph!`
+- `bind_basenode!`, single-parent `add_child`, and `finalize_graph!`
 - `NodeRowRef` and `EdgeRowRef`
 - generic property lookup helpers over authoritative tables and row references
-- `load(src, NodeT)`, `load(src, rootnode::NodeT)`, and `load(src; builder=fn)`
+- `load(src, NodeT)`, `load(src, basenode::NodeT)`, and `load(src; builder=fn)`
   on top of the same core protocol
-- builder and root-binding validation before parse work where possible
-- informative failure paths for invalid one-graph root-binding loads and other
+- builder and basenode-binding validation before parse work where possible
+- informative failure paths for invalid one-graph basenode-binding loads and other
   contract violations
 
 This tranche repairs the owner boundary so later extensions consume the core
@@ -332,7 +332,7 @@ protocol rather than inventing local materialization payloads.
 ### How to verify
 
 - **Manual**: Define representative custom node-handle types that implement
-  `bind_rootnode!` and `add_child`. Confirm that rooted simple Newick loads
+  `bind_basenode!` and `add_child`. Confirm that rooted simple Newick loads
   construct a rooted tree, preserve stable structural keys, and expose raw
   retained annotation text through row references.
 - **Automated**: Add and run `test/core/construction_protocol_single_parent.jl`,
@@ -345,14 +345,14 @@ protocol rather than inventing local materialization payloads.
 - [ ] Given a custom `NodeT`, when `load("primates.nwk", NodeT)` runs, then the
       package emits the root-creation and descendant-construction protocol with
       stable `nodekey`, `edgekey`, `label`, `nodedata`, and `edgedata` values.
-- [ ] Given a supplied `rootnode` and a source that yields more than one graph,
-      when `load(src, rootnode)` is attempted, then the package raises an
+- [ ] Given a supplied `basenode` and a source that yields more than one graph,
+      when `load(src, basenode)` is attempted, then the package raises an
       informative error instead of guessing how multiple graphs should bind.
 
 ### User stories addressed
 
 - Core user story 4: Library-created-root construction into custom node handles
-- Core user story 5: Root binding onto a caller-supplied rootnode
+- Core user story 5: Root binding onto a caller-supplied basenode
 - Core user story 6: Eager annotation interpretation during construction
 - Core user story 7: Deferred annotation access after load
 - Core user story 10: Informative errors for ambiguous or invalid loads
@@ -388,7 +388,7 @@ This tranche is user-facing. It establishes:
 - native-target `MetaGraph` load surfaces for simple rooted Newick
 - any extension-private cursor or helper state needed for clean single-parent
   incremental construction, kept out of the public API
-- root creation and, where upstream semantics make it clean, supplied-root
+- root creation and, where upstream semantics make it clean, supplied-basenode
   binding for `MetaGraphsNext` targets
 - authoritative-table retention after extension-based loads
 - an initial `AbstractTrees.jl` compatibility wrapper over the
@@ -465,7 +465,7 @@ This tranche is foundational. It establishes:
   `format"Newick"` inputs
 - authoritative table assembly for multi-parent graph structure and retained
   edge annotations such as raw `gamma` text
-- explicit one-`rootnode` semantics for rooted networks and clear rejection of
+- explicit one-`basenode` semantics for rooted networks and clear rejection of
   any multiple-root assumption
 
 This tranche must remain wholly core-owned. No extension should be forced to
@@ -477,7 +477,7 @@ ownership for itself.
 - **Manual**: Load representative rooted-network-capable Newick inputs
   tables-only and into a custom multi-parent-compatible target. Inspect the
   authoritative tables, multi-parent descendant events, raw retained `gamma`
-  text, and the one-`rootnode` invariant.
+  text, and the one-`basenode` invariant.
 - **Automated**: Add and run
   `test/core/network_protocol_multi_parent.jl`,
   `test/core/network_newick_format.jl`,
@@ -489,7 +489,7 @@ ownership for itself.
 
 - [ ] Given a rooted-network-capable `Newick` source, when the core package
       loads it tables-only or into a multi-parent-compatible target, then the
-      load uses one `rootnode`, stable structural keys, and multi-parent
+      load uses one `basenode`, stable structural keys, and multi-parent
       descendant construction rather than any multiple-root assumption.
 - [ ] Given a target or builder that is incompatible with the multi-parent
       construction tier, when the caller attempts the load, then the package
@@ -691,7 +691,7 @@ This tranche is user-facing and review-gated. It establishes:
 - rooted-network-capable `MetaGraphsNext.jl` support through the multi-parent
   core protocol
 - any ratified unrooted simple-Newick `MetaGraphsNext.jl` path that still uses
-  one distinguished `rootnode`
+  one distinguished `basenode`
 - continued authoritative-table retention after extension-based loads
 - explicit rejection paths where a requested structure cannot be represented
   honestly by the `MetaGraphsNext.jl` target
@@ -718,12 +718,12 @@ boundary and any new wrapper names still require review before merger.
       multi-parent protocol, preserves authoritative tables after load, and
       does not hide contract violations behind extension-local structure.
 - [ ] Given a ratified unrooted simple-Newick path, when that path is included
-      in this tranche, then it uses one distinguished `rootnode` and is merged
+      in this tranche, then it uses one distinguished `basenode` and is merged
       only after the exact behavior is reviewed and verified.
 
 ### User stories addressed
 
-- Community user story 3: MetaGraphsNext can stage unrooted-tree support with a distinguished rootnode
+- Community user story 3: MetaGraphsNext can stage unrooted-tree support with a distinguished basenode
 - Community user story 8: PhyloNetworks can later consume rooted-network inputs with gamma
 - Community user story 9: The same source can materialize into different consumers
 - Community user story 10: Unsupported structural or load-surface cases fail specifically

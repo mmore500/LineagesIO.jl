@@ -23,7 +23,7 @@
     )
     node_table = NodeTable(
         nodekey = [1, 2, 3],
-        label = ["root", "left", "right"],
+        label = ["basenode", "left", "right"],
         annotation_columns = (posterior = [nothing, "0.91", "0.82"],),
     )
     edge_table = EdgeTable(
@@ -61,7 +61,7 @@
     @test Tables.getcolumn(edge_rows[2], :dst_nodekey) == 3
 
     @test node_property(node_table, 2, :posterior) == "0.91"
-    @test node_property(node_table, 1, "label") == "root"
+    @test node_property(node_table, 1, "label") == "basenode"
     @test edge_property(edge_table, 1, :edgeweight) == 0.4
     @test edge_property(edge_table, 2, "bootstrap") == "97"
 

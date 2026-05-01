@@ -45,8 +45,8 @@ function build_newick_store(
     source_path::OptionalString,
     request::AbstractLoadRequest,
 )::LineageGraphStore
-    roots = parse_newick_source(text, source_path)
-    graph_assets = [build_graph_asset(root, graph_index, source_path) for (graph_index, root) in enumerate(roots)]
+    basenodes = parse_newick_source(text, source_path)
+    graph_assets = [build_graph_asset(basenode, graph_index, source_path) for (graph_index, basenode) in enumerate(basenodes)]
     graph_assets = materialize_graphs(graph_assets, request)
     graph_count = length(graph_assets)
     source_table = SourceTable(
@@ -81,12 +81,12 @@ function build_newick_store(
 end
 
 function build_graph_asset(
-    root::ParsedNewickOccurrence,
+    basenode::ParsedNewickOccurrence,
     graph_index::Int,
     source_path::OptionalString,
 )::LineageGraphAsset
-    root.edgeweight === nothing || throw(ArgumentError("Incoming root edge weights are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
-    isempty(root.edge_annotations) || throw(ArgumentError("Incoming root edge annotations are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
+    basenode.edgeweight === nothing || throw(ArgumentError("Incoming basenode edge weights are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
+    isempty(basenode.edge_annotations) || throw(ArgumentError("Incoming basenode edge annotations are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
 
     state = NewickGraphBuildState(
         StructureKeyType[],
@@ -102,8 +102,8 @@ function build_graph_asset(
         Dict{String, StructureKeyType}(),
         Dict{String, HybridOccurrenceState}(),
     )
-    rootnodekey = append_occurrence!(state, root, nothing)
-    rootnodekey == StructureKeyType(1) || throw(ArgumentError("Rooted-network-capable Newick table assembly must preserve the tranche-4 `rootnodekey == 1` invariant, but the root resolved to nodekey $(rootnodekey)."))
+    basenodekey = append_occurrence!(state, basenode, nothing)
+    basenodekey == StructureKeyType(1) || throw(ArgumentError("Rooted-network-capable Newick table assembly must preserve the tranche-4 `basenodekey == 1` invariant, but the basenode resolved to nodekey $(basenodekey)."))
     validate_hybrid_occurrence_counts!(state)
 
     node_table = NodeTable(
@@ -285,25 +285,25 @@ function parse_newick_source(
     source_label::OptionalString,
 )::Vector{ParsedNewickOccurrence}
     parser = NewickParserState(text, firstindex(text), source_label)
-    roots = ParsedNewickOccurrence[]
+    basenodes = ParsedNewickOccurrence[]
     skip_whitespace!(parser)
     while !parser_at_end(parser)
-        push!(roots, parse_graph!(parser))
+        push!(basenodes, parse_graph!(parser))
         skip_whitespace!(parser)
     end
-    isempty(roots) && throw(ArgumentError("Newick sources must contain at least one rooted graph."))
-    return roots
+    isempty(basenodes) && throw(ArgumentError("Newick sources must contain at least one rooted graph."))
+    return basenodes
 end
 
 function parse_graph!(parser::NewickParserState)::ParsedNewickOccurrence
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "expected a rooted graph before end of input")
     parser_peek(parser) == ';' && throw_parse_error(parser, "expected a rooted graph before `;`")
-    root = parse_subtree!(parser)
+    basenode = parse_subtree!(parser)
     skip_whitespace!(parser)
     parser_peek(parser) == ';' || throw_parse_error(parser, "expected `;` after rooted graph")
     advance!(parser)
-    return root
+    return basenode
 end
 
 function parse_subtree!(parser::NewickParserState)::ParsedNewickOccurrence

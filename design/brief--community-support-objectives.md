@@ -227,7 +227,7 @@ annotation copies.
 It must support rooted trees and rooted networks as distinct construction
 disciplines while preserving the same distinguished structural contract:
 
-- one `rootnode` per graph
+- one `basenode` per graph
 - `nodekey`
 - `edgekey`
 - `src_nodekey`
@@ -320,8 +320,8 @@ Each extension module owns:
   when supported, `load(src, target)`
 - any extension-private cursor types, label wrapper types, or lookup
   structures needed for internal construction
-- `bind_rootnode!` methods for supplied-root construction into that package
-- `add_child` methods for library-created-root and descendant construction into
+- `bind_basenode!` methods for supplied-basenode construction into that package
+- `add_child` methods for library-created-basenode and descendant construction into
   that package
 - `finalize_graph!` methods when the target package requires post-build cleanup
 - optional package-specific convenience accessors
@@ -350,7 +350,7 @@ Extensions must not:
 - require callers to import extension-private handle or cursor types in order
   to materialize native target-package structures
 - rely on runtime-generated struct fields derived from retained annotation names
-- weaken the one-rootnode-per-graph contract
+- weaken the one-basenode-per-graph contract
 
 ## Core-to-extension contract
 
@@ -360,7 +360,7 @@ All ecosystem extensions must consume the public core protocol defined in
 At the extension boundary, the package guarantees:
 
 - `StructureKeyType` for all package-assigned structural keys
-- one `rootnode` per graph
+- one `basenode` per graph
 - authoritative package-owned `node_table` and `edge_table`
 - one row per node in `node_table`
 - one row per edge in `edge_table`
@@ -382,17 +382,17 @@ The extension boundary does not guarantee:
 Every extension must be designed around the three public core protocol
 functions:
 
-- `bind_rootnode!`
+- `bind_basenode!`
 - `add_child`
 - `finalize_graph!`
 
-### `bind_rootnode!`
+### `bind_basenode!`
 
-An extension implements `bind_rootnode!` when the target package supports
+An extension implements `bind_basenode!` when the target package supports
 loading into a caller-supplied native target or other construction entry object
-through `load(src, rootnode)`.
+through `load(src, basenode)`.
 
-This hook is for binding the parsed root node onto an already-existing target
+This hook is for binding the parsed basenode onto an already-existing target
 package entry point.
 
 ### `add_child`
@@ -408,7 +408,7 @@ An extension implements `add_child` for:
 ### `finalize_graph!`
 
 An extension implements `finalize_graph!` only when the target package requires
-post-build cleanup or normalization after all root binding and descendant
+post-build cleanup or normalization after all basenode binding and descendant
 construction events are complete.
 
 ## Annotation-handling expectations for extensions
@@ -429,7 +429,7 @@ Extensions decide:
 ### Immediate interpretation during construction
 
 An extension may parse retained annotation values directly from row references
-during `bind_rootnode!` or `add_child`.
+during `bind_basenode!` or `add_child`.
 
 Example shape:
 
@@ -526,7 +526,7 @@ The public MetaGraphsNext load surface must be expressed in terms of native
 
 In all cases:
 
-* exactly one `rootnode` is used as the entry point
+* exactly one `basenode` is used as the entry point
 * unrooted trees are treated as rooted at a distinguished node
 * reticulate nodes are constructed via multi-parent `add_child` calls
 
@@ -636,7 +636,7 @@ Its importance comes from:
 
 `PhyloNetworks.jl` support must use the multi-parent construction tier.
 
-A rooted network still has one `rootnode`. Hybrid or reticulate interior nodes
+A rooted network still has one `basenode`. Hybrid or reticulate interior nodes
 are constructed through multi-parent `add_child` calls, not through multiple
 roots.
 
@@ -742,7 +742,7 @@ traversal methods.
 
 Core design choices that support this objective include:
 
-- one `rootnode` per graph
+- one `basenode` per graph
 - explicit child-construction semantics
 - stable node identity through `nodekey`
 
@@ -796,7 +796,7 @@ Community support is successful when all of the following are true.
     - structures isomorphic to `PhyloNetworks.jl` reticulation networks
 - `MetaGraphsNextAbstractTreesIO` provides `AbstractTrees.jl`-compatible
   wrappers over `MetaGraphsNextIO` materializations for rooted trees and
-  unrooted trees with a distinguished `rootnode`
+  unrooted trees with a distinguished `basenode`
 - `PhyloNetworksIO` constructs rooted networks and tree-compatible rooted
   inputs from phase 1 supported formats through the public core protocol
 - users can choose library-created native-target construction or supplied-target
@@ -805,7 +805,7 @@ Community support is successful when all of the following are true.
   extension-based graph construction
 - important retained annotation fields can be interpreted either during
   extension construction or later through package-specific wrappers
-- rooted-network construction uses one `rootnode` and multi-parent descendant
+- rooted-network construction uses one `basenode` and multi-parent descendant
   events rather than any multiple-root assumption
 - extension work remains a thin projection layer over authoritative core tables
   and public protocol events rather than a shadow parser stack
@@ -859,8 +859,8 @@ ratified by the core brief:
 - `src_nodekey`
 - `dst_nodekey`
 - `edgeweight`
-- `rootnode`
-- `bind_rootnode!`
+- `basenode`
+- `bind_basenode!`
 - `add_child`
 - `finalize_graph!`
 - `node_table`

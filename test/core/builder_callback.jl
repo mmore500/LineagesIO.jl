@@ -9,10 +9,10 @@ mutable struct BuilderCallbackNode
     finalized::Bool
 end
 
-function LineagesIO.finalize_graph!(rootnode::BuilderCallbackNode)
-    push!(BUILDER_CALLBACK_EVENTS, (:finalize, rootnode.nodekey, rootnode.label))
-    rootnode.finalized = true
-    return rootnode
+function LineagesIO.finalize_graph!(basenode::BuilderCallbackNode)
+    push!(BUILDER_CALLBACK_EVENTS, (:finalize, basenode.nodekey, basenode.label))
+    basenode.finalized = true
+    return basenode
 end
 
 @testset "Builder callback construction" begin
@@ -29,16 +29,16 @@ end
 
     store = load(fixture_path; builder = builder)
     asset = first(store.graphs)
-    rootnode = asset.materialized
+    basenode = asset.materialized
 
-    @test rootnode isa BuilderCallbackNode
-    @test rootnode.finalized
-    @test rootnode.label == "Root"
-    @test rootnode.posterior == "0.99"
-    @test rootnode.incoming_phase === nothing
-    @test rootnode.child_collection[1].label == "Inner"
-    @test rootnode.child_collection[1].child_collection[1].incoming_phase == "left"
-    @test rootnode.child_collection[1].child_collection[2].incoming_phase === nothing
+    @test basenode isa BuilderCallbackNode
+    @test basenode.finalized
+    @test basenode.label == "Root"
+    @test basenode.posterior == "0.99"
+    @test basenode.incoming_phase === nothing
+    @test basenode.child_collection[1].label == "Inner"
+    @test basenode.child_collection[1].child_collection[1].incoming_phase == "left"
+    @test basenode.child_collection[1].child_collection[2].incoming_phase === nothing
 
     @test BUILDER_CALLBACK_EVENTS == Any[
         (:root, 1, nothing, "Root", "0.99", nothing, nothing),

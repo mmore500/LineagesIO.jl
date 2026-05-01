@@ -39,11 +39,11 @@ All downstream work must preserve the controlled vocabulary already ratified in
 In particular:
 
 - use `StructureKeyType`, `nodekey`, `edgekey`, `src_nodekey`, `dst_nodekey`,
-  `edgeweight`, `rootnode`, `bind_rootnode!`, `add_child`,
+  `edgeweight`, `basenode`, `bind_basenode!`, `add_child`,
   `finalize_graph!`, `node_table`, `edge_table`, `NodeRowRef`, `EdgeRowRef`,
   `LineageGraphAsset`, and `LineageGraphStore` exactly where those concepts
   are in scope
-- write "root node" in prose, but use `rootnode` for project-owned identifiers
+- write "basenode" in prose, but use `basenode` for project-owned identifiers
 - write "edge weight" in prose, but use `edgeweight` for project-owned
   identifiers
 - use `node` rather than `vertex`, `edge` rather than `branch` in code
@@ -103,9 +103,9 @@ Revalidated observations:
 - the public load path currently supports only tables-only `load(src)`,
   explicit FileIO override, and stream-based loads; there are no construction
   protocol load surfaces yet
-- there are no package-owned `bind_rootnode!`, `add_child`, or
+- there are no package-owned `bind_basenode!`, `add_child`, or
   `finalize_graph!` protocol owners, no `NodeRowRef` or `EdgeRowRef` types,
-  no builder-callback orchestration, and no root-binding validation path yet
+  no builder-callback orchestration, and no basenode-binding validation path yet
 - the simple rooted Newick parser still rejects retained annotations when it
   encounters `[` comments or annotation-like constructs, so tranche 2 must add
   the first honest retained-annotation path rather than pretending row
@@ -120,14 +120,14 @@ the tranche 1 `load(src)` contract.
 Tranche 2 establishes the core owner for:
 
 - single-parent graph materialization over authoritative core tables
-- `bind_rootnode!`, `add_child`, and `finalize_graph!` as public core protocol
+- `bind_basenode!`, `add_child`, and `finalize_graph!` as public core protocol
   functions
 - package-owned `NodeRowRef` and `EdgeRowRef` delivery at the builder boundary
-- `load(src, NodeT)`, `load(src, rootnode::NodeT)`, and `load(src; builder=fn)`
+- `load(src, NodeT)`, `load(src, basenode::NodeT)`, and `load(src; builder=fn)`
   as alternate load surfaces over the same core protocol
 - retained simple-Newick scalar annotation extraction into authoritative tables
   so row references expose real retained values
-- validation of root-binding and builder compatibility before construction work
+- validation of basenode-binding and builder compatibility before construction work
   where possible
 
 This tranche does not yet own:
@@ -211,7 +211,7 @@ The implementation must preserve the tranche 2 scope boundary:
   row-reference contract rather than inventing alternative payload stores
 - retained annotations in core must remain raw text in authoritative tables;
   semantic coercion stays outside core
-- root-binding surfaces must reject multi-graph sources informatively rather
+- basenode-binding surfaces must reject multi-graph sources informatively rather
   than guessing
 
 ## Tasks
@@ -230,7 +230,7 @@ changing public behavior. Touch `src/LineagesIO.jl` and create the tranche-owned
 source files needed for protocol types and construction orchestration under
 `src/`, while preserving the tranche 1 tables-only owner boundaries. Add
 representative fixtures under `test/fixtures/` for: an annotated rooted simple
-Newick source, a multi-graph source used to verify invalid supplied-root loads,
+Newick source, a multi-graph source used to verify invalid supplied-basenode loads,
 and at least one invalid annotation or contract case that should fail
 informatively. Keep naming aligned with the ratified vocabulary and the tranche
 1 fixture set. End the task green with `julia --project=test test/runtests.jl`.
@@ -249,7 +249,7 @@ Touch the core types, view/protocol, and table-lookup owner files under `src/`.
 Add concrete `NodeRowRef` and `EdgeRowRef` types that point into
 authoritative tables by structural key, add the package-owned default no-op
 `finalize_graph!`, and add or refine informative failure behavior for
-unsupported `bind_rootnode!` and `add_child` paths so later extensions and user
+unsupported `bind_basenode!` and `add_child` paths so later extensions and user
 types have one clear contract owner. Extend `node_property` and `edge_property`
 so they work directly over row references as well as tables. Do not introduce
 copied annotation payloads or field-style sugar as a core contract. End the
@@ -310,7 +310,7 @@ stays `nothing` there. These tests must fail for the pre-tranche-2 parser state
 that rejected retained annotations outright. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 6. Implement library-created-root materialization and builder-callback orchestration
+### 6. Implement library-created-basenode materialization and builder-callback orchestration
 
 **Type**: WRITE
 **Output**: `load(src, NodeT)` and `load(src; builder=fn)` run through one
@@ -318,7 +318,7 @@ shared top-down single-parent construction owner that reuses authoritative
 tables, row references, and `finalize_graph!`
 **Depends on**: 5
 
-Implement the core orchestration path for library-created-root materialization.
+Implement the core orchestration path for library-created-basenode materialization.
 Touch the protocol owner files under `src/`, the Newick owner, the view/asset
 owner, and FileIO integration as needed. Add one shared top-down pre-order
 emission path that constructs the root through `add_child(::Nothing, ...)`,
@@ -332,26 +332,26 @@ required callback shape remains materially ambiguous after revalidation, stop
 and raise that instead of exporting an ad hoc callback API. End the task green
 with `julia --project=test test/runtests.jl`.
 
-### 7. Implement supplied-root binding and one-graph validation
+### 7. Implement supplied-basenode binding and one-graph validation
 
 **Type**: WRITE
-**Output**: `load(src, rootnode::NodeT)` binds through `bind_rootnode!`,
+**Output**: `load(src, basenode::NodeT)` binds through `bind_basenode!`,
 rejects multi-graph sources and incompatible combinations informatively, and
 preserves the existing tables-only path unchanged
 **Depends on**: 6
 
-Implement the supplied-root load surface on the same core owner rather than as
+Implement the supplied-basenode load surface on the same core owner rather than as
 an alternative code path. Touch the protocol/orchestration owner files, the
 Newick owner, the view/asset owner, and FileIO integration as needed. Ensure
-that one-graph root binding is validated before construction begins where
+that one-graph basenode binding is validated before construction begins where
 possible, and that multi-graph sources fail informatively instead of guessing
 how binding should work. Reject incompatible combinations such as a supplied
-`rootnode` together with an explicit builder callback if that surface would
+`basenode` together with an explicit builder callback if that surface would
 blur distinct ownership models. Preserve the tranche 1 bare-load behavior and
 the shared authoritative tables across all paths. End the task green with
 `julia --project=test test/runtests.jl`.
 
-### 8. Add end-to-end single-parent construction, builder, and root-binding tests
+### 8. Add end-to-end single-parent construction, builder, and basenode-binding tests
 
 **Type**: TEST
 **Output**: end-to-end tests verify stable structural keys, protocol emission
@@ -363,11 +363,11 @@ Add the tranche-owned end-to-end tests named in the tranche plan:
 `test/core/construction_protocol_single_parent.jl`,
 `test/core/root_binding.jl`, `test/core/builder_callback.jl`, and
 `test/core/error_paths.jl`. Use representative custom node-handle types that
-implement `add_child`, `bind_rootnode!`, and any needed finalization behavior.
+implement `add_child`, `bind_basenode!`, and any needed finalization behavior.
 Verify field-level structural correctness for emitted `nodekey`, `edgekey`,
 `label`, `edgeweight`, `nodedata`, and `edgedata` values; verify retained
 annotation text is visible through row references during construction; verify
-root-binding rejection on multi-graph sources; and verify other ratified error
+basenode-binding rejection on multi-graph sources; and verify other ratified error
 paths directly rather than through loose proxies. End the task green with
 `julia --project=test test/runtests.jl`.
 
