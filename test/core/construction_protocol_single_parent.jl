@@ -112,3 +112,45 @@ end
     @test LineagesIO.basenode(asset) === asset.materialized
     @test LineagesIO.basenode(asset) isa SingleParentProtocolNode
 end
+
+@testset "LineageGraphAsset destructuring" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
+
+    materialized_store = load(fixture_path, SingleParentProtocolNode)
+    materialized_asset = first(materialized_store.graphs)
+
+    graph, node_table, edge_table = materialized_asset
+    @test graph === materialized_asset.materialized
+    @test node_table === materialized_asset.node_table
+    @test edge_table === materialized_asset.edge_table
+    @test length(materialized_asset) == 3
+
+    materialized_only, _, _ = materialized_asset
+    @test materialized_only === materialized_asset.materialized
+
+    _, materialized_node_table, materialized_edge_table = materialized_asset
+    @test materialized_node_table === materialized_asset.node_table
+    @test materialized_edge_table === materialized_asset.edge_table
+
+    iteration_count = 0
+    for (graph, node_table, edge_table) in materialized_store.graphs
+        @test graph === materialized_asset.materialized
+        @test node_table === materialized_asset.node_table
+        @test edge_table === materialized_asset.edge_table
+        iteration_count += 1
+    end
+    @test iteration_count == length(materialized_store.graphs)
+
+    tables_only_store = load(fixture_path)
+    tables_only_asset = first(tables_only_store.graphs)
+
+    materialized, node_table, edge_table = tables_only_asset
+    @test materialized === nothing
+    @test node_table === tables_only_asset.node_table
+    @test edge_table === tables_only_asset.edge_table
+    @test length(tables_only_asset) == 3
+
+    _, tables_only_node_table, tables_only_edge_table = tables_only_asset
+    @test tables_only_node_table === tables_only_asset.node_table
+    @test tables_only_edge_table === tables_only_asset.edge_table
+end

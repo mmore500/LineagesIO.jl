@@ -20,9 +20,11 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-asset.materialized === nothing
-asset.node_table
-asset.edge_table
+materialized, node_table, edge_table = asset
+
+materialized === nothing
+node_table === asset.node_table
+edge_table === asset.edge_table
 ```
 
 ## Supported load surfaces
@@ -42,7 +44,9 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
-`edge_table` objects. For the tables-only path, `materialized === nothing`.
+`edge_table` objects. Each asset destructures in the stable public order
+`(materialized, node_table, edge_table)`. For the tables-only path, the first
+destructured value is `nothing`.
 
 Construction loads reuse the same authoritative tables and expose retained
 annotation values through `NodeRowRef`, `EdgeRowRef`, `node_property`, and
@@ -89,6 +93,9 @@ end
 
 store = load("annotated_tree.nwk", DemoNode)
 basenode = first(store.graphs).materialized
+
+graph, node_table, edge_table = first(store.graphs)
+graph === basenode
 ```
 
 ## PhyloNetworks extension

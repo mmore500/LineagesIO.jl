@@ -40,9 +40,11 @@ using LineagesIO
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-asset.materialized === nothing
-asset.node_table
-asset.edge_table
+materialized, node_table, edge_table = asset
+
+materialized === nothing
+node_table === asset.node_table
+edge_table === asset.edge_table
 ```
 
 Use an explicit override when the source path is intentionally ambiguous:
@@ -98,6 +100,9 @@ end
 
 store = load("annotated_tree.nwk", DemoNode)
 basenode = first(store.graphs).materialized
+
+graph, node_table, edge_table = first(store.graphs)
+graph === basenode
 ```
 
 ## PhyloNetworks soft release

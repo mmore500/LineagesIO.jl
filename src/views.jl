@@ -207,6 +207,25 @@ function basenode(asset::LineageGraphAsset{MaterializedT})::MaterializedT where 
     return asset.materialized
 end
 
+"""
+    Base.iterate(asset::LineageGraphAsset[, state::Int])
+    Base.length(::LineageGraphAsset)
+
+Enable assignment and loop destructuring of a `LineageGraphAsset` in the stable
+public order `(materialized, node_table, edge_table)`.
+
+For tables-only loads, the first destructured value is `nothing`.
+"""
+Base.IteratorSize(::Type{<:LineageGraphAsset}) = Base.HasLength()
+Base.length(::LineageGraphAsset)::Int = 3
+
+function Base.iterate(asset::LineageGraphAsset, state::Int = 1)
+    state == 1 && return asset.materialized, 2
+    state == 2 && return asset.node_table, 3
+    state == 3 && return asset.edge_table, 4
+    return nothing
+end
+
 function has_property(table::AbstractLineageTable, propertykey::Symbol)::Bool
     return propertykey in Tables.columnnames(table)
 end
