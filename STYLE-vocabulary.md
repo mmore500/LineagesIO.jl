@@ -569,7 +569,7 @@ process-coordinate values; `display_polarity` describes their screen direction.
 
 ### `basenode`
 
-**Part of speech:** positional argument name; prose form is "base node" 
+**Part of speech:** positional argument name; prose form is "basenode" 
 when referring to this class of nodes or abstraction in general (i.e. to rooted as well
 as unrooted graphs) or when referring to project concepts and abstractions. 
 
@@ -587,8 +587,9 @@ Passed as the first positional argument to `lineageplot`,
 `rectangular_layout`, `circular_layout`, and related functions. 
 Use `basenode` only when referring to the exact API argument or identifier.
 
-In reader-facing prose, write "base node" always when referring to any 
-project abstractions or concepts.
+In reader-facing prose, write "basenode" always when referring to any 
+project abstractions or concepts, though "root node" or "distinguished node"
+when referring to or connecting to domain concepots.
 In first use in user-facing documents it should clarified or explained 
 as per the general vocabulary guidelines above, as this is a non-standard term.
 
@@ -596,7 +597,7 @@ as per the general vocabulary guidelines above, as this is a non-standard term.
 many implementations and the domain use the term "root"/"root node" for 
 this abstraction when the structure is actually non-rooted.
 Distinguished node/vertex is the more general and correct term, but it is too long.
-We adopt and mandate use of "base node" (`basenode` in code; never "base" or `base` 
+We adopt and mandate use of "basenode" (`basenode` in code; never "base" or `base` 
 as this is too generic) as an internal alternative that is shorter, and clean of 
 conflicting collisions and semantics. 
 In user-facing or application domain-centric prose we may continue to "root node" 
@@ -604,7 +605,7 @@ and/or "distinguished node" as appropropriate, but only when exactly correct wit
 respect to the particular structures referenced, and link to the project term for 
 clarity. 
 For e.g. "When materializing a rooted phylogenetic tree, the root node (the distinguished 
-node; called a  "base node" in this project), may be found using 
+node; called a  "basenode" in this project), may be found using 
 the `basenode()` function)."
 Similarly when introducing the term or something related to the term for the 
 first time in a document.
@@ -612,6 +613,8 @@ first time in a document.
 **Proscribed alternates (as project-owned identifiers):**
 `base`, `basevertex`, `base_node`, `base_vertex`, `seed`, `seed_node`,
 `source`, `origin`, `root`.
+**Proscribed alternates (as prose for project abstractisons and concepts):** "base", 
+"base node", "root", "root node".
 
 ---
 
