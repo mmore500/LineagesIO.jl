@@ -56,14 +56,14 @@ Examples:
 **Definition:** The relationship between increasing process-coordinate values
 and the direction of the modeled process. Has two values:
 
-- `:forward` — increasing process coordinates move in the root-to-leaf
+- `:forward` — increasing process coordinates move in the basenode-to-leaf
   direction (forward time). `lineageunits` values `:edgeweights`,
   `:branchingtime`, `:nodedepths`, and `:nodelevels` produce forward
   process coordinates (basenode = 0, increases toward leaves).
-- `:backward` — increasing process coordinates move in the leaf-to-root
+- `:backward` — increasing process coordinates move in the leaf-to-basenode
   direction (backward time, as in coalescent models). `lineageunits` values
   `:coalescenceage` and `:nodeheights` produce backward process coordinates
-  (leaves = 0, increases toward root).
+  (leaves = 0, increases toward basenode).
 
 `axis_polarity` is a property of the data and the active `lineageunits` value,
 not of the screen. It is distinct from `display_polarity`, which governs the
@@ -98,12 +98,12 @@ Written as one word without underscore.
 **Definition (concept):** IFF `edgeweight` values represent time in a time-indexed branching process, 
 then this is the cumulative sum of `edgeweight` values on the directed path from `basenode` to a given node. 
 Represents the total
-evolutionary or temporal distance accumulated since the root. Also called
+evolutionary or temporal distance accumulated since the basenode. Also called
 "divergence time" in phylogenetic prose.
 
 - `branchingtime(basenode) = 0` by definition.
 - `branchingtime(child) = branchingtime(parent) + edgeweight(parent, child)`.
-- Polarity: increases in the forward-time direction (root → leaves), i.e., the
+- Polarity: increases in the forward-time direction (basenode → leaves), i.e., the
   x-axis reads left = past, right = present for a standard chronogram.
 
 **Definition (as accessor):** The callable `branchingtime(node) -> Float64`
@@ -206,7 +206,7 @@ age" or "backward time" in phylogenetic prose.
 - `coalescenceage(parent) = edgeweight(parent, child) + coalescenceage(child)`
   for any direct child (ultrametric guarantee: all children give the same
   value).
-- Polarity: increases in the backward-time direction (leaves → root), i.e., the
+- Polarity: increases in the backward-time direction (leaves → basenode), i.e., the
   x-axis reads left = distant past, right = present for a standard chronogram
   when `lineageunits = :coalescenceage`.
 
@@ -260,7 +260,7 @@ along the lineage axis. Has two values:
   orientation, up in `:bottom_to_top`). With forward axis polarity, this places
   the basenode at the left and leaves at the right.
 - `:reversed` — increasing process coordinates map to decreasing screen
-  position. Allows, for example, a forward-time tree to be drawn root-at-right
+  position. Allows, for example, a forward-time tree to be drawn basenode-at-right
   (paleontological or stratigraphic convention), or a `:coalescenceage` tree to
   be drawn with the basenode at the left and leaves at the right.
 
@@ -343,7 +343,7 @@ Follows the `Graphs.jl` ecosystem convention.
 
 **Definition (tree-level):** The maximum `branchingtime` of any node in the
 tree, equivalently the `branchingtime` of the deepest leaf. For an ultrametric
-tree, equals the `coalescenceage` of the root node.
+tree, equals the `coalescenceage` of the basenode.
 
 **Definition (per-node):** The path distance (number of edges, ignoring
 `edgeweight` values) from a given node to its farthest descendant leaf. Used
@@ -476,7 +476,7 @@ node, and what `axis_polarity` `LineageAxis` infers:
 - `:branchingtime` — pre-supplied branching times; requires `branchingtime`
   accessor; `:forward` polarity.
 - `:coalescenceage` — pre-supplied coalescence ages; requires `coalescenceage`
-  accessor; leaf = 0, increases toward root; `:backward` polarity.
+  accessor; leaf = 0, increases toward basenode; `:backward` polarity.
 - `:nodedepths` — cumulative path distance (edge count) from basenode; no
   accessor required; `:forward` polarity.
 - `:nodeheights` — edge count to farthest leaf; leaves at 0; default when no
@@ -514,7 +514,7 @@ Values:
 - `:right_to_left` — lineage axis runs along x, transverse is y; basenode
   is at the right by default (use with `:standard` `display_polarity` and a
   leaf-relative `lineageunits` such as `:coalescenceage`, or with `:reversed`
-  `display_polarity` and a root-relative `lineageunits` value).
+  `display_polarity` and a basenode-relative `lineageunits` value).
 - `:bottom_to_top` — lineage axis runs along y; transverse is x.
 - `:top_to_bottom` — lineage axis runs along y inverted; classic dendrogram
   orientation.
@@ -650,10 +650,10 @@ layout types. It does not appear as a code identifier.
 
 **Part of speech:** noun (structural concept)
 
-**Definition:** Any element of the graph: the root node, any internal
+**Definition:** Any element of the graph: the basenode, any internal
 node, or any `leaf`. The generic term for a graph element. `nodes` is
 the plural. In compound role-specific names, use the role term directly
-(`leaf`, "root node", `internal node` in prose) rather than repeating `node`
+(`leaf`, `basenode`, `internal node` in prose) rather than repeating `node`
 where the role already implies it.
 The use of `vertex` and related forms is acceptable in graph-theoretic
 mathematical context or when quoting a third-party API.
@@ -909,24 +909,24 @@ required artifact set.
 
 | Symbol | Accessor required | x-coordinate source | Polarity | `axis_polarity` |
 |---|---|---|---|---|
-| `:edgeweights` | `edgeweight` | Cumulative `edgeweight(src, dst)` from `basenode`; computes `branchingtime` on the fly | Root = 0, increases toward leaves | `:forward` |
-| `:branchingtime` | `branchingtime` | `branchingtime(node)` directly; user pre-supplies divergence times | Root = 0, increases toward leaves | `:forward` |
-| `:coalescenceage` | `coalescenceage` | `coalescenceage(node)`; requires ultrametric tree (or `nonultrametric` policy) | Leaf = 0, increases toward root | `:backward` |
-| `:nodedepths` | none | Cumulative path distance (edge count) from `basenode` (all edge weights = 1) | Root = 0, increases toward leaves | `:forward` |
-| `:nodeheights` | none | Per-node height (path distance to farthest leaf); all leaves at x = 0; clade graph (unweighted) analogue of `:coalescenceage` | Leaf = 0, increases toward root | `:backward` |
-| `:nodelevels` | none | Integer level = edge count from `basenode`; equal spacing between levels; clade graph (unweighted) analogue of `:branchingtime` | Root = 0, increases toward leaves | `:forward` |
+| `:edgeweights` | `edgeweight` | Cumulative `edgeweight(src, dst)` from `basenode`; computes `branchingtime` on the fly | Basenode = 0, increases toward leaves | `:forward` |
+| `:branchingtime` | `branchingtime` | `branchingtime(node)` directly; user pre-supplies divergence times | Basenode = 0, increases toward leaves | `:forward` |
+| `:coalescenceage` | `coalescenceage` | `coalescenceage(node)`; requires ultrametric tree (or `nonultrametric` policy) | Leaf = 0, increases toward basenode | `:backward` |
+| `:nodedepths` | none | Cumulative path distance (edge count) from `basenode` (all edge weights = 1) | Basenode = 0, increases toward leaves | `:forward` |
+| `:nodeheights` | none | Per-node height (path distance to farthest leaf); all leaves at x = 0; clade graph (unweighted) analogue of `:coalescenceage` | Leaf = 0, increases toward basenode | `:backward` |
+| `:nodelevels` | none | Integer level = edge count from `basenode`; equal spacing between levels; clade graph (unweighted) analogue of `:branchingtime` | Basenode = 0, increases toward leaves | `:forward` |
 | `:nodecoordinates` | `nodecoordinates` | User-supplied `(x, y)` in data coordinates | User-defined | User-defined |
 | `:nodepos` | `nodepos` | User-supplied `(x, y)` in pixel coordinates | User-defined | User-defined |
 
 **Default `lineageunits`:** `:edgeweights` if an `edgeweight` accessor is
 supplied; `:nodeheights` otherwise.
 
-**Polarity summary:** `lineageunits` values that are root-relative
+**Polarity summary:** `lineageunits` values that are basenode-relative
 (`:edgeweights`, `:branchingtime`, `:nodedepths`, `:nodelevels`) have
-`:forward` `axis_polarity` and assign the root x = 0 increasing toward the
+`:forward` `axis_polarity` and assign the basenode x = 0 increasing toward the
 leaves. `lineageunits` values that are leaf-relative (`:coalescenceage`,
 `:nodeheights`) have `:backward` `axis_polarity` and assign leaves x = 0
-increasing toward the root. With the default `display_polarity = :standard`
+increasing toward the basenode. With the default `display_polarity = :standard`
 and `lineage_orientation = :left_to_right`, forward `lineageunits` values
 place leaves at the right; backward `lineageunits` values place the
 basenode at the right.
