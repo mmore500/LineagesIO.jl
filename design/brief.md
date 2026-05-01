@@ -938,7 +938,8 @@ authoritative tables, it may. The core package does not require it.
 
 ### `LineageGraphAsset`
 
-`LineageGraphAsset{MaterializedT}` is the single-graph result struct.
+`LineageGraphAsset{GraphT, BasenodeT, NodeTableT, EdgeTableT}` is the
+single-graph result struct.
 
 It must carry:
 
@@ -950,22 +951,35 @@ It must carry:
 - `graph_label`
 - `node_table`
 - `edge_table`
-- `materialized`
+- `graph`
+- `basenode`
 - `source_path`
 
-`materialized` is:
+`graph` is:
 
-- the final value returned by `finalize_graph!` when the caller requested graph
-  materialization
-- `nothing` when the caller did not request graph materialization
+- the library graph container (e.g., `MetaGraph`, `HybridNetwork`) when the
+  caller requested construction into a first-class extension target
+- `nothing` when the caller used the native LineagesIO protocol or did not
+  request graph construction
 
-For generic node-model construction, this value is often the root node or root
-handle. For first-class package extensions, it should ordinarily be the native
-target-package graph or container object requested by the caller.
+`basenode` is:
+
+- the root node object when the caller requested graph construction: the user's
+  custom root node for native-protocol loads, or the root node within the
+  container for extension loads
+- `nothing` when the caller did not request graph construction
+
+Both fields are `nothing` for tables-only loads.
+
+For native LineagesIO protocol construction, `graph` is always `nothing`; `basenode`
+holds the user's custom root node returned by `finalize_graph!`.
+
+For first-class extension loads (e.g., MetaGraphsNext, PhyloNetworks), `graph` holds
+the library container and `basenode` holds the root node within it.
 
 ### `LineageGraphStore`
 
-`LineageGraphStore{MaterializedT}` is always returned by `load`.
+`LineageGraphStore{GraphT, BasenodeT}` is always returned by `load`.
 
 It must carry:
 
@@ -974,7 +988,7 @@ It must carry:
 - `graph_table`
 - `graphs`
 
-`graphs` is a lazy iterator of `LineageGraphAsset{MaterializedT}`.
+`graphs` is a lazy iterator of `LineageGraphAsset{GraphT, BasenodeT, ...}`.
 
 ### Multi-source coordinates
 

@@ -311,8 +311,7 @@ Phase 1 extension modules are:
 
 `ext/MetaGraphsNextIO.jl` and `ext/PhyloNetworksIO.jl` own direct native
 graph construction. `ext/MetaGraphsNextAbstractTreesIO.jl` owns the
-`AbstractTrees.jl` compatibility layer over `MetaGraphsNextIO` materialized
-graphs.
+`AbstractTrees.jl` compatibility layer over `MetaGraphsNextIO` graphs.
 
 Each extension module owns:
 

@@ -57,7 +57,7 @@ using MetaGraphsNext: MetaGraph
 store = load("primates.nwk", MetaGraph)
 asset = first(store.graphs)
 
-asset.materialized isa MetaGraph
+asset.graph isa MetaGraph
 asset.node_table
 asset.edge_table
 ```
@@ -75,7 +75,7 @@ using MetaGraphsNext: MetaGraph
 
 store = load("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
-graph = asset.materialized
+graph = asset.graph
 
 graph
 LineagesIO.node_property(asset.node_table, 1, :bootstrap)
@@ -96,7 +96,7 @@ using MetaGraphsNext: MetaGraph
 store = load(File{format"Newick"}("unrooted_primates.nwk"), MetaGraph)
 asset = first(store.graphs)
 
-asset.materialized
+asset.graph
 asset.node_table
 asset.edge_table
 ```
@@ -137,7 +137,7 @@ using PhyloNetworks: HybridNetwork
 store = load("primates.nwk", HybridNetwork)
 asset = first(store.graphs)
 
-asset.materialized isa HybridNetwork
+asset.graph isa HybridNetwork
 asset.node_table
 asset.edge_table
 ```
@@ -173,7 +173,7 @@ using PhyloNetworks: HybridNetwork
 store = load(File{format"Newick"}("hybrid_example.nwk"), HybridNetwork)
 asset = first(store.graphs)
 
-asset.materialized isa HybridNetwork
+asset.graph isa HybridNetwork
 asset.node_table
 asset.edge_table
 ```

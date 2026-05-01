@@ -51,7 +51,6 @@ using FileIO: load
 store = load("primates.nwk")
 asset = first(store.graphs)
 
-asset.materialized === nothing
 asset.node_table
 asset.edge_table
 asset.graph_label
@@ -138,7 +137,7 @@ end
 
 store = load("primates.nwk", DemoNode)
 asset = first(store.graphs)
-basenode = asset.materialized
+basenode = asset.basenode
 ```
 
 ## User story 5: Root binding onto a caller-supplied basenode
@@ -187,7 +186,7 @@ end
 basenode = BoundNode(nothing, "", nothing, BoundNode{Any}[])
 store = load("primates.nwk", basenode)
 asset = first(store.graphs)
-asset.materialized === basenode
+asset.basenode === basenode
 ```
 
 ## User story 6: Eager annotation interpretation during construction
