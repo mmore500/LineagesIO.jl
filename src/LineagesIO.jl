@@ -15,6 +15,7 @@ export NodeTable
 export SourceTable
 export StructureKeyType
 export add_child
+export basenode
 export bind_basenode!
 export edge_property
 export finalize_graph!

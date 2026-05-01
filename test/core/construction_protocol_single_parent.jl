@@ -108,4 +108,7 @@ end
         (:child, 5, 4, "C", "0.73", nothing, nothing),
         (:finalize, 1, nothing, "Root", "0.99", nothing, nothing),
     ]
+
+    @test LineagesIO.basenode(asset) === asset.materialized
+    @test LineagesIO.basenode(asset) isa SingleParentProtocolNode
 end

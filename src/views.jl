@@ -179,6 +179,24 @@ function edge_property(
     return edge_property(getfield(edgedata, :table), getfield(edgedata, :edgekey), propertykey)
 end
 
+"""
+    basenode(asset::LineageGraphAsset)
+
+Return the materialized graph result from a construction load.
+
+Raises `ArgumentError` for tables-only assets where no construction target
+was supplied and `materialized === nothing`.
+"""
+function basenode(asset::LineageGraphAsset{MaterializedT})::MaterializedT where {MaterializedT}
+    asset.materialized === nothing && throw(
+        ArgumentError(
+            "Cannot extract a `basenode` from a tables-only `LineageGraphAsset`. " *
+            "Supply a construction target to `load` to obtain a materialized result."
+        )
+    )
+    return asset.materialized
+end
+
 function has_property(table::AbstractLineageTable, propertykey::Symbol)::Bool
     return propertykey in Tables.columnnames(table)
 end

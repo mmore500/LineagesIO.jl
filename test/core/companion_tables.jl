@@ -113,3 +113,10 @@
     @test asset.node_table === node_table
     @test asset.edge_table === edge_table
 end
+
+@testset "basenode accessor — tables-only error" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
+    tables_only_asset = first(load(File{LineagesIO.NewickFormat}(fixture_path)).graphs)
+    @test tables_only_asset.materialized === nothing
+    @test_throws ArgumentError basenode(tables_only_asset)
+end
