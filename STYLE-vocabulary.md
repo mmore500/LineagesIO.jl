@@ -36,8 +36,6 @@ or deliberate project terms.
 
 Examples:
 
-- Write "root node" in prose; write `rootnode` only for the exact positional
-  argument name or code identifier.
 - Write "edge weight" in prose; write `edgeweight` only for the exact accessor
   keyword, callable name, or code identifier.
 - Write "node value" in prose; write `nodevalue` only for the exact accessor
