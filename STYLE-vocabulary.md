@@ -573,7 +573,6 @@ process-coordinate values; `display_polarity` describes their screen direction.
 when referring to this class of nodes or abstraction in general (i.e. to rooted as well
 as unrooted graphs) or when referring to project concepts and abstractions. 
 
-
 **Definition:** The *distinguished node* of a 
 phylogenetic X-tree [@steel2006phylogeentics], rooted or unrooted, or
 a phylogenetic network, rooted or unrooted.
@@ -582,18 +581,18 @@ In unrooted graphs, this is an arbitrary node (and can be an existing leaf or
 internal node of the tree, or an artifactual (augmented) node inserted into
 the structure.
 
-
 In the internal mechanics of this project, this will be a unique node with no parent 
 that serves as the starting point of graph traversal. 
 Passed as the first positional argument to `lineageplot`,
-`rectangular_layout`, `circular_layout`, and related functions. In
-reader-facing prose, write "root node". 
-Use `basenode` only when referring to
-the exact API argument or identifier.
+`rectangular_layout`, `circular_layout`, and related functions. 
+Use `basenode` only when referring to the exact API argument or identifier.
 
+In reader-facing prose, write "base node" always when referring to any 
+project abstractions or concepts.
 In first use in user-facing documents it should clarified or explained 
-as per guidelines, as this is a non-standard term.
-We recognize the domain-standard "root"/"root node" when applicable, but unfortunately
+as per the general vocabulary guidelines above, as this is a non-standard term.
+
+**Justification** We recognize the domain-standard "root"/"root node" when applicable, but unfortunately
 many implementations and the domain use the term "root"/"root node" for 
 this abstraction when the structure is actually non-rooted.
 Distinguished node/vertex is the more general and correct term, but it is too long.
