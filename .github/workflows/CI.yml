@@ -62,10 +62,20 @@ jobs:
         run: |
           using Pkg
           Pkg.instantiate()
-      - name: Run example phylonetworks_mwe01
-        run: julia --project=examples --color=yes examples/src/phylonetworks_mwe01.jl
-      - name: Run example phylonetworks_mwe02
-        run: julia --project=examples --color=yes examples/src/phylonetworks_mwe02.jl
+      - name: Run all examples
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          examples=(examples/src/*.jl)
+          if [ ${#examples[@]} -eq 0 ]; then
+            echo "No example scripts found under examples/src/" >&2
+            exit 1
+          fi
+          for example in "${examples[@]}"; do
+            echo "::group::$example"
+            julia --project=examples --color=yes "$example"
+            echo "::endgroup::"
+          done
   docs:
     name: Documentation
     runs-on: ubuntu-latest
