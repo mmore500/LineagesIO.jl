@@ -1,5 +1,6 @@
 const ALIFE_ID_COLUMN = :id
 const ALIFE_ANCESTOR_LIST_COLUMN = :ancestor_list
+const ALIFE_ANCESTOR_ID_COLUMN = :ancestor_id
 
 struct ParsedAlifeRow
     id::Int
@@ -21,6 +22,24 @@ function build_alife_store(
     request::AbstractLoadRequest,
 )::LineageGraphStore
     header, rows = parse_alife_source(text, source_path)
+    return build_alife_store_from_rows(header, rows, source_path, request)
+end
+
+function build_alife_store_from_table(
+    table,
+    source_path::OptionalString,
+    request::AbstractLoadRequest,
+)::LineageGraphStore
+    header, rows = parse_alife_table(table, source_path)
+    return build_alife_store_from_rows(header, rows, source_path, request)
+end
+
+function build_alife_store_from_rows(
+    header::Vector{Symbol},
+    rows::Vector{ParsedAlifeRow},
+    source_path::OptionalString,
+    request::AbstractLoadRequest,
+)::LineageGraphStore
     annotation_names = collect_alife_annotation_names(header)
     components = partition_alife_components(rows, source_path)
     graph_assets = [
@@ -64,22 +83,26 @@ function parse_alife_source(
     text::AbstractString,
     source_path::OptionalString,
 )::Tuple{Vector{Symbol}, Vector{ParsedAlifeRow}}
-    records = split_csv_records(text, source_path)
-    isempty(records) && throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
-    header_record = first(records)
-    header = [Symbol(strip(field)) for field in header_record]
+    isempty(strip(text)) && throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
+    raw_matrix = try
+        DelimitedFiles.readdlm(IOBuffer(String(text)), ',', String; quotes = true)
+    catch err
+        throw(ArgumentError(format_alife_error(source_path, "could not parse delimited input: $(sprint(showerror, err))")))
+    end
+    matrix_rows = size(raw_matrix, 1)
+    matrix_rows >= 1 || throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
+    header = Symbol[Symbol(strip(raw_matrix[1, column_index])) for column_index in 1:size(raw_matrix, 2)]
     validate_alife_header(header, source_path)
     id_column_index = findfirst(==(ALIFE_ID_COLUMN), header)
-    ancestor_column_index = findfirst(==(ALIFE_ANCESTOR_LIST_COLUMN), header)
+    ancestor_list_index = findfirst(==(ALIFE_ANCESTOR_LIST_COLUMN), header)
+    ancestor_id_index = findfirst(==(ALIFE_ANCESTOR_ID_COLUMN), header)
 
     rows = ParsedAlifeRow[]
     seen_ids = Dict{Int, Int}()
-    for (record_index, record) in enumerate(@view records[2:end])
-        all(isempty, record) && continue
-        length(record) == length(header) || throw(ArgumentError(format_alife_error(
-            source_path,
-            "data record $(record_index) has $(length(record)) fields but the header declares $(length(header)).",
-        )))
+    for matrix_row_index in 2:matrix_rows
+        record_index = matrix_row_index - 1
+        record = @view raw_matrix[matrix_row_index, :]
+        all(field -> isempty(strip(field)), record) && continue
         id = parse_alife_id(record[id_column_index], record_index, source_path)
         if haskey(seen_ids, id)
             throw(ArgumentError(format_alife_error(
@@ -88,11 +111,17 @@ function parse_alife_source(
             )))
         end
         seen_ids[id] = record_index
-        ancestor_ids = parse_alife_ancestor_list(record[ancestor_column_index], record_index, source_path)
+        raw_ancestor_ids = if ancestor_list_index !== nothing
+            parse_alife_ancestor_list(record[ancestor_list_index], record_index, source_path)
+        else
+            parse_alife_ancestor_id(record[ancestor_id_index], id, record_index, source_path)
+        end
+        ancestor_ids = Int[ancestor_id for ancestor_id in raw_ancestor_ids if ancestor_id != id]
         annotations = Dict{Symbol, String}()
         for (column_index, column_name) in enumerate(header)
             column_index == id_column_index && continue
-            column_index == ancestor_column_index && continue
+            ancestor_list_index !== nothing && column_index == ancestor_list_index && continue
+            ancestor_id_index !== nothing && column_index == ancestor_id_index && continue
             value = strip(record[column_index])
             isempty(value) && continue
             annotations[column_name] = String(value)
@@ -105,7 +134,7 @@ function parse_alife_source(
         for ancestor_id in row.ancestor_ids
             haskey(seen_ids, ancestor_id) || throw(ArgumentError(format_alife_error(
                 source_path,
-                "data record $(row.record_index) references unknown `ancestor_list` id=$(ancestor_id) for `id=$(row.id)`.",
+                "data record $(row.record_index) references unknown ancestor `id=$(ancestor_id)` for `id=$(row.id)`.",
             )))
         end
     end
@@ -115,7 +144,16 @@ end
 function validate_alife_header(header::Vector{Symbol}, source_path::OptionalString)::Nothing
     isempty(header) && throw(ArgumentError(format_alife_error(source_path, "alife header row may not be empty.")))
     ALIFE_ID_COLUMN in header || throw(ArgumentError(format_alife_error(source_path, "alife sources must declare a required `id` header column.")))
-    ALIFE_ANCESTOR_LIST_COLUMN in header || throw(ArgumentError(format_alife_error(source_path, "alife sources must declare a required `ancestor_list` header column.")))
+    has_ancestor_list = ALIFE_ANCESTOR_LIST_COLUMN in header
+    has_ancestor_id = ALIFE_ANCESTOR_ID_COLUMN in header
+    (has_ancestor_list || has_ancestor_id) || throw(ArgumentError(format_alife_error(
+        source_path,
+        "alife sources must declare a required `ancestor_list` or `ancestor_id` header column.",
+    )))
+    (has_ancestor_list && has_ancestor_id) && throw(ArgumentError(format_alife_error(
+        source_path,
+        "alife sources may declare either `ancestor_list` or `ancestor_id`, but not both.",
+    )))
     seen = Set{Symbol}()
     for column_name in header
         column_name in seen && throw(ArgumentError(format_alife_error(source_path, "duplicate header column `$(column_name)`.")))
@@ -127,7 +165,9 @@ end
 function collect_alife_annotation_names(header::Vector{Symbol})::Vector{Symbol}
     return Symbol[
         column_name for column_name in header
-        if column_name != ALIFE_ID_COLUMN && column_name != ALIFE_ANCESTOR_LIST_COLUMN
+        if column_name != ALIFE_ID_COLUMN
+            && column_name != ALIFE_ANCESTOR_LIST_COLUMN
+            && column_name != ALIFE_ANCESTOR_ID_COLUMN
     ]
 end
 
@@ -181,6 +221,27 @@ function parse_alife_ancestor_list(field::AbstractString, record_index::Int, sou
     return ancestor_ids
 end
 
+function parse_alife_ancestor_id(field::AbstractString, self_id::Int, record_index::Int, source_path::OptionalString)::Vector{Int}
+    token = strip(field)
+    isempty(token) && throw(ArgumentError(format_alife_error(
+        source_path,
+        "data record $(record_index) is missing the required `ancestor_id` value; root entries must set `ancestor_id` equal to their own `id`.",
+    )))
+    parsed_ancestor_id = try
+        parse(Int, token)
+    catch
+        throw(ArgumentError(format_alife_error(
+            source_path,
+            "data record $(record_index) has a non-integer `ancestor_id` value `$(token)`.",
+        )))
+    end
+    parsed_ancestor_id < 0 && throw(ArgumentError(format_alife_error(
+        source_path,
+        "data record $(record_index) has a negative `ancestor_id` value `$(parsed_ancestor_id)`; alife `id` values must be non-negative.",
+    )))
+    return Int[parsed_ancestor_id]
+end
+
 function partition_alife_components(rows::Vector{ParsedAlifeRow}, source_path::OptionalString)::Vector{Vector{ParsedAlifeRow}}
     nrows = length(rows)
     nrows == 0 && return Vector{ParsedAlifeRow}[]
@@ -228,7 +289,7 @@ function build_alife_graph_asset(
     root_rows = ParsedAlifeRow[row for row in component if isempty(row.ancestor_ids)]
     length(root_rows) == 1 || throw(ArgumentError(format_alife_error(
         source_path,
-        "each connected alife component must declare exactly one root entry (with `[NONE]` `ancestor_list`), but graph $(graph_index) yielded $(length(root_rows)) candidate roots.",
+        "each connected alife component must declare exactly one root entry (with `[NONE]` `ancestor_list` or self-referencing `ancestor_id`), but graph $(graph_index) yielded $(length(root_rows)) candidate roots.",
     )))
     root = first(root_rows)
 
@@ -258,7 +319,7 @@ function build_alife_graph_asset(
     if length(bfs_ordered_ids) != length(component)
         throw(ArgumentError(format_alife_error(
             source_path,
-            "alife graph $(graph_index) has $(length(component) - length(bfs_ordered_ids)) entries unreachable from its root; this typically indicates an `ancestor_list` cycle.",
+            "alife graph $(graph_index) has $(length(component) - length(bfs_ordered_ids)) entries unreachable from its root; this typically indicates an ancestor cycle.",
         )))
     end
 
@@ -307,75 +368,137 @@ function build_alife_graph_asset(
     )
 end
 
-function split_csv_records(text::AbstractString, source_path::OptionalString)::Vector{Vector{String}}
-    records = Vector{String}[]
-    current_record = String[]
-    field_buffer = IOBuffer()
-    in_quoted_field = false
-    has_field_content = false
-    has_record_content = false
-    text_index = firstindex(text)
-    text_end = lastindex(text)
-
-    while text_index <= text_end
-        current_character = text[text_index]
-        if in_quoted_field
-            if current_character == '"'
-                next_text_index = nextind(text, text_index)
-                if next_text_index <= text_end && text[next_text_index] == '"'
-                    print(field_buffer, '"')
-                    has_field_content = true
-                    text_index = nextind(text, next_text_index)
-                    continue
-                end
-                in_quoted_field = false
-                text_index = next_text_index
-                continue
-            end
-            print(field_buffer, current_character)
-            has_field_content = true
-            text_index = nextind(text, text_index)
-            continue
-        end
-        if current_character == '"'
-            in_quoted_field = true
-            has_field_content = true
-            text_index = nextind(text, text_index)
-            continue
-        end
-        if current_character == ','
-            push!(current_record, String(take!(field_buffer)))
-            has_field_content = false
-            has_record_content = true
-            text_index = nextind(text, text_index)
-            continue
-        end
-        if current_character == '\r' || current_character == '\n'
-            push!(current_record, String(take!(field_buffer)))
-            push!(records, current_record)
-            current_record = String[]
-            has_field_content = false
-            has_record_content = false
-            text_index = nextind(text, text_index)
-            if current_character == '\r' && text_index <= text_end && text[text_index] == '\n'
-                text_index = nextind(text, text_index)
-            end
-            continue
-        end
-        print(field_buffer, current_character)
-        has_field_content = true
-        text_index = nextind(text, text_index)
-    end
-
-    in_quoted_field && throw(ArgumentError(format_alife_error(source_path, "unterminated quoted CSV field; check for an unmatched `\"`.")))
-    if has_field_content || has_record_content
-        push!(current_record, String(take!(field_buffer)))
-        push!(records, current_record)
-    end
-    return records
-end
-
 function format_alife_error(source_path::OptionalString, message::AbstractString)::String
     source_label = source_path === nothing ? "<input>" : source_path
     return "Alife standard parse error in $(source_label): $(message)"
+end
+
+"""
+    load_alife_table(table; source_path = nothing) -> LineageGraphStore
+    load_alife_table(table, NodeT; source_path = nothing) -> LineageGraphStore
+    load_alife_table(table, basenode; source_path = nothing) -> LineageGraphStore
+    load_alife_table(table; builder = fn, source_path = nothing) -> LineageGraphStore
+
+Load a Tables.jl-compatible columnar object whose schema follows the alife
+phylogeny data standard. The table must declare an `id` column and exactly
+one of `ancestor_list` or `ancestor_id`. Root entries are identified by
+`[NONE]`/empty `ancestor_list` or by `ancestor_id` equal to the row's own
+`id`. All other columns are retained as node annotations.
+"""
+function load_alife_table(
+    table,
+    args...;
+    builder = nothing,
+    source_path::Union{Nothing, AbstractString} = nothing,
+)::LineageGraphStore
+    Tables.istable(typeof(table)) || throw(ArgumentError("`load_alife_table` requires a Tables.jl-compatible input; received `$(typeof(table))`."))
+    request = build_alife_load_request(args, builder)
+    return build_alife_store_from_table(table, normalize_source_path(source_path), request)
+end
+
+function parse_alife_table(
+    table,
+    source_path::OptionalString,
+)::Tuple{Vector{Symbol}, Vector{ParsedAlifeRow}}
+    column_table = Tables.columns(table)
+    column_name_tuple = Tables.columnnames(column_table)
+    header = Symbol[Symbol(name) for name in column_name_tuple]
+    validate_alife_header(header, source_path)
+    id_column_index = findfirst(==(ALIFE_ID_COLUMN), header)
+    ancestor_list_index = findfirst(==(ALIFE_ANCESTOR_LIST_COLUMN), header)
+    ancestor_id_index = findfirst(==(ALIFE_ANCESTOR_ID_COLUMN), header)
+
+    id_column = Tables.getcolumn(column_table, header[id_column_index])
+    ancestor_list_column = ancestor_list_index === nothing ? nothing : Tables.getcolumn(column_table, header[ancestor_list_index])
+    ancestor_id_column = ancestor_id_index === nothing ? nothing : Tables.getcolumn(column_table, header[ancestor_id_index])
+    nrows = length(id_column)
+    nrows >= 1 || throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one data row.")))
+
+    rows = ParsedAlifeRow[]
+    seen_ids = Dict{Int, Int}()
+    for record_index in 1:nrows
+        id = coerce_alife_id(id_column[record_index], record_index, source_path)
+        if haskey(seen_ids, id)
+            throw(ArgumentError(format_alife_error(
+                source_path,
+                "duplicate `id=$(id)` at data record $(record_index); previously seen at record $(seen_ids[id]).",
+            )))
+        end
+        seen_ids[id] = record_index
+        raw_ancestor_ids = if ancestor_list_column !== nothing
+            coerce_alife_ancestor_list(ancestor_list_column[record_index], record_index, source_path)
+        else
+            coerce_alife_ancestor_id(ancestor_id_column[record_index], id, record_index, source_path)
+        end
+        ancestor_ids = Int[ancestor_id for ancestor_id in raw_ancestor_ids if ancestor_id != id]
+        annotations = Dict{Symbol, String}()
+        for (column_index, column_name) in enumerate(header)
+            column_index == id_column_index && continue
+            ancestor_list_index !== nothing && column_index == ancestor_list_index && continue
+            ancestor_id_index !== nothing && column_index == ancestor_id_index && continue
+            cell = Tables.getcolumn(column_table, column_name)[record_index]
+            cell === missing && continue
+            cell === nothing && continue
+            value_str = strip(string(cell))
+            isempty(value_str) && continue
+            annotations[column_name] = String(value_str)
+        end
+        push!(rows, ParsedAlifeRow(id, ancestor_ids, annotations, record_index))
+    end
+    isempty(rows) && throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one data row.")))
+
+    for row in rows
+        for ancestor_id in row.ancestor_ids
+            haskey(seen_ids, ancestor_id) || throw(ArgumentError(format_alife_error(
+                source_path,
+                "data record $(row.record_index) references unknown ancestor `id=$(ancestor_id)` for `id=$(row.id)`.",
+            )))
+        end
+    end
+    return header, rows
+end
+
+function coerce_alife_id(value, record_index::Int, source_path::OptionalString)::Int
+    value === missing && throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) is missing the required `id` value.")))
+    value === nothing && throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) is missing the required `id` value.")))
+    if value isa Integer
+        value < 0 && throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) has a negative `id` value `$(value)`; alife `id` values must be non-negative.")))
+        return Int(value)
+    end
+    if value isa AbstractString
+        return parse_alife_id(value, record_index, source_path)
+    end
+    throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) `id` value `$(value)` of type `$(typeof(value))` is not coercible to an integer.")))
+end
+
+function coerce_alife_ancestor_list(value, record_index::Int, source_path::OptionalString)::Vector{Int}
+    (value === missing || value === nothing) && return Int[]
+    value isa AbstractString && return parse_alife_ancestor_list(value, record_index, source_path)
+    if value isa AbstractVector
+        ancestor_ids = Int[]
+        for element in value
+            push!(ancestor_ids, coerce_alife_id(element, record_index, source_path))
+        end
+        return ancestor_ids
+    end
+    throw(ArgumentError(format_alife_error(
+        source_path,
+        "data record $(record_index) `ancestor_list` value `$(value)` of type `$(typeof(value))` is not coercible to a list of integers.",
+    )))
+end
+
+function coerce_alife_ancestor_id(value, self_id::Int, record_index::Int, source_path::OptionalString)::Vector{Int}
+    (value === missing || value === nothing) && throw(ArgumentError(format_alife_error(
+        source_path,
+        "data record $(record_index) is missing the required `ancestor_id` value; root entries must set `ancestor_id` equal to their own `id`.",
+    )))
+    if value isa Integer
+        value < 0 && throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) has a negative `ancestor_id` value `$(value)`; alife `id` values must be non-negative.")))
+        return Int[Int(value)]
+    end
+    value isa AbstractString && return parse_alife_ancestor_id(value, self_id, record_index, source_path)
+    throw(ArgumentError(format_alife_error(
+        source_path,
+        "data record $(record_index) `ancestor_id` value `$(value)` of type `$(typeof(value))` is not coercible to an integer.",
+    )))
 end

@@ -104,7 +104,7 @@ end
         LineagesIO.build_alife_store(text, "<missing-ancestor>")
     end
     @test parse_error isa ArgumentError
-    @test occursin("unknown `ancestor_list` id=7", sprint(showerror, parse_error))
+    @test occursin("unknown ancestor `id=7`", sprint(showerror, parse_error))
 
     cycle_error = capture_expected_load_error() do
         text = "id,ancestor_list\n0,[NONE]\n1,\"[2]\"\n2,\"[1]\"\n"
@@ -155,10 +155,80 @@ end
     @test negative_id_error isa ArgumentError
     @test occursin("negative `id`", sprint(showerror, negative_id_error))
 
-    field_count_error = capture_expected_load_error() do
-        text = "id,ancestor_list,extra\n0,[NONE]\n"
-        LineagesIO.build_alife_store(text, "<short>")
+    both_ancestor_columns_error = capture_expected_load_error() do
+        text = "id,ancestor_list,ancestor_id\n0,[NONE],0\n"
+        LineagesIO.build_alife_store(text, "<both>")
     end
-    @test field_count_error isa ArgumentError
-    @test occursin("declares 3", sprint(showerror, field_count_error))
+    @test both_ancestor_columns_error isa ArgumentError
+    @test occursin("either `ancestor_list` or `ancestor_id`", sprint(showerror, both_ancestor_columns_error))
+
+    missing_ancestor_columns_error = capture_expected_load_error() do
+        text = "id,foo\n0,bar\n"
+        LineagesIO.build_alife_store(text, "<no-ancestor>")
+    end
+    @test missing_ancestor_columns_error isa ArgumentError
+    @test occursin("`ancestor_list` or `ancestor_id` header column", sprint(showerror, missing_ancestor_columns_error))
+end
+
+@testset "Alife standard ancestor_id column" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "asexual_alife_ancestor_id.csv"))
+    store = load(File{LineagesIO.AlifeStandardFormat}(fixture_path))
+    @test length(store.graphs) == 1
+
+    asset = first(store.graphs)
+    @test Tables.columnnames(asset.node_table) == (:nodekey, :label, :origin_time)
+    @test Tables.getcolumn(asset.node_table, :nodekey) == [1, 2, 3, 4]
+    @test Tables.getcolumn(asset.node_table, :label) == ["0", "1", "2", "3"]
+    @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1, 1, 2]
+    @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4]
+    @test !LineagesIO.graph_requires_multi_parent(asset.edge_table)
+end
+
+@testset "Alife standard load_alife_table — NamedTuple of vectors" begin
+    table = (
+        id = [0, 1, 2, 3],
+        ancestor_list = ["[NONE]", "[0]", "[0]", "[1,2]"],
+        origin_time = ["0", "1", "1", "2"],
+    )
+    store = load_alife_table(table; source_path = "synthetic-table")
+    asset = first(store.graphs)
+    @test asset.source_path == "synthetic-table"
+    @test Tables.getcolumn(asset.node_table, :label) == ["0", "1", "2", "3"]
+    @test Tables.getcolumn(asset.node_table, :origin_time) == Union{Nothing, String}["0", "1", "1", "2"]
+    @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1, 1, 2, 3]
+    @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4, 4]
+end
+
+@testset "Alife standard load_alife_table — typed columns" begin
+    table = (
+        id = [0, 1, 2, 3],
+        ancestor_list = [Int[], [0], [0], [1, 2]],
+        origin_time = [0.0, 1.0, 1.0, 2.0],
+    )
+    store = load_alife_table(table)
+    asset = first(store.graphs)
+    @test Tables.getcolumn(asset.node_table, :label) == ["0", "1", "2", "3"]
+    @test Tables.getcolumn(asset.node_table, :origin_time) == Union{Nothing, String}["0.0", "1.0", "1.0", "2.0"]
+    @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1, 1, 2, 3]
+    @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4, 4]
+end
+
+@testset "Alife standard load_alife_table — ancestor_id with self-id roots" begin
+    table = (
+        id = [0, 1, 2, 3],
+        ancestor_id = [0, 0, 0, 1],
+    )
+    store = load_alife_table(table)
+    asset = first(store.graphs)
+    @test Tables.getcolumn(asset.node_table, :label) == ["0", "1", "2", "3"]
+    @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1, 1, 2]
+    @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4]
+end
+
+@testset "Alife standard load_alife_table — non-table input rejected" begin
+    table_input_error = capture_expected_load_error() do
+        load_alife_table([1, 2, 3])
+    end
+    @test table_input_error isa ArgumentError
+    @test occursin("Tables.jl-compatible input", sprint(showerror, table_input_error))
 end
