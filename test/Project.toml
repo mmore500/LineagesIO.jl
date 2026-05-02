@@ -14,3 +14,4 @@ LineagesIO = {path = ".."}
 
 [compat]
 Aqua = "0.8.14"
+Tables = "1.12.1"
