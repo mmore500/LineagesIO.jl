@@ -84,7 +84,7 @@ function parse_alife_source(
     source_path::OptionalString,
 )::Tuple{Vector{Symbol}, Vector{ParsedAlifeRow}}
     isempty(strip(text)) && throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
-    raw_matrix = try
+    raw_matrix::Matrix{String} = try
         DelimitedFiles.readdlm(IOBuffer(String(text)), ',', String; quotes = true)
     catch err
         throw(ArgumentError(format_alife_error(source_path, "could not parse delimited input: $(sprint(showerror, err))")))

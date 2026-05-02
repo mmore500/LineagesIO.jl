@@ -115,7 +115,7 @@ end
         LineagesIO.build_alife_store(text, "<cycle>")
     end
     @test cycle_error isa ArgumentError
-    @test occursin("unreachable from its basenode", sprint(showerror, cycle_error))
+    @test occursin("0 candidate basenodes", sprint(showerror, cycle_error))
 
     multi_basenode_error = capture_alife_argument_error() do
         text = "id,ancestor_list\n0,[NONE]\n1,[NONE]\n2,\"[0,1]\"\n"
