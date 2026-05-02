@@ -1,5 +1,6 @@
 module LineagesIO
 
+import DelimitedFiles
 import FileIO
 import Tables
 
@@ -21,6 +22,7 @@ export bind_basenode!
 export edge_property
 export finalize_graph!
 export graph_from_finalized
+export load_alife_table
 export node_property
 
 """
@@ -37,6 +39,7 @@ include("tables.jl")
 include("views.jl")
 include("construction.jl")
 include("newick_format.jl")
+include("alife_format.jl")
 include("fileio_integration.jl")
 
 function __init__()::Nothing

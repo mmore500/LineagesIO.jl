@@ -1,0 +1,7 @@
+id,ancestor_list,origin_time,destruction_time,trait
+0,[NONE],0,,founder
+1,"[0]",1,,
+2,"[0]",1,4,extinct-lineage
+3,"[1]",2,,
+4,"[1,2]",3,,hybrid
+5,"[3,4]",5,,hybrid

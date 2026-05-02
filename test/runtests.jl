@@ -35,6 +35,7 @@ end
     include("core/network_protocol_multi_parent.jl")
     include("core/network_newick_format.jl")
     include("core/network_annotation_retention.jl")
+    include("core/alife_format.jl")
     include("extensions/metagraphsnext_activation.jl")
     include("extensions/metagraphsnext_simple_newick.jl")
     include("extensions/metagraphsnext_tables_after_load.jl")
