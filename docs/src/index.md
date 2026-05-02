@@ -42,6 +42,9 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 - secondary supplied-target `HybridNetwork()` binding on one-graph sources
 - the optional `MetaGraphsNext.jl` extension path for MetaGraph materialization
 - `load("tree.nwk"; builder = fn)` for explicit builder callbacks
+- `load(File{format"AlifeStandard"}("phylogeny.csv"))` for alife data standard CSV
+  sources (see [Alife data standard](@ref))
+- `load_alife_table(table)` for in-memory Tables.jl-compatible alife inputs
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
@@ -97,6 +100,99 @@ asset = first(store.graphs)
 graph, basenode, node_table, edge_table = asset
 graph === nothing
 LineagesIO.basenode(asset) === basenode
+```
+
+## Alife data standard
+
+LineagesIO.jl loads phylogenies that follow the
+[ALife phylogeny data standard](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
+The standard schema requires:
+
+- `id` — a non-negative integer that uniquely identifies the entity (row).
+- `ancestor_list` — a bracketed text list of ancestor `id`s, e.g. `[NONE]` for
+  a root, `[3]` for an asexual descendant of `id=3`, or `[3,7]` for a
+  multi-parent ("sexual") descendant of `id=3` and `id=7`.
+
+Optional columns are retained as node annotations on the authoritative
+`node_table`. Common conventional fields include `origin_time` and
+`destruction_time`; arbitrary additional columns are also retained.
+
+LineagesIO accepts two ancestry encodings interchangeably:
+
+- `ancestor_list` with `[NONE]` (case-insensitive — `[none]` and `[None]`
+  also work) or `[]` to mark a root entry; otherwise a bracketed
+  comma-separated list of one or more ancestor `id`s.
+- `ancestor_id` (single-parent shorthand) where a row is a root iff
+  `ancestor_id == id` (a self-reference).
+
+Self-references are filtered out of any `ancestor_list` value too, so
+`ancestor_list = [self_id]` is also accepted as a root marker.
+
+### Loading from CSV
+
+Because `.csv` is registered as ambiguous (alongside other CSV-shaped
+formats), bare `load("phylogeny.csv")` raises a FileIO ambiguity error.
+Pass an explicit format wrapper to disambiguate:
+
+```julia
+using FileIO: File, Stream, load
+using LineagesIO
+
+store = load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))
+asset = first(store.graphs)
+graph, basenode, node_table, edge_table = asset
+```
+
+A multi-rooted source (a forest) yields one `LineageGraphAsset` per
+connected component. Within each component the alife `id` values are
+remapped to sequential `nodekey`s with the component root pinned at
+`nodekey == 1`; the original `id` is retained as the node `label`.
+
+The same construction surfaces used for Newick loads work for alife
+sources:
+
+```julia
+load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"), DemoNode)
+load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"); builder = fn)
+```
+
+### Loading from a Tables.jl object
+
+For data already in memory (a `DataFrame`, a `NamedTuple` of vectors, an
+Arrow table, etc.), use `load_alife_table` to skip CSV serialization
+entirely:
+
+```julia
+using LineagesIO
+
+table = (
+    id = [0, 1, 2, 3],
+    ancestor_list = [Int[], [0], [0], [1, 2]],
+    origin_time   = [0.0, 1.0, 1.0, 2.0],
+)
+store = load_alife_table(table; source_path = "in-memory")
+asset = first(store.graphs)
+```
+
+`load_alife_table` accepts cells of several types and coerces them
+uniformly:
+
+- `id` cells may be `Integer` or string-encoded integers.
+- `ancestor_list` cells may be `Vector{Int}` (e.g. `[0, 1]`),
+  `String` in the standard text form (`"[0,1]"` / `"[NONE]"`), or
+  `missing`/`nothing` for roots.
+- `ancestor_id` cells may be `Integer` or string-encoded integers; a
+  self-reference marks a root.
+- All other columns are stringified and retained as node annotations
+  (with `missing`/`nothing`/empty values stored as a missing annotation).
+
+The same construction surfaces are available:
+
+```julia
+load_alife_table(table)                     # tables-only
+load_alife_table(table, DemoNode)           # library-created basenode
+load_alife_table(table, my_basenode)        # supplied-basenode binding
+load_alife_table(table; builder = fn)       # explicit builder callback
 ```
 
 ## PhyloNetworks extension
