@@ -170,6 +170,18 @@ end
     @test occursin("`ancestor_list` or `ancestor_id` header column", sprint(showerror, missing_ancestor_columns_error))
 end
 
+@testset "Alife standard ancestor_list root delimiter variants" begin
+    for root_token in ("[NONE]", "[none]", "[None]", "[]")
+        text = "id,ancestor_list\n0,$(root_token)\n1,\"[0]\"\n"
+        store = LineagesIO.build_alife_store(text, "<root-$(root_token)>")
+        asset = first(store.graphs)
+        @test Tables.getcolumn(asset.node_table, :nodekey) == [1, 2]
+        @test Tables.getcolumn(asset.node_table, :label) == ["0", "1"]
+        @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1]
+        @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2]
+    end
+end
+
 @testset "Alife standard ancestor_id column" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "asexual_alife_ancestor_id.csv"))
     store = load(File{LineagesIO.AlifeStandardFormat}(fixture_path))
