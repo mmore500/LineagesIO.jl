@@ -174,6 +174,75 @@ end
     @test occursin("`ancestor_list` or `ancestor_id` header column", sprint(showerror, missing_ancestor_columns_error))
 end
 
+@testset "Alife standard empty input rejection" begin
+    blank_input_error = capture_alife_argument_error() do
+        LineagesIO.build_alife_store("", "<blank>")
+    end
+    @test blank_input_error isa ArgumentError
+    @test occursin("at least one header row", sprint(showerror, blank_input_error))
+
+    whitespace_only_error = capture_alife_argument_error() do
+        LineagesIO.build_alife_store("   \n\n  \n", "<whitespace>")
+    end
+    @test whitespace_only_error isa ArgumentError
+    @test occursin("at least one header row", sprint(showerror, whitespace_only_error))
+
+    header_only_error = capture_alife_argument_error() do
+        LineagesIO.build_alife_store("id,ancestor_list\n", "<header-only>")
+    end
+    @test header_only_error isa ArgumentError
+    @test occursin("at least one data row", sprint(showerror, header_only_error))
+
+    empty_table_error = capture_alife_argument_error() do
+        load_alife_table((id = Int[], ancestor_list = Vector{Int}[]))
+    end
+    @test empty_table_error isa ArgumentError
+    @test occursin("at least one data row", sprint(showerror, empty_table_error))
+end
+
+@testset "Alife standard basenode-only graph" begin
+    text = "id,ancestor_list\n7,[NONE]\n"
+    store = LineagesIO.build_alife_store(text, "<basenode-only>")
+    @test length(store.graphs) == 1
+
+    asset = first(store.graphs)
+    @test Tables.getcolumn(asset.node_table, :nodekey) == [1]
+    @test Tables.getcolumn(asset.node_table, :label) == ["7"]
+    @test isempty(Tables.getcolumn(asset.edge_table, :edgekey))
+    @test isempty(Tables.getcolumn(asset.edge_table, :src_nodekey))
+    @test isempty(Tables.getcolumn(asset.edge_table, :dst_nodekey))
+    @test Tables.getcolumn(store.graph_table, :node_count) == [1]
+    @test Tables.getcolumn(store.graph_table, :edge_count) == [0]
+
+    table_store = load_alife_table((id = [7], ancestor_id = [7]))
+    table_asset = first(table_store.graphs)
+    @test Tables.getcolumn(table_asset.node_table, :label) == ["7"]
+    @test isempty(Tables.getcolumn(table_asset.edge_table, :edgekey))
+end
+
+@testset "Alife standard multi-tree forest" begin
+    text = """
+    id,ancestor_list
+    0,[NONE]
+    1,"[0]"
+    2,"[0]"
+    10,[NONE]
+    20,[NONE]
+    21,"[20]"
+    22,"[21]"
+    """
+    store = LineagesIO.build_alife_store(text, "<forest>")
+    @test length(store.graphs) == 3
+
+    assets = collect(store.graphs)
+    @test Tables.getcolumn(assets[1].node_table, :label) == ["0", "1", "2"]
+    @test Tables.getcolumn(assets[2].node_table, :label) == ["10"]
+    @test Tables.getcolumn(assets[3].node_table, :label) == ["20", "21", "22"]
+    @test Tables.getcolumn(store.graph_table, :node_count) == [3, 1, 3]
+    @test Tables.getcolumn(store.graph_table, :edge_count) == [2, 0, 2]
+    @test Tables.getcolumn(store.graph_table, :collection_graph_idx) == [1, 2, 3]
+end
+
 @testset "Alife standard ancestor_list basenode-marker variants" begin
     for basenode_token in ("[NONE]", "[none]", "[None]", "[]")
         text = "id,ancestor_list\n0,$(basenode_token)\n1,\"[0]\"\n"
