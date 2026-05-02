@@ -37,6 +37,7 @@ include("tables.jl")
 include("views.jl")
 include("construction.jl")
 include("newick_format.jl")
+include("alife_format.jl")
 include("fileio_integration.jl")
 
 function __init__()::Nothing
