@@ -105,34 +105,20 @@ LineagesIO.basenode(asset) === basenode
 ## Alife data standard
 
 LineagesIO.jl loads phylogenies that follow the
-[ALife phylogeny data standard](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
-The standard schema requires:
+[ALife phylogeny data standard](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html);
+see that specification for the full schema. LineagesIO requires `id` and
+either `ancestor_list` or `ancestor_id`, and retains every other column
+as a node annotation. Both `[NONE]`/`[none]`/`[None]`/`[]` (in
+`ancestor_list`) and a self-referencing `ancestor_id == id` are
+accepted basenode markers; multi-parent rows (`ancestor_list = [a,b]`)
+materialize as multi-parent edges. Sources that yield disconnected
+components produce one `LineageGraphAsset` per component, with each
+component's alife `id` values remapped onto sequential `nodekey`s with
+the basenode pinned at `nodekey == 1` (the original `id` is retained
+as the node `label`).
 
-- `id` — a non-negative integer that uniquely identifies the entity (row).
-- `ancestor_list` — a bracketed text list of ancestor `id`s, e.g. `[NONE]` for
-  a basenode entry, `[3]` for an asexual descendant of `id=3`, or `[3,7]` for
-  a multi-parent ("sexual") descendant of `id=3` and `id=7`.
-
-Optional columns are retained as node annotations on the authoritative
-`node_table`. Common conventional fields include `origin_time` and
-`destruction_time`; arbitrary additional columns are also retained.
-
-LineagesIO accepts two ancestry encodings interchangeably:
-
-- `ancestor_list` with `[NONE]` (case-insensitive — `[none]` and `[None]`
-  also work) or `[]` to mark a basenode entry; otherwise a bracketed
-  comma-separated list of one or more ancestor `id`s.
-- `ancestor_id` (single-parent shorthand) where a row is a basenode iff
-  `ancestor_id == id` (a self-reference).
-
-Self-references are filtered out of any `ancestor_list` value too, so
-`ancestor_list = [self_id]` is also accepted as a basenode marker.
-
-### Loading from CSV
-
-Because `.csv` is registered as ambiguous (alongside other CSV-shaped
-formats), bare `load("phylogeny.csv")` raises a FileIO ambiguity error.
-Pass an explicit format wrapper to disambiguate:
+`.csv` is registered as ambiguous, so the FileIO entry point requires an
+explicit format wrapper:
 
 ```julia
 using FileIO: File, Stream, load
@@ -140,60 +126,23 @@ using LineagesIO
 
 store = load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))
 asset = first(store.graphs)
-graph, basenode, node_table, edge_table = asset
 ```
 
-A multi-component source (a forest) yields one `LineageGraphAsset` per
-connected component. Within each component the alife `id` values are
-remapped to sequential `nodekey`s with the component basenode pinned at
-`nodekey == 1`; the original `id` is retained as the node `label`.
-
-The same construction surfaces used for Newick loads work for alife
-sources:
+For data already in memory, `load_alife_table` accepts any
+Tables.jl-compatible object (`DataFrame`, `NamedTuple` of vectors, Arrow
+table, etc.) and coerces `Integer`, `AbstractString`, or
+`AbstractVector{<:Integer}` cells uniformly:
 
 ```julia
-load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"), DemoNode)
-load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"); builder = fn)
-```
-
-### Loading from a Tables.jl object
-
-For data already in memory (a `DataFrame`, a `NamedTuple` of vectors, an
-Arrow table, etc.), use `load_alife_table` to skip CSV serialization
-entirely:
-
-```julia
-using LineagesIO
-
 table = (
     id = [0, 1, 2, 3],
     ancestor_list = [Int[], [0], [0], [1, 2]],
-    origin_time   = [0.0, 1.0, 1.0, 2.0],
 )
 store = load_alife_table(table; source_path = "in-memory")
-asset = first(store.graphs)
 ```
 
-`load_alife_table` accepts cells of several types and coerces them
-uniformly:
-
-- `id` cells may be `Integer` or string-encoded integers.
-- `ancestor_list` cells may be `Vector{Int}` (e.g. `[0, 1]`),
-  `String` in the standard text form (`"[0,1]"` / `"[NONE]"`), or
-  `missing`/`nothing` for basenode entries.
-- `ancestor_id` cells may be `Integer` or string-encoded integers; a
-  self-reference marks a basenode entry.
-- All other columns are stringified and retained as node annotations
-  (with `missing`/`nothing`/empty values stored as a missing annotation).
-
-The same construction surfaces are available:
-
-```julia
-load_alife_table(table)                     # tables-only
-load_alife_table(table, DemoNode)           # library-created basenode
-load_alife_table(table, my_basenode)        # supplied-basenode binding
-load_alife_table(table; builder = fn)       # explicit builder callback
-```
+Both surfaces accept the same construction targets as Newick loads
+(`load(src, NodeT)`, `load(src, basenode)`, `load(src; builder = fn)`).
 
 ## PhyloNetworks extension
 
