@@ -110,8 +110,8 @@ The standard schema requires:
 
 - `id` — a non-negative integer that uniquely identifies the entity (row).
 - `ancestor_list` — a bracketed text list of ancestor `id`s, e.g. `[NONE]` for
-  a root, `[3]` for an asexual descendant of `id=3`, or `[3,7]` for a
-  multi-parent ("sexual") descendant of `id=3` and `id=7`.
+  a basenode entry, `[3]` for an asexual descendant of `id=3`, or `[3,7]` for
+  a multi-parent ("sexual") descendant of `id=3` and `id=7`.
 
 Optional columns are retained as node annotations on the authoritative
 `node_table`. Common conventional fields include `origin_time` and
@@ -120,13 +120,13 @@ Optional columns are retained as node annotations on the authoritative
 LineagesIO accepts two ancestry encodings interchangeably:
 
 - `ancestor_list` with `[NONE]` (case-insensitive — `[none]` and `[None]`
-  also work) or `[]` to mark a root entry; otherwise a bracketed
+  also work) or `[]` to mark a basenode entry; otherwise a bracketed
   comma-separated list of one or more ancestor `id`s.
-- `ancestor_id` (single-parent shorthand) where a row is a root iff
+- `ancestor_id` (single-parent shorthand) where a row is a basenode iff
   `ancestor_id == id` (a self-reference).
 
 Self-references are filtered out of any `ancestor_list` value too, so
-`ancestor_list = [self_id]` is also accepted as a root marker.
+`ancestor_list = [self_id]` is also accepted as a basenode marker.
 
 ### Loading from CSV
 
@@ -143,9 +143,9 @@ asset = first(store.graphs)
 graph, basenode, node_table, edge_table = asset
 ```
 
-A multi-rooted source (a forest) yields one `LineageGraphAsset` per
+A multi-component source (a forest) yields one `LineageGraphAsset` per
 connected component. Within each component the alife `id` values are
-remapped to sequential `nodekey`s with the component root pinned at
+remapped to sequential `nodekey`s with the component basenode pinned at
 `nodekey == 1`; the original `id` is retained as the node `label`.
 
 The same construction surfaces used for Newick loads work for alife
@@ -180,9 +180,9 @@ uniformly:
 - `id` cells may be `Integer` or string-encoded integers.
 - `ancestor_list` cells may be `Vector{Int}` (e.g. `[0, 1]`),
   `String` in the standard text form (`"[0,1]"` / `"[NONE]"`), or
-  `missing`/`nothing` for roots.
+  `missing`/`nothing` for basenode entries.
 - `ancestor_id` cells may be `Integer` or string-encoded integers; a
-  self-reference marks a root.
+  self-reference marks a basenode entry.
 - All other columns are stringified and retained as node annotations
   (with `missing`/`nothing`/empty values stored as a missing annotation).
 

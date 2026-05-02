@@ -201,7 +201,7 @@ function parse_alife_ancestor_list(field::AbstractString, record_index::Int, sou
         if uppercase(String(ancestor_token)) == "NONE"
             throw(ArgumentError(format_alife_error(
                 source_path,
-                "data record $(record_index) lists `NONE` alongside other ancestors; `NONE` must be the sole `ancestor_list` token for root entries.",
+                "data record $(record_index) lists `NONE` alongside other ancestors; `NONE` must be the sole `ancestor_list` token for basenode entries.",
             )))
         end
         parsed_ancestor_id = try
@@ -225,7 +225,7 @@ function parse_alife_ancestor_id(field::AbstractString, self_id::Int, record_ind
     token = strip(field)
     isempty(token) && throw(ArgumentError(format_alife_error(
         source_path,
-        "data record $(record_index) is missing the required `ancestor_id` value; root entries must set `ancestor_id` equal to their own `id`.",
+        "data record $(record_index) is missing the required `ancestor_id` value; basenode entries must set `ancestor_id` equal to their own `id`.",
     )))
     parsed_ancestor_id = try
         parse(Int, token)
@@ -249,34 +249,34 @@ function partition_alife_components(rows::Vector{ParsedAlifeRow}, source_path::O
     for (i, row) in enumerate(rows)
         index_by_id[row.id] = i
     end
-    parent_uf = collect(1:nrows)
+    representative_for = collect(1:nrows)
     for (i, row) in enumerate(rows)
         for ancestor_id in row.ancestor_ids
-            union_find_union!(parent_uf, i, index_by_id[ancestor_id])
+            union_find_union!(representative_for, i, index_by_id[ancestor_id])
         end
     end
     grouped = Dict{Int, Vector{Int}}()
     for i in 1:nrows
-        root = union_find_root!(parent_uf, i)
-        push!(get!(grouped, root, Int[]), i)
+        representative = union_find_representative!(representative_for, i)
+        push!(get!(grouped, representative, Int[]), i)
     end
     component_keys = sort(collect(keys(grouped)); by = key -> minimum(grouped[key]))
     return [ParsedAlifeRow[rows[i] for i in grouped[key]] for key in component_keys]
 end
 
-function union_find_root!(parent_uf::Vector{Int}, x::Int)::Int
-    while parent_uf[x] != x
-        parent_uf[x] = parent_uf[parent_uf[x]]
-        x = parent_uf[x]
+function union_find_representative!(representative_for::Vector{Int}, x::Int)::Int
+    while representative_for[x] != x
+        representative_for[x] = representative_for[representative_for[x]]
+        x = representative_for[x]
     end
     return x
 end
 
-function union_find_union!(parent_uf::Vector{Int}, a::Int, b::Int)::Nothing
-    root_a = union_find_root!(parent_uf, a)
-    root_b = union_find_root!(parent_uf, b)
-    root_a == root_b && return nothing
-    parent_uf[root_a] = root_b
+function union_find_union!(representative_for::Vector{Int}, a::Int, b::Int)::Nothing
+    representative_a = union_find_representative!(representative_for, a)
+    representative_b = union_find_representative!(representative_for, b)
+    representative_a == representative_b && return nothing
+    representative_for[representative_a] = representative_b
     return nothing
 end
 
@@ -286,12 +286,12 @@ function build_alife_graph_asset(
     source_path::OptionalString,
     annotation_names::Vector{Symbol},
 )::LineageGraphAsset
-    root_rows = ParsedAlifeRow[row for row in component if isempty(row.ancestor_ids)]
-    length(root_rows) == 1 || throw(ArgumentError(format_alife_error(
+    basenode_rows = ParsedAlifeRow[row for row in component if isempty(row.ancestor_ids)]
+    length(basenode_rows) == 1 || throw(ArgumentError(format_alife_error(
         source_path,
-        "each connected alife component must declare exactly one root entry (with `[NONE]` `ancestor_list` or self-referencing `ancestor_id`), but graph $(graph_index) yielded $(length(root_rows)) candidate roots.",
+        "each connected alife component must declare exactly one basenode entry (with `[NONE]` `ancestor_list` or self-referencing `ancestor_id`); graph $(graph_index) yielded $(length(basenode_rows)) candidate basenodes.",
     )))
-    root = first(root_rows)
+    basenode_row = first(basenode_rows)
 
     rows_by_id = Dict{Int, ParsedAlifeRow}(row.id => row for row in component)
     children_by_id = Dict{Int, Vector{Int}}()
@@ -303,8 +303,8 @@ function build_alife_graph_asset(
 
     nodekey_by_id = Dict{Int, StructureKeyType}()
     bfs_ordered_ids = Int[]
-    nodekey_by_id[root.id] = StructureKeyType(1)
-    push!(bfs_ordered_ids, root.id)
+    nodekey_by_id[basenode_row.id] = StructureKeyType(1)
+    push!(bfs_ordered_ids, basenode_row.id)
     queue_index = 1
     while queue_index <= length(bfs_ordered_ids)
         current_id = bfs_ordered_ids[queue_index]
@@ -319,7 +319,7 @@ function build_alife_graph_asset(
     if length(bfs_ordered_ids) != length(component)
         throw(ArgumentError(format_alife_error(
             source_path,
-            "alife graph $(graph_index) has $(length(component) - length(bfs_ordered_ids)) entries unreachable from its root; this typically indicates an ancestor cycle.",
+            "alife graph $(graph_index) has $(length(component) - length(bfs_ordered_ids)) entries unreachable from its basenode; this typically indicates an ancestor cycle.",
         )))
     end
 
@@ -391,8 +391,8 @@ function load_alife_table(
     builder = nothing,
     source_path::Union{Nothing, AbstractString} = nothing,
 )::LineageGraphStore
-    Tables.istable(typeof(table)) || throw(ArgumentError("`load_alife_table` requires a Tables.jl-compatible input; received `$(typeof(table))`."))
-    request = build_alife_load_request(args, builder)
+    Tables.istable(typeof(table)) || throw(ArgumentError("`load_alife_table` requires a Tables.jl-compatible input, but received `$(typeof(table))`. Pass a `NamedTuple` of vectors, a `DataFrame`, or any other value satisfying the Tables.jl interface."))
+    request = build_load_request(args, builder)
     return build_alife_store_from_table(table, normalize_source_path(source_path), request)
 end
 
@@ -490,7 +490,7 @@ end
 function coerce_alife_ancestor_id(value, self_id::Int, record_index::Int, source_path::OptionalString)::Vector{Int}
     (value === missing || value === nothing) && throw(ArgumentError(format_alife_error(
         source_path,
-        "data record $(record_index) is missing the required `ancestor_id` value; root entries must set `ancestor_id` equal to their own `id`.",
+        "data record $(record_index) is missing the required `ancestor_id` value; basenode entries must set `ancestor_id` equal to their own `id`.",
     )))
     if value isa Integer
         value < 0 && throw(ArgumentError(format_alife_error(source_path, "data record $(record_index) has a negative `ancestor_id` value `$(value)`; alife `id` values must be non-negative.")))

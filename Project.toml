@@ -20,6 +20,7 @@ PhyloNetworksIO = "PhyloNetworks"
 
 [compat]
 AbstractTrees = "0.4"
+DelimitedFiles = "1"
 FileIO = "1.18.0"
 MetaGraphsNext = "0.8"
 PhyloNetworks = "1.3"
