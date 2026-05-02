@@ -42,6 +42,9 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 - secondary supplied-target `HybridNetwork()` binding on one-graph sources
 - the optional `MetaGraphsNext.jl` extension path for MetaGraph materialization
 - `load("tree.nwk"; builder = fn)` for explicit builder callbacks
+- `load(File{format"AlifeStandard"}("phylogeny.csv"))` for alife data standard CSV
+  sources (see [Alife data standard](@ref))
+- `load_alife_table(table)` for in-memory Tables.jl-compatible alife inputs
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
@@ -98,6 +101,48 @@ graph, basenode, node_table, edge_table = asset
 graph === nothing
 LineagesIO.basenode(asset) === basenode
 ```
+
+## Alife data standard
+
+LineagesIO.jl loads phylogenies that follow the
+[ALife phylogeny data standard](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html);
+see that specification for the full schema. LineagesIO requires `id` and
+either `ancestor_list` or `ancestor_id`, and retains every other column
+as a node annotation. Both `[NONE]`/`[none]`/`[None]`/`[]` (in
+`ancestor_list`) and a self-referencing `ancestor_id == id` are
+accepted basenode markers; multi-parent rows (`ancestor_list = [a,b]`)
+materialize as multi-parent edges. Sources that yield disconnected
+components produce one `LineageGraphAsset` per component, with each
+component's alife `id` values remapped onto sequential `nodekey`s with
+the basenode pinned at `nodekey == 1` (the original `id` is retained
+as the node `label`).
+
+`.csv` is registered as ambiguous, so the FileIO entry point requires an
+explicit format wrapper:
+
+```julia
+using FileIO: File, Stream, load
+using LineagesIO
+
+store = load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))
+asset = first(store.graphs)
+```
+
+For data already in memory, `load_alife_table` accepts any
+Tables.jl-compatible object (`DataFrame`, `NamedTuple` of vectors, Arrow
+table, etc.) and coerces `Integer`, `AbstractString`, or
+`AbstractVector{<:Integer}` cells uniformly:
+
+```julia
+table = (
+    id = [0, 1, 2, 3],
+    ancestor_list = [Int[], [0], [0], [1, 2]],
+)
+store = load_alife_table(table; source_path = "in-memory")
+```
+
+Both surfaces accept the same construction targets as Newick loads
+(`load(src, NodeT)`, `load(src, basenode)`, `load(src; builder = fn)`).
 
 ## PhyloNetworks extension
 
