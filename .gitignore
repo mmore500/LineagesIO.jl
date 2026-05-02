@@ -6,6 +6,8 @@
 .vscode/*
 .codex
 .workflow-docs/*.code-workspace
+.claude
+.understand-anything
 
 # =====================================
 # Quarto: output directories and formats
