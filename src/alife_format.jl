@@ -84,11 +84,13 @@ function parse_alife_source(
     source_path::OptionalString,
 )::Tuple{Vector{Symbol}, Vector{ParsedAlifeRow}}
     isempty(strip(text)) && throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
-    raw_matrix::Matrix{String} = try
+    delimited_result = try
         DelimitedFiles.readdlm(IOBuffer(String(text)), ',', String; quotes = true)
     catch err
         throw(ArgumentError(format_alife_error(source_path, "could not parse delimited input: $(sprint(showerror, err))")))
     end
+    delimited_result isa AbstractMatrix || throw(ArgumentError(format_alife_error(source_path, "DelimitedFiles returned an unexpected non-matrix result; this is a LineagesIO bug.")))
+    raw_matrix = delimited_result
     matrix_rows = size(raw_matrix, 1)
     matrix_rows >= 1 || throw(ArgumentError(format_alife_error(source_path, "alife sources must contain at least one header row.")))
     header = Symbol[Symbol(strip(raw_matrix[1, column_index])) for column_index in 1:size(raw_matrix, 2)]
