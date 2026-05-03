@@ -14,5 +14,6 @@ LineagesIO = {path = ".."}
 
 [compat]
 Aqua = "0.8.14"
+JET = "0.11.3"
 MetaGraphsNext = "0.8.0"
 Tables = "1.12.1"
