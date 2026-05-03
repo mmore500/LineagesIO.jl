@@ -34,17 +34,17 @@ mutable struct NewickGraphBuildState
 end
 
 function build_newick_store(
-    text::String,
-    source_path::OptionalString,
-)::LineageGraphStore
+        text::String,
+        source_path::OptionalString,
+    )::LineageGraphStore
     return build_newick_store(text, source_path, TablesOnlyLoadRequest())
 end
 
 function build_newick_store(
-    text::String,
-    source_path::OptionalString,
-    request::AbstractLoadRequest,
-)::LineageGraphStore
+        text::String,
+        source_path::OptionalString,
+        request::AbstractLoadRequest,
+    )::LineageGraphStore
     basenodes = parse_newick_source(text, source_path)
     graph_assets = [build_graph_asset(basenode, graph_index, source_path) for (graph_index, basenode) in enumerate(basenodes)]
     graph_assets = materialize_graphs(graph_assets, request)
@@ -81,10 +81,10 @@ function build_newick_store(
 end
 
 function build_graph_asset(
-    basenode::ParsedNewickOccurrence,
-    graph_index::Int,
-    source_path::OptionalString,
-)::LineageGraphAsset
+        basenode::ParsedNewickOccurrence,
+        graph_index::Int,
+        source_path::OptionalString,
+    )::LineageGraphAsset
     basenode.edgeweight === nothing || throw(ArgumentError("Incoming basenode edge weights are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
     isempty(basenode.edge_annotations) || throw(ArgumentError("Incoming basenode edge annotations are out of scope for tranche 4 rooted-network-capable Newick loads because the authoritative core tables do not yet have an honest owner for them."))
 
@@ -134,10 +134,10 @@ function build_graph_asset(
 end
 
 function append_occurrence!(
-    state::NewickGraphBuildState,
-    occurrence::ParsedNewickOccurrence,
-    parent_nodekey::Union{Nothing, StructureKeyType},
-)::StructureKeyType
+        state::NewickGraphBuildState,
+        occurrence::ParsedNewickOccurrence,
+        parent_nodekey::Union{Nothing, StructureKeyType},
+    )::StructureKeyType
     nodekey = resolve_occurrence_nodekey!(state, occurrence)
     if parent_nodekey !== nothing
         append_edge_row!(
@@ -153,9 +153,9 @@ function append_occurrence!(
 end
 
 function resolve_occurrence_nodekey!(
-    state::NewickGraphBuildState,
-    occurrence::ParsedNewickOccurrence,
-)::StructureKeyType
+        state::NewickGraphBuildState,
+        occurrence::ParsedNewickOccurrence,
+    )::StructureKeyType
     occurrence.hybrid_label === nothing && return append_new_node!(state, occurrence)
 
     hybrid_label = occurrence.hybrid_label
@@ -175,9 +175,9 @@ function resolve_occurrence_nodekey!(
 end
 
 function append_new_node!(
-    state::NewickGraphBuildState,
-    occurrence::ParsedNewickOccurrence,
-)::StructureKeyType
+        state::NewickGraphBuildState,
+        occurrence::ParsedNewickOccurrence,
+    )::StructureKeyType
     nodekey = StructureKeyType(length(state.nodekeys) + 1)
     push!(state.nodekeys, nodekey)
     push!(state.labels, occurrence.label)
@@ -187,11 +187,11 @@ function append_new_node!(
 end
 
 function merge_hybrid_occurrence_node!(
-    state::NewickGraphBuildState,
-    nodekey::StructureKeyType,
-    occurrence::ParsedNewickOccurrence,
-    hybrid_label::AbstractString,
-)::Nothing
+        state::NewickGraphBuildState,
+        nodekey::StructureKeyType,
+        occurrence::ParsedNewickOccurrence,
+        hybrid_label::AbstractString,
+    )::Nothing
     state.labels[nodekey] == occurrence.label || throw(ArgumentError("Repeated hybrid label `#$(hybrid_label)` was associated with conflicting structural labels `$(state.labels[nodekey])` and `$(occurrence.label)`."))
     merged_annotations = state.node_annotation_rows[nodekey]
     for (annotation_name, annotation_value) in occurrence.node_annotations
@@ -206,10 +206,10 @@ function merge_hybrid_occurrence_node!(
 end
 
 function append_occurrence_children!(
-    state::NewickGraphBuildState,
-    occurrence::ParsedNewickOccurrence,
-    nodekey::StructureKeyType,
-)::Nothing
+        state::NewickGraphBuildState,
+        occurrence::ParsedNewickOccurrence,
+        nodekey::StructureKeyType,
+    )::Nothing
     occurrence.hybrid_label === nothing && return append_all_occurrence_children!(state, occurrence.children, nodekey)
     isempty(occurrence.children) && return nothing
 
@@ -222,10 +222,10 @@ function append_occurrence_children!(
 end
 
 function append_all_occurrence_children!(
-    state::NewickGraphBuildState,
-    children::Vector{ParsedNewickOccurrence},
-    parent_nodekey::StructureKeyType,
-)::Nothing
+        state::NewickGraphBuildState,
+        children::Vector{ParsedNewickOccurrence},
+        parent_nodekey::StructureKeyType,
+    )::Nothing
     for child in children
         append_occurrence!(state, child, parent_nodekey)
     end
@@ -233,12 +233,12 @@ function append_all_occurrence_children!(
 end
 
 function append_edge_row!(
-    state::NewickGraphBuildState,
-    src_nodekey::StructureKeyType,
-    dst_nodekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    edge_annotations::Dict{Symbol, String},
-)::StructureKeyType
+        state::NewickGraphBuildState,
+        src_nodekey::StructureKeyType,
+        dst_nodekey::StructureKeyType,
+        edgeweight::EdgeWeightType,
+        edge_annotations::Dict{Symbol, String},
+    )::StructureKeyType
     edgekey = StructureKeyType(length(state.edgekeys) + 1)
     push!(state.edgekeys, edgekey)
     push!(state.src_nodekeys, src_nodekey)
@@ -250,8 +250,8 @@ function append_edge_row!(
 end
 
 function validate_hybrid_occurrence_counts!(
-    state::NewickGraphBuildState,
-)::Nothing
+        state::NewickGraphBuildState,
+    )::Nothing
     for (hybrid_label, hybrid_state) in state.hybrid_occurrence_state_by_label
         hybrid_state.occurrence_count == 2 && continue
         throw(ArgumentError("Unmatched hybrid label `#$(hybrid_label)` is out of scope for tranche 4 rooted-network-capable Newick loads because this phase supports only the repeated two-occurrence hybrid convention."))
@@ -260,9 +260,9 @@ function validate_hybrid_occurrence_counts!(
 end
 
 function build_annotation_columns(
-    annotation_rows::Vector{Dict{Symbol, String}},
-    annotation_names::Vector{Symbol},
-)::NamedTuple
+        annotation_rows::Vector{Dict{Symbol, String}},
+        annotation_names::Vector{Symbol},
+    )::NamedTuple
     annotation_columns = NamedTuple()
     for annotation_name in annotation_names
         annotation_column = OptionalString[get(annotation_row, annotation_name, nothing) for annotation_row in annotation_rows]
@@ -272,9 +272,9 @@ function build_annotation_columns(
 end
 
 function append_annotation_names!(
-    annotation_names::Vector{Symbol},
-    annotation_row::Dict{Symbol, String},
-)::Nothing
+        annotation_names::Vector{Symbol},
+        annotation_row::Dict{Symbol, String},
+    )::Nothing
     for annotation_name in sort!(collect(keys(annotation_row)))
         annotation_name in annotation_names || push!(annotation_names, annotation_name)
     end
@@ -282,9 +282,9 @@ function append_annotation_names!(
 end
 
 function parse_newick_source(
-    text::String,
-    source_label::OptionalString,
-)::Vector{ParsedNewickOccurrence}
+        text::String,
+        source_label::OptionalString,
+    )::Vector{ParsedNewickOccurrence}
     parser = NewickParserState(text, firstindex(text), source_label)
     basenodes = ParsedNewickOccurrence[]
     skip_whitespace!(parser)
@@ -339,8 +339,8 @@ function parse_subtree!(parser::NewickParserState)::ParsedNewickOccurrence
 end
 
 function parse_optional_node_identity!(
-    parser::NewickParserState,
-)::Tuple{String, OptionalString}
+        parser::NewickParserState,
+    )::Tuple{String, OptionalString}
     skip_whitespace!(parser)
     parser_at_end(parser) && return "", nothing
     next_character = parser_peek(parser)
@@ -352,8 +352,8 @@ function parse_optional_node_identity!(
 end
 
 function parse_hybrid_label!(
-    parser::NewickParserState,
-)::Tuple{String, OptionalString}
+        parser::NewickParserState,
+    )::Tuple{String, OptionalString}
     advance!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "expected a hybrid label after `#`")
     next_character = parser_peek(parser)
@@ -431,9 +431,9 @@ function parse_unquoted_label!(parser::NewickParserState)::String
 end
 
 function parse_optional_annotations!(
-    parser::NewickParserState,
-    scope::AbstractString,
-)::Dict{Symbol, String}
+        parser::NewickParserState,
+        scope::AbstractString,
+    )::Dict{Symbol, String}
     annotations = Dict{Symbol, String}()
     skip_whitespace!(parser)
     while !parser_at_end(parser) && parser_peek(parser) == '['
@@ -444,10 +444,10 @@ function parse_optional_annotations!(
 end
 
 function parse_annotation_block!(
-    parser::NewickParserState,
-    annotations::Dict{Symbol, String},
-    scope::AbstractString,
-)::Nothing
+        parser::NewickParserState,
+        annotations::Dict{Symbol, String},
+        scope::AbstractString,
+    )::Nothing
     advance!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "unterminated `[&...]` retained annotation block")
     parser_peek(parser) == '&' || throw_parse_error(parser, "only `[&...]` retained annotation comments are supported for tranche 4 rooted-network-capable Newick loads")
@@ -481,9 +481,9 @@ function parse_annotation_block!(
 end
 
 function parse_annotation_field_name!(
-    parser::NewickParserState,
-    scope::AbstractString,
-)::Symbol
+        parser::NewickParserState,
+        scope::AbstractString,
+    )::Symbol
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "retained $(scope) annotations require a field name")
     next_character = parser_peek(parser)
@@ -508,10 +508,10 @@ function parse_annotation_field_name!(
 end
 
 function parse_annotation_scalar_value!(
-    parser::NewickParserState,
-    annotation_name::Symbol,
-    scope::AbstractString,
-)::String
+        parser::NewickParserState,
+        annotation_name::Symbol,
+        scope::AbstractString,
+    )::String
     skip_whitespace!(parser)
     parser_at_end(parser) && throw_parse_error(parser, "retained $(scope) annotation `$(annotation_name)` must provide one scalar value")
     next_character = parser_peek(parser)
@@ -575,8 +575,8 @@ function parse_optional_edgeweight!(parser::NewickParserState)::Tuple{EdgeWeight
 end
 
 function parse_optional_edge_field_token!(
-    parser::NewickParserState,
-)::OptionalString
+        parser::NewickParserState,
+    )::OptionalString
     token_buffer = IOBuffer()
     while !parser_at_end(parser)
         current_character = parser_peek(parser)
@@ -597,9 +597,9 @@ function parse_optional_edge_field_token!(
 end
 
 function parse_edgeweight_token!(
-    parser::NewickParserState,
-    edgeweight_token::OptionalString,
-)::EdgeWeightType
+        parser::NewickParserState,
+        edgeweight_token::OptionalString,
+    )::EdgeWeightType
     edgeweight_token === nothing && return nothing
     edgeweight = try
         parse(Float64, edgeweight_token)
@@ -612,10 +612,10 @@ function parse_edgeweight_token!(
 end
 
 function validate_numeric_edge_field_token!(
-    parser::NewickParserState,
-    field_token::AbstractString,
-    field_name::Symbol,
-)::Nothing
+        parser::NewickParserState,
+        field_token::AbstractString,
+        field_name::Symbol,
+    )::Nothing
     parsed_value = try
         parse(Float64, field_token)
     catch
@@ -627,20 +627,20 @@ function validate_numeric_edge_field_token!(
 end
 
 function append_positional_edge_annotation!(
-    edge_annotations::Dict{Symbol, String},
-    field_name::Symbol,
-    field_value::String,
-)::Nothing
+        edge_annotations::Dict{Symbol, String},
+        field_name::Symbol,
+        field_value::String,
+    )::Nothing
     haskey(edge_annotations, field_name) && throw(ArgumentError("Duplicate retained edge annotation field `$(field_name)` is not supported within one row."))
     edge_annotations[field_name] = field_value
     return nothing
 end
 
 function append_parsed_annotations!(
-    destination::Dict{Symbol, String},
-    source::Dict{Symbol, String},
-    scope::AbstractString,
-)::Nothing
+        destination::Dict{Symbol, String},
+        source::Dict{Symbol, String},
+        scope::AbstractString,
+    )::Nothing
     for (annotation_name, annotation_value) in source
         haskey(destination, annotation_name) && throw(ArgumentError("Duplicate retained $(scope) annotation field `$(annotation_name)` is not supported within one row."))
         destination[annotation_name] = annotation_value

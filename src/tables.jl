@@ -95,60 +95,66 @@ function EdgeTable(columns::ColumnsT) where {ColumnsT <: NamedTuple}
 end
 
 function SourceTable(;
-    source_idx::AbstractVector{<:Integer},
-    source_path::AbstractVector,
-    collection_count::AbstractVector{<:Integer},
-    graph_count::AbstractVector{<:Integer},
-)::SourceTable
-    return SourceTable((
-        source_idx = Int.(source_idx),
-        source_path = normalize_optional_string_vector(source_path),
-        collection_count = Int.(collection_count),
-        graph_count = Int.(graph_count),
-    ))
+        source_idx::AbstractVector{<:Integer},
+        source_path::AbstractVector,
+        collection_count::AbstractVector{<:Integer},
+        graph_count::AbstractVector{<:Integer},
+    )::SourceTable
+    return SourceTable(
+        (
+            source_idx = Int.(source_idx),
+            source_path = normalize_optional_string_vector(source_path),
+            collection_count = Int.(collection_count),
+            graph_count = Int.(graph_count),
+        )
+    )
 end
 
 function CollectionTable(;
-    collection_idx::AbstractVector{<:Integer},
-    source_idx::AbstractVector{<:Integer},
-    collection_label::AbstractVector,
-    graph_count::AbstractVector{<:Integer},
-)::CollectionTable
-    return CollectionTable((
-        collection_idx = Int.(collection_idx),
-        source_idx = Int.(source_idx),
-        collection_label = normalize_optional_string_vector(collection_label),
-        graph_count = Int.(graph_count),
-    ))
+        collection_idx::AbstractVector{<:Integer},
+        source_idx::AbstractVector{<:Integer},
+        collection_label::AbstractVector,
+        graph_count::AbstractVector{<:Integer},
+    )::CollectionTable
+    return CollectionTable(
+        (
+            collection_idx = Int.(collection_idx),
+            source_idx = Int.(source_idx),
+            collection_label = normalize_optional_string_vector(collection_label),
+            graph_count = Int.(graph_count),
+        )
+    )
 end
 
 function GraphTable(;
-    index::AbstractVector{<:Integer},
-    source_idx::AbstractVector{<:Integer},
-    collection_idx::AbstractVector{<:Integer},
-    collection_graph_idx::AbstractVector{<:Integer},
-    collection_label::AbstractVector,
-    graph_label::AbstractVector,
-    node_count::AbstractVector{<:Integer},
-    edge_count::AbstractVector{<:Integer},
-)::GraphTable
-    return GraphTable((
-        index = Int.(index),
-        source_idx = Int.(source_idx),
-        collection_idx = Int.(collection_idx),
-        collection_graph_idx = Int.(collection_graph_idx),
-        collection_label = normalize_optional_string_vector(collection_label),
-        graph_label = normalize_optional_string_vector(graph_label),
-        node_count = Int.(node_count),
-        edge_count = Int.(edge_count),
-    ))
+        index::AbstractVector{<:Integer},
+        source_idx::AbstractVector{<:Integer},
+        collection_idx::AbstractVector{<:Integer},
+        collection_graph_idx::AbstractVector{<:Integer},
+        collection_label::AbstractVector,
+        graph_label::AbstractVector,
+        node_count::AbstractVector{<:Integer},
+        edge_count::AbstractVector{<:Integer},
+    )::GraphTable
+    return GraphTable(
+        (
+            index = Int.(index),
+            source_idx = Int.(source_idx),
+            collection_idx = Int.(collection_idx),
+            collection_graph_idx = Int.(collection_graph_idx),
+            collection_label = normalize_optional_string_vector(collection_label),
+            graph_label = normalize_optional_string_vector(graph_label),
+            node_count = Int.(node_count),
+            edge_count = Int.(edge_count),
+        )
+    )
 end
 
 function NodeTable(;
-    nodekey::AbstractVector{<:Integer},
-    label::AbstractVector{<:AbstractString},
-    annotation_columns::NamedTuple = NamedTuple(),
-)::NodeTable
+        nodekey::AbstractVector{<:Integer},
+        label::AbstractVector{<:AbstractString},
+        annotation_columns::NamedTuple = NamedTuple(),
+    )::NodeTable
     structural_columns = (
         nodekey = StructureKeyType.(nodekey),
         label = String.(label),
@@ -159,12 +165,12 @@ function NodeTable(;
 end
 
 function EdgeTable(;
-    edgekey::AbstractVector{<:Integer},
-    src_nodekey::AbstractVector{<:Integer},
-    dst_nodekey::AbstractVector{<:Integer},
-    edgeweight::AbstractVector,
-    annotation_columns::NamedTuple = NamedTuple(),
-)::EdgeTable
+        edgekey::AbstractVector{<:Integer},
+        src_nodekey::AbstractVector{<:Integer},
+        dst_nodekey::AbstractVector{<:Integer},
+        edgeweight::AbstractVector,
+        annotation_columns::NamedTuple = NamedTuple(),
+    )::EdgeTable
     structural_columns = (
         edgekey = StructureKeyType.(edgekey),
         src_nodekey = StructureKeyType.(src_nodekey),

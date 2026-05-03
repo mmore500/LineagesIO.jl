@@ -34,7 +34,7 @@ end
 
 function fileio_load(file::FileIO.File{NewickFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    open(file, "r") do stream
+    return open(file, "r") do stream
         return fileio_load(stream, args...; builder = builder)
     end
 end
@@ -49,7 +49,7 @@ end
 
 function fileio_load(file::FileIO.File{AlifeStandardFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    open(file, "r") do stream
+    return open(file, "r") do stream
         return fileio_load(stream, args...; builder = builder)
     end
 end

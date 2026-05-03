@@ -20,11 +20,11 @@ end
 Bind a parsed basenode onto a caller-supplied `basenode` handle.
 """
 function bind_basenode!(
-    basenode,
-    nodekey,
-    label;
-    nodedata,
-)
+        basenode,
+        nodekey,
+        label;
+        nodedata,
+    )
     throw(ArgumentError("No `LineagesIO.bind_basenode!` method is defined for `$(typeof(basenode))`. Implement `bind_basenode!(basenode, nodekey, label; nodedata)` for the supplied basenode or materialization target, or choose a different load surface."))
 end
 
@@ -36,14 +36,14 @@ Materialize a descendant node through the LineagesIO construction protocol.
 The basenode-construction event uses `add_child(::Nothing, ...)`.
 """
 function add_child(
-    parent,
-    nodekey,
-    label,
-    edgekey,
-    edgeweight;
-    edgedata = nothing,
-    nodedata,
-)
+        parent,
+        nodekey,
+        label,
+        edgekey,
+        edgeweight;
+        edgedata = nothing,
+        nodedata,
+    )
     if parent === nothing
         throw(ArgumentError("No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)` or use `load(src; builder = fn)` instead."))
     end
@@ -51,14 +51,14 @@ function add_child(
 end
 
 function add_child(
-    parent_collection::AbstractVector,
-    nodekey,
-    label,
-    edgekeys::AbstractVector,
-    edgeweights::AbstractVector;
-    edgedata,
-    nodedata,
-)
+        parent_collection::AbstractVector,
+        nodekey,
+        label,
+        edgekeys::AbstractVector,
+        edgeweights::AbstractVector;
+        edgedata,
+        nodedata,
+    )
     isempty(parent_collection) && throw(ArgumentError("The multi-parent `LineagesIO.add_child(parent_collection, ...)` protocol requires at least one parent handle."))
     throw(ArgumentError("No multi-parent `LineagesIO.add_child` method is defined for parent collections of type `$(typeof(parent_collection))`. Implement `add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` for this load target if it supports multi-parent graphs."))
 end
@@ -101,22 +101,22 @@ function graph_requires_multi_parent(edge_table::EdgeTable)::Bool
 end
 
 function graph_requires_multi_parent(
-    graph_asset::LineageGraphAsset,
-)::Bool
+        graph_asset::LineageGraphAsset,
+    )::Bool
     return graph_requires_multi_parent(graph_asset.edge_table)
 end
 
 function materialize_graphs(
-    graph_assets::GraphAssetVectorT,
-    ::TablesOnlyLoadRequest,
-) where {GraphAssetVectorT <: AbstractVector}
+        graph_assets::GraphAssetVectorT,
+        ::TablesOnlyLoadRequest,
+    ) where {GraphAssetVectorT <: AbstractVector}
     return graph_assets
 end
 
 function materialize_graphs(
-    graph_assets::GraphAssetVectorT,
-    request::BasenodeLoadRequest,
-) where {GraphAssetVectorT <: AbstractVector}
+        graph_assets::GraphAssetVectorT,
+        request::BasenodeLoadRequest,
+    ) where {GraphAssetVectorT <: AbstractVector}
     length(graph_assets) == 1 || throw(ArgumentError("The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use `load(src)` for tables-only access or a library-created-basenode construction surface instead."))
     validate_materialization_request(graph_assets, request)
     first_graph = materialize_graph(first(graph_assets), request)
@@ -124,9 +124,9 @@ function materialize_graphs(
 end
 
 function materialize_graphs(
-    graph_assets::GraphAssetVectorT,
-    request::AbstractLoadRequest,
-) where {GraphAssetVectorT <: AbstractVector}
+        graph_assets::GraphAssetVectorT,
+        request::AbstractLoadRequest,
+    ) where {GraphAssetVectorT <: AbstractVector}
     isempty(graph_assets) && return graph_assets
     validate_materialization_request(graph_assets, request)
     first_graph = materialize_graph(first(graph_assets), request)
@@ -143,9 +143,9 @@ function materialize_graphs(
 end
 
 function validate_materialization_request(
-    graph_assets::AbstractVector,
-    request::AbstractLoadRequest,
-)::Nothing
+        graph_assets::AbstractVector,
+        request::AbstractLoadRequest,
+    )::Nothing
     for graph_asset in graph_assets
         validate_materialization_request(graph_asset, request)
     end
@@ -153,16 +153,16 @@ function validate_materialization_request(
 end
 
 function validate_materialization_request(
-    ::LineageGraphAsset,
-    ::TablesOnlyLoadRequest,
-)::Nothing
+        ::LineageGraphAsset,
+        ::TablesOnlyLoadRequest,
+    )::Nothing
     return nothing
 end
 
 function validate_materialization_request(
-    graph_asset::LineageGraphAsset,
-    request::NodeTypeLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::NodeTypeLoadRequest,
+    )::Nothing
     validate_extension_load_target(request.node_type, graph_asset)
     graph_requires_multi_parent(graph_asset) || return nothing
     validate_multi_parent_node_type_request(graph_asset, request)
@@ -170,9 +170,9 @@ function validate_materialization_request(
 end
 
 function validate_materialization_request(
-    graph_asset::LineageGraphAsset,
-    request::BasenodeLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::BasenodeLoadRequest,
+    )::Nothing
     validate_extension_load_target(request.basenode, graph_asset)
     graph_requires_multi_parent(graph_asset) || return nothing
     validate_multi_parent_basenode_binding_request(graph_asset, request)
@@ -180,18 +180,18 @@ function validate_materialization_request(
 end
 
 function validate_materialization_request(
-    graph_asset::LineageGraphAsset,
-    request::BuilderLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::BuilderLoadRequest,
+    )::Nothing
     graph_requires_multi_parent(graph_asset) || return nothing
     validate_multi_parent_builder_request(graph_asset, request)
     return nothing
 end
 
 function validate_multi_parent_node_type_request(
-    graph_asset::LineageGraphAsset,
-    request::NodeTypeLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::NodeTypeLoadRequest,
+    )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
     sample_parents = request.node_type[]
@@ -209,9 +209,9 @@ function validate_multi_parent_node_type_request(
 end
 
 function validate_multi_parent_basenode_binding_request(
-    graph_asset::LineageGraphAsset,
-    request::BasenodeLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::BasenodeLoadRequest,
+    )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
     sample_parents = typeof(request.basenode)[]
@@ -229,9 +229,9 @@ function validate_multi_parent_basenode_binding_request(
 end
 
 function validate_multi_parent_builder_request(
-    graph_asset::LineageGraphAsset,
-    request::BuilderLoadRequest,
-)::Nothing
+        graph_asset::LineageGraphAsset,
+        request::BuilderLoadRequest,
+    )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
     sample_parents = build_builder_parent_collection_sample(request.builder)
@@ -250,9 +250,9 @@ function validate_multi_parent_builder_request(
 end
 
 function first_multi_parent_nodekey(
-    edge_table::EdgeTable,
-    node_count::Int,
-)::Union{Nothing, StructureKeyType}
+        edge_table::EdgeTable,
+        node_count::Int,
+    )::Union{Nothing, StructureKeyType}
     incoming_edge_counts = zeros(Int, node_count)
     for dst_nodekey in Tables.getcolumn(edge_table, :dst_nodekey)
         incoming_edge_counts[dst_nodekey] += 1
@@ -262,8 +262,8 @@ function first_multi_parent_nodekey(
 end
 
 function build_multi_parent_protocol_sample(
-    graph_asset::LineageGraphAsset,
-)
+        graph_asset::LineageGraphAsset,
+    )
     node_table = graph_asset.node_table
     edge_table = graph_asset.edge_table
     child_nodekey = first_multi_parent_nodekey(edge_table, lineagetable_nrows(node_table))
@@ -288,12 +288,12 @@ function build_multi_parent_protocol_sample(
 end
 
 function materialize_graph(
-    graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
-    request::AbstractLoadRequest,
-) where {
-    NodeTableT <: NodeTable,
-    EdgeTableT <: EdgeTable,
-}
+        graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
+        request::AbstractLoadRequest,
+    ) where {
+        NodeTableT <: NodeTable,
+        EdgeTableT <: EdgeTable,
+    }
     graph_val, basenode_val = materialize_graph_basenode(graph_asset, request)
     return LineageGraphAsset(
         graph_asset.index,
@@ -311,12 +311,12 @@ function materialize_graph(
 end
 
 function materialize_graph_basenode(
-    graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
-    request::AbstractLoadRequest,
-) where {
-    NodeTableT <: NodeTable,
-    EdgeTableT <: EdgeTable,
-}
+        graph_asset::LineageGraphAsset{Nothing, Nothing, NodeTableT, EdgeTableT},
+        request::AbstractLoadRequest,
+    ) where {
+        NodeTableT <: NodeTable,
+        EdgeTableT <: EdgeTable,
+    }
     node_table = graph_asset.node_table
     edge_table = graph_asset.edge_table
     node_count = lineagetable_nrows(node_table)
@@ -408,9 +408,9 @@ function materialize_graph_basenode(
 end
 
 function build_child_edgekeys(
-    edge_table::EdgeTable,
-    node_count::Int,
-)::Vector{Vector{StructureKeyType}}
+        edge_table::EdgeTable,
+        node_count::Int,
+    )::Vector{Vector{StructureKeyType}}
     child_edgekeys_by_parent = [StructureKeyType[] for _ in 1:node_count]
     src_nodekeys = Tables.getcolumn(edge_table, :src_nodekey)
     edgekeys = Tables.getcolumn(edge_table, :edgekey)
@@ -421,16 +421,16 @@ function build_child_edgekeys(
 end
 
 function construct_single_parent_descendants!(
-    request::AbstractLoadRequest,
-    parent_handle,
-    parent_nodekey::StructureKeyType,
-    labels::AbstractVector{<:AbstractString},
-    dst_nodekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    child_edgekeys_by_parent::Vector{Vector{StructureKeyType}},
-    node_table::NodeTable,
-    edge_table::EdgeTable,
-)::Nothing
+        request::AbstractLoadRequest,
+        parent_handle,
+        parent_nodekey::StructureKeyType,
+        labels::AbstractVector{<:AbstractString},
+        dst_nodekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        child_edgekeys_by_parent::Vector{Vector{StructureKeyType}},
+        node_table::NodeTable,
+        edge_table::EdgeTable,
+    )::Nothing
     for edgekey in child_edgekeys_by_parent[parent_nodekey]
         child_nodekey = dst_nodekeys[edgekey]
         child_handle = emit_single_parent_childnode(
@@ -459,9 +459,9 @@ function construct_single_parent_descendants!(
 end
 
 function build_graph_structure(
-    edge_table::EdgeTable,
-    node_count::Int,
-)::Tuple{Vector{Vector{StructureKeyType}}, Vector{Vector{StructureKeyType}}}
+        edge_table::EdgeTable,
+        node_count::Int,
+    )::Tuple{Vector{Vector{StructureKeyType}}, Vector{Vector{StructureKeyType}}}
     child_nodekeys_by_parent = [StructureKeyType[] for _ in 1:node_count]
     incoming_edgekeys_by_child = [StructureKeyType[] for _ in 1:node_count]
     last_child_nodekey_by_parent = fill(StructureKeyType(0), node_count)
@@ -483,8 +483,8 @@ function build_graph_structure(
 end
 
 function validate_and_find_basenodekey(
-    incoming_edgekeys_by_child::Vector{Vector{StructureKeyType}},
-)::StructureKeyType
+        incoming_edgekeys_by_child::Vector{Vector{StructureKeyType}},
+    )::StructureKeyType
     basenodekeys = StructureKeyType[]
     for (nodekey, incoming_edgekeys) in enumerate(incoming_edgekeys_by_child)
         isempty(incoming_edgekeys) || continue
@@ -497,13 +497,13 @@ function validate_and_find_basenodekey(
 end
 
 function maybe_queue_ready_node!(
-    ready_nodekeys::Vector{StructureKeyType},
-    ready_nodekeys_queued::BitVector,
-    child_nodekey::StructureKeyType,
-    incoming_edgekeys_by_child::Vector{Vector{StructureKeyType}},
-    src_nodekeys::AbstractVector{StructureKeyType},
-    materialized_ready::BitVector,
-)::Nothing
+        ready_nodekeys::Vector{StructureKeyType},
+        ready_nodekeys_queued::BitVector,
+        child_nodekey::StructureKeyType,
+        incoming_edgekeys_by_child::Vector{Vector{StructureKeyType}},
+        src_nodekeys::AbstractVector{StructureKeyType},
+        materialized_ready::BitVector,
+    )::Nothing
     ready_nodekeys_queued[child_nodekey] && return nothing
     all_parents_ready(incoming_edgekeys_by_child[child_nodekey], src_nodekeys, materialized_ready) || return nothing
     push!(ready_nodekeys, child_nodekey)
@@ -512,10 +512,10 @@ function maybe_queue_ready_node!(
 end
 
 function all_parents_ready(
-    incoming_edgekeys::AbstractVector{StructureKeyType},
-    src_nodekeys::AbstractVector{StructureKeyType},
-    materialized_ready::BitVector,
-)::Bool
+        incoming_edgekeys::AbstractVector{StructureKeyType},
+        src_nodekeys::AbstractVector{StructureKeyType},
+        materialized_ready::BitVector,
+    )::Bool
     for edgekey in incoming_edgekeys
         materialized_ready[src_nodekeys[edgekey]] || return false
     end
@@ -523,8 +523,8 @@ function all_parents_ready(
 end
 
 function throw_impossible_materialization_schedule(
-    materialized_ready::BitVector,
-)::Nothing
+        materialized_ready::BitVector,
+    )::Nothing
     unresolved_nodekeys = StructureKeyType[]
     for (nodekey, is_ready) in enumerate(materialized_ready)
         is_ready || push!(unresolved_nodekeys, StructureKeyType(nodekey))
@@ -533,11 +533,11 @@ function throw_impossible_materialization_schedule(
 end
 
 function emit_basenode(
-    request::NodeTypeLoadRequest{NodeT},
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    nodedata::NodeRowRef,
-) where {NodeT}
+        request::NodeTypeLoadRequest{NodeT},
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        nodedata::NodeRowRef,
+    ) where {NodeT}
     basenode_handle = add_child(
         nothing,
         nodekey,
@@ -553,22 +553,22 @@ function emit_basenode(
 end
 
 function emit_basenode(
-    request::BasenodeLoadRequest,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    nodedata::NodeRowRef,
-)
+        request::BasenodeLoadRequest,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        nodedata::NodeRowRef,
+    )
     basenode_handle = bind_basenode!(request.basenode, nodekey, label; nodedata = nodedata)
     ensure_constructed_handle(basenode_handle, "basenode-binding")
     return basenode_handle
 end
 
 function emit_basenode(
-    request::BuilderLoadRequest,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    nodedata::NodeRowRef,
-)
+        request::BuilderLoadRequest,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        nodedata::NodeRowRef,
+    )
     basenode_handle = request.builder(
         nothing,
         nodekey,
@@ -583,16 +583,16 @@ function emit_basenode(
 end
 
 function emit_childnode(
-    request::AbstractLoadRequest,
-    materialized_handles::Vector{Any},
-    child_nodekey::StructureKeyType,
-    labels::AbstractVector{<:AbstractString},
-    incoming_edgekeys::AbstractVector{StructureKeyType},
-    src_nodekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    node_table::NodeTable,
-    edge_table::EdgeTable,
-)
+        request::AbstractLoadRequest,
+        materialized_handles::Vector{Any},
+        child_nodekey::StructureKeyType,
+        labels::AbstractVector{<:AbstractString},
+        incoming_edgekeys::AbstractVector{StructureKeyType},
+        src_nodekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        node_table::NodeTable,
+        edge_table::EdgeTable,
+    )
     if length(incoming_edgekeys) == 1
         edgekey = only(incoming_edgekeys)
         parent_handle = materialized_handles[src_nodekeys[edgekey]]
@@ -626,32 +626,32 @@ function emit_childnode(
 end
 
 function build_parent_collection(
-    request::NodeTypeLoadRequest,
-    parent_handles::Vector{Any},
-)::AbstractVector
+        request::NodeTypeLoadRequest,
+        parent_handles::Vector{Any},
+    )::AbstractVector
     ParentHandleT = request.node_type
     all(parent_handle -> parent_handle isa ParentHandleT, parent_handles) || throw(ArgumentError("The `load(src, $(request.node_type))` surface returned parent handles that are not all compatible with the requested node type during multi-parent construction."))
     return ParentHandleT[parent_handle for parent_handle in parent_handles]
 end
 
 function build_parent_collection(
-    ::AbstractLoadRequest,
-    parent_handles::Vector{Any},
-)::AbstractVector
+        ::AbstractLoadRequest,
+        parent_handles::Vector{Any},
+    )::AbstractVector
     ParentHandleT = reduce(typejoin, map(typeof, parent_handles))
     return ParentHandleT[parent_handle for parent_handle in parent_handles]
 end
 
 function emit_single_parent_childnode(
-    ::NodeTypeLoadRequest,
-    parent_handle,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    nodedata::NodeRowRef,
-    edgedata::EdgeRowRef,
-)
+        ::NodeTypeLoadRequest,
+        parent_handle,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekey::StructureKeyType,
+        edgeweight::EdgeWeightType,
+        nodedata::NodeRowRef,
+        edgedata::EdgeRowRef,
+    )
     child_handle = add_child(
         parent_handle,
         nodekey,
@@ -666,15 +666,15 @@ function emit_single_parent_childnode(
 end
 
 function emit_single_parent_childnode(
-    ::BasenodeLoadRequest,
-    parent_handle,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    nodedata::NodeRowRef,
-    edgedata::EdgeRowRef,
-)
+        ::BasenodeLoadRequest,
+        parent_handle,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekey::StructureKeyType,
+        edgeweight::EdgeWeightType,
+        nodedata::NodeRowRef,
+        edgedata::EdgeRowRef,
+    )
     child_handle = add_child(
         parent_handle,
         nodekey,
@@ -689,15 +689,15 @@ function emit_single_parent_childnode(
 end
 
 function emit_single_parent_childnode(
-    request::BuilderLoadRequest,
-    parent_handle,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    nodedata::NodeRowRef,
-    edgedata::EdgeRowRef,
-)
+        request::BuilderLoadRequest,
+        parent_handle,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekey::StructureKeyType,
+        edgeweight::EdgeWeightType,
+        nodedata::NodeRowRef,
+        edgedata::EdgeRowRef,
+    )
     child_handle = request.builder(
         parent_handle,
         nodekey,
@@ -712,15 +712,15 @@ function emit_single_parent_childnode(
 end
 
 function emit_multi_parent_childnode(
-    request::NodeTypeLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    nodedata::NodeRowRef,
-    edgedata::AbstractVector,
-)
+        request::NodeTypeLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        nodedata::NodeRowRef,
+        edgedata::AbstractVector,
+    )
     ensure_multi_parent_protocol_applicable(
         request,
         parent_collection,
@@ -745,15 +745,15 @@ function emit_multi_parent_childnode(
 end
 
 function emit_multi_parent_childnode(
-    request::BasenodeLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    nodedata::NodeRowRef,
-    edgedata::AbstractVector,
-)
+        request::BasenodeLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        nodedata::NodeRowRef,
+        edgedata::AbstractVector,
+    )
     ensure_multi_parent_protocol_applicable(
         request,
         parent_collection,
@@ -778,15 +778,15 @@ function emit_multi_parent_childnode(
 end
 
 function emit_multi_parent_childnode(
-    request::BuilderLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    nodedata::NodeRowRef,
-    edgedata::AbstractVector,
-)
+        request::BuilderLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        nodedata::NodeRowRef,
+        edgedata::AbstractVector,
+    )
     ensure_multi_parent_protocol_applicable(
         request,
         parent_collection,
@@ -811,15 +811,15 @@ function emit_multi_parent_childnode(
 end
 
 function ensure_multi_parent_protocol_applicable(
-    request::NodeTypeLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    edgedata::AbstractVector,
-    nodedata::NodeRowRef,
-)::Nothing
+        request::NodeTypeLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        edgedata::AbstractVector,
+        nodedata::NodeRowRef,
+    )::Nothing
     has_custom_multi_parent_add_child(
         parent_collection,
         nodekey,
@@ -833,15 +833,15 @@ function ensure_multi_parent_protocol_applicable(
 end
 
 function ensure_multi_parent_protocol_applicable(
-    ::BasenodeLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    edgedata::AbstractVector,
-    nodedata::NodeRowRef,
-)::Nothing
+        ::BasenodeLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        edgedata::AbstractVector,
+        nodedata::NodeRowRef,
+    )::Nothing
     has_custom_multi_parent_add_child(
         parent_collection,
         nodekey,
@@ -855,15 +855,15 @@ function ensure_multi_parent_protocol_applicable(
 end
 
 function ensure_multi_parent_protocol_applicable(
-    request::BuilderLoadRequest,
-    parent_collection::AbstractVector,
-    nodekey::StructureKeyType,
-    label::AbstractString,
-    edgekeys::AbstractVector{StructureKeyType},
-    edgeweights::AbstractVector{EdgeWeightType},
-    edgedata::AbstractVector,
-    nodedata::NodeRowRef,
-)::Nothing
+        request::BuilderLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        edgedata::AbstractVector,
+        nodedata::NodeRowRef,
+    )::Nothing
     applicable(
         request.builder,
         parent_collection,
@@ -883,8 +883,8 @@ function ensure_constructed_handle(handle, phase::AbstractString)::Nothing
 end
 
 function build_builder_parent_collection_sample(
-    builder,
-)::AbstractVector
+        builder,
+    )::AbstractVector
     parent_handle_types = Type[]
     for method in methods(builder)
         collect_builder_parent_handle_types!(
@@ -904,9 +904,9 @@ function builder_parent_argument_type(method::Method)
 end
 
 function collect_builder_parent_handle_types!(
-    parent_handle_types::Vector{Type},
-    parent_argument_type,
-)::Nothing
+        parent_handle_types::Vector{Type},
+        parent_argument_type,
+    )::Nothing
     parent_argument_type === Any && begin
         push!(parent_handle_types, Any)
         return nothing
@@ -936,15 +936,15 @@ function builder_parent_argument_types(parent_argument_type)::Vector{Any}
 end
 
 function has_custom_multi_parent_add_child(
-    parent_collection::AbstractVector,
-    nodekey,
-    label,
-    edgekeys::AbstractVector,
-    edgeweights::AbstractVector,
-    ;
-    edgedata,
-    nodedata,
-)::Bool
+        parent_collection::AbstractVector,
+        nodekey,
+        label,
+        edgekeys::AbstractVector,
+        edgeweights::AbstractVector,
+        ;
+        edgedata,
+        nodedata,
+    )::Bool
     keyword_values = (; edgedata = edgedata, nodedata = nodedata)
     selected_method = which(
         Core.kwcall,

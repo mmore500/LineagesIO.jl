@@ -6,11 +6,11 @@ graph/source coordinates together with any optional constructed graph container
 and basenode.
 """
 struct LineageGraphAsset{
-    GraphT,
-    BasenodeT,
-    NodeTableT <: NodeTable,
-    EdgeTableT <: EdgeTable,
-}
+        GraphT,
+        BasenodeT,
+        NodeTableT <: NodeTable,
+        EdgeTableT <: EdgeTable,
+    }
     index::Int
     source_idx::Int
     collection_idx::Int
@@ -35,13 +35,13 @@ Top-level load result. `graphs` is a lazy iterator of
 `LineageGraphAsset{GraphT, BasenodeT}` values.
 """
 struct LineageGraphStore{
-    GraphT,
-    BasenodeT,
-    SourceTableT <: SourceTable,
-    CollectionTableT <: CollectionTable,
-    GraphTableT <: GraphTable,
-    GraphsT,
-}
+        GraphT,
+        BasenodeT,
+        SourceTableT <: SourceTable,
+        CollectionTableT <: CollectionTable,
+        GraphTableT <: GraphTable,
+        GraphsT,
+    }
     source_table::SourceTableT
     collection_table::CollectionTableT
     graph_table::GraphTableT
@@ -49,16 +49,16 @@ struct LineageGraphStore{
 end
 
 function LineageGraphStore(
-    source_table::SourceTableT,
-    collection_table::CollectionTableT,
-    graph_table::GraphTableT,
-    graphs::GraphAssetIterator{GraphAssetVectorT},
-) where {
-    SourceTableT <: SourceTable,
-    CollectionTableT <: CollectionTable,
-    GraphTableT <: GraphTable,
-    GraphAssetVectorT <: AbstractVector,
-}
+        source_table::SourceTableT,
+        collection_table::CollectionTableT,
+        graph_table::GraphTableT,
+        graphs::GraphAssetIterator{GraphAssetVectorT},
+    ) where {
+        SourceTableT <: SourceTable,
+        CollectionTableT <: CollectionTable,
+        GraphTableT <: GraphTable,
+        GraphAssetVectorT <: AbstractVector,
+    }
     graph_asset_type = eltype(GraphAssetVectorT)
     graph_type = fieldtype(graph_asset_type, 9)
     basenode_type = fieldtype(graph_asset_type, 10)
@@ -149,10 +149,10 @@ Tables.getcolumn(rowref::NodeRowRef, nm::Symbol) = Tables.getcolumn(getfield(row
 Tables.getcolumn(rowref::EdgeRowRef, nm::Symbol) = Tables.getcolumn(getfield(rowref, :table), nm)[getfield(rowref, :edgekey)]
 
 function node_property(
-    node_table::NodeTable,
-    nodekey::StructureKeyType,
-    propertykey,
-)::NodePropertyValueType
+        node_table::NodeTable,
+        nodekey::StructureKeyType,
+        propertykey,
+    )::NodePropertyValueType
     normalized_propertykey = normalize_propertykey(propertykey)
     has_property(node_table, normalized_propertykey) || throw(ArgumentError("Requested node property `$(repr(normalized_propertykey))` is not present in the authoritative node table."))
     assert_rowkey(node_table, nodekey, "nodekey")
@@ -160,17 +160,17 @@ function node_property(
 end
 
 function node_property(
-    nodedata::NodeRowRef,
-    propertykey,
-)::NodePropertyValueType
+        nodedata::NodeRowRef,
+        propertykey,
+    )::NodePropertyValueType
     return node_property(getfield(nodedata, :table), getfield(nodedata, :nodekey), propertykey)
 end
 
 function edge_property(
-    edge_table::EdgeTable,
-    edgekey::StructureKeyType,
-    propertykey,
-)::EdgePropertyValueType
+        edge_table::EdgeTable,
+        edgekey::StructureKeyType,
+        propertykey,
+    )::EdgePropertyValueType
     normalized_propertykey = normalize_propertykey(propertykey)
     has_property(edge_table, normalized_propertykey) || throw(ArgumentError("Requested edge property `$(repr(normalized_propertykey))` is not present in the authoritative edge table."))
     assert_rowkey(edge_table, edgekey, "edgekey")
@@ -178,9 +178,9 @@ function edge_property(
 end
 
 function edge_property(
-    edgedata::EdgeRowRef,
-    propertykey,
-)::EdgePropertyValueType
+        edgedata::EdgeRowRef,
+        propertykey,
+    )::EdgePropertyValueType
     return edge_property(getfield(edgedata, :table), getfield(edgedata, :edgekey), propertykey)
 end
 
@@ -203,12 +203,12 @@ Raises `ArgumentError` for tables-only assets where no construction target
 was supplied and `asset.basenode === nothing`.
 """
 function basenode(
-    asset::LineageGraphAsset{<:Any, BasenodeT, <:NodeTable, <:EdgeTable},
-)::BasenodeT where {BasenodeT}
+        asset::LineageGraphAsset{<:Any, BasenodeT, <:NodeTable, <:EdgeTable},
+    )::BasenodeT where {BasenodeT}
     asset.basenode === nothing && throw(
         ArgumentError(
             "Cannot extract a `basenode` from a tables-only `LineageGraphAsset`. " *
-            "Supply a construction target to `load` to obtain constructed `graph` and `basenode` values."
+                "Supply a construction target to `load` to obtain constructed `graph` and `basenode` values."
         )
     )
     return asset.basenode
