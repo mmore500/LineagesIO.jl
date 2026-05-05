@@ -560,11 +560,19 @@ This tranche is not authorized to silently ship the decision. Its job is to
 surface the decision clearly, explain the compatibility consequences, and
 capture the user's ratification.
 
+The exact artifact path for this tranche's decision record is:
+
+- `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`
+
 This tranche has two honest outcomes:
 
-- a ratified public decision artifact, which unblocks Tranche 4
-- an explicit deferral artifact, which records scope and constraints but leaves
-  Tranche 4 blocked until a later user-ratified decision exists
+- a ratified decision recorded in
+  `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`,
+  which unblocks Tranche 4
+- an explicit deferral recorded in
+  `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`,
+  which records scope and constraints but leaves Tranche 4 blocked until a
+  later user-ratified decision exists
 
 ### Legacy artifacts to retire or demote
 
@@ -599,7 +607,8 @@ This tranche has two honest outcomes:
   names first-class typed surfaces, convenience wrappers, compatibility-only
   wrappers, and any candidate deprecations or breaks
 - **Manual**: review that matrix and migration note with the user and record
-  either the explicit ratified decision or the explicit deferral artifact
+  either the explicit ratified decision or the explicit deferral artifact in
+  `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`
 - **Manual**: if the outcome is ratification, confirm the decision scopes any
   approved exception precisely instead of broadening it into a new default rule
 - **Manual**: if the outcome is deferral, confirm the recorded scope and
@@ -613,8 +622,9 @@ This tranche has two honest outcomes:
 
 - [ ] Given the PRD's open public-surface questions, when this tranche
       completes, then it records either a ratified public naming and migration
-      decision that unblocks Tranche 4 or an explicit deferral with scope and
-      constraints that leaves Tranche 4 blocked
+      decision in `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`
+      that unblocks Tranche 4 or an explicit deferral in that same file with
+      scope and constraints that leaves Tranche 4 blocked
 - [ ] Given any proposed repo-owned public API breakage, when this tranche
       completes, then a migration and compatibility note exists and has been
       reviewed by the user before implementation proceeds
@@ -636,8 +646,9 @@ This tranche has two honest outcomes:
 ## Tranche 4: approved public rollout and contract synchronization
 
 **Type**: AFK
-**Blocked by**: Tranche 3 -- only if Tranche 3 ends with a ratified public
-decision artifact; a deferred decision leaves this tranche blocked
+**Blocked by**: Tranche 3 -- only if Tranche 3 ends with a ratified decision
+record in `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`;
+a deferred decision recorded there leaves this tranche blocked
 
 ### Parent PRD
 
@@ -652,15 +663,17 @@ decision artifact; a deferred decision leaves this tranche blocked
   `STYLE-workflow-docs.md`, and `STYLE-writing.md`
 - Mandated reading of `.workflow-docs/202605040131_type-stable-parse/01_prd.md`
   and `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`
-- Mandated reading of the user-ratified public naming and migration decision
-  artifact produced by Tranche 3
+- Mandated reading of
+  `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`
+  after Tranche 3 produces it
 - Mandated reading of the same `FileIO` and `Tables` upstream primary sources
   used in Tranches 1 and 2
 
 ### What to build
 
 Build the approved public rollout after the user-review gate is complete and a
-ratified public decision artifact exists.
+ratified decision record exists at
+`.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`.
 
 This tranche applies the ratified public naming and compatibility policy to the
 repo-owned API, docs, README, examples, and direct public-surface tests. It may
@@ -699,7 +712,8 @@ any source-specific documentation must be able to tell immediately:
 ### Environment and dependency baseline
 
 - Follow the exact public naming and migration scope recorded in the ratified
-  Tranche 3 decision artifact
+  Tranche 3 decision record at
+  `.workflow-docs/202605040131_type-stable-parse/03_public-surface-decision.md`
 - Preserve `FileIO.load(...)` support unless the user explicitly ratifies a
   narrower compatibility contract
 - Use the existing root, test, docs, and examples environments
