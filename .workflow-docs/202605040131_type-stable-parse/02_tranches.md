@@ -120,8 +120,10 @@ Verified current-state observations from the PRD and codebase exploration:
 - `ext/PhyloNetworksIO.jl` repeats runtime parent-collection recovery through a
   custom `build_parent_collection(...)` path
 - `ext/MetaGraphsNextIO.jl` contains a multi-parent probe shim that exists
-  because multi-parent capability is still inferred indirectly rather than
-  expressed through one canonical owner-level request model
+  because `src/construction.jl` currently performs preflight capability probing
+  against `typeof(request.basenode)[]`, while actual MetaGraphsNext
+  construction uses `MetaGraphsNextBuildCursor` parent handles; the shim bridges
+  that current probe/protocol mismatch
 - `src/newick_format.jl` and `src/alife_format.jl` already preserve the right
   invariant: authoritative tables are built first, then materialization occurs
 - `src/views.jl` already preserves typed `LineageGraphAsset` and
@@ -444,9 +446,9 @@ or a second type-recovery implementation.
 - `load_alife_table(...)` as a separate semantic owner
 - extension-owned parent-collection recovery from erased handles
 - `typejoin`-based parent-handle recovery in `ext/PhyloNetworksIO.jl`
-- the `MetaGraphsNext` multi-parent probe shim if the canonical owner can
-  replace indirect capability inference with an honest typed or trait-based
-  contract
+- the `MetaGraphsNext` multi-parent probe shim if the canonical owner or
+  multi-parent capability contract removes the current probe/protocol mismatch
+  between preflight validation and actual cursor-based construction
 
 If any artifact must temporarily survive, it may do so only as a thin adapter
 with no independent semantic rules.
@@ -558,6 +560,12 @@ This tranche is not authorized to silently ship the decision. Its job is to
 surface the decision clearly, explain the compatibility consequences, and
 capture the user's ratification.
 
+This tranche has two honest outcomes:
+
+- a ratified public decision artifact, which unblocks Tranche 4
+- an explicit deferral artifact, which records scope and constraints but leaves
+  Tranche 4 blocked until a later user-ratified decision exists
+
 ### Legacy artifacts to retire or demote
 
 - unresolved ambiguity about the final first-class public load verb
@@ -590,10 +598,12 @@ capture the user's ratification.
 - **Manual**: produce a guarantee matrix and migration note that explicitly
   names first-class typed surfaces, convenience wrappers, compatibility-only
   wrappers, and any candidate deprecations or breaks
-- **Manual**: review that matrix and migration note with the user and record the
-  explicit ratified decision
-- **Manual**: confirm the ratified decision scopes any approved exception
-  precisely instead of broadening it into a new default rule
+- **Manual**: review that matrix and migration note with the user and record
+  either the explicit ratified decision or the explicit deferral artifact
+- **Manual**: if the outcome is ratification, confirm the decision scopes any
+  approved exception precisely instead of broadening it into a new default rule
+- **Manual**: if the outcome is deferral, confirm the recorded scope and
+  constraints leave Tranche 4 blocked rather than implying silent approval
 - **Automated**: if this tranche changes repo-owned docs or code, run
   `julia --project=test test/runtests.jl`
 - **Automated**: if this tranche changes repo-owned docs or code, run
@@ -602,9 +612,9 @@ capture the user's ratification.
 ### Acceptance criteria
 
 - [ ] Given the PRD's open public-surface questions, when this tranche
-      completes, then the user has explicitly ratified the final public naming
-      and migration direction or has explicitly deferred it with scope and
-      constraints recorded
+      completes, then it records either a ratified public naming and migration
+      decision that unblocks Tranche 4 or an explicit deferral with scope and
+      constraints that leaves Tranche 4 blocked
 - [ ] Given any proposed repo-owned public API breakage, when this tranche
       completes, then a migration and compatibility note exists and has been
       reviewed by the user before implementation proceeds
@@ -626,7 +636,8 @@ capture the user's ratification.
 ## Tranche 4: approved public rollout and contract synchronization
 
 **Type**: AFK
-**Blocked by**: Tranche 3
+**Blocked by**: Tranche 3 -- only if Tranche 3 ends with a ratified public
+decision artifact; a deferred decision leaves this tranche blocked
 
 ### Parent PRD
 
@@ -642,13 +653,14 @@ capture the user's ratification.
 - Mandated reading of `.workflow-docs/202605040131_type-stable-parse/01_prd.md`
   and `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`
 - Mandated reading of the user-ratified public naming and migration decision
-  produced by Tranche 3
+  artifact produced by Tranche 3
 - Mandated reading of the same `FileIO` and `Tables` upstream primary sources
   used in Tranches 1 and 2
 
 ### What to build
 
-Build the approved public rollout after the user-review gate is complete.
+Build the approved public rollout after the user-review gate is complete and a
+ratified public decision artifact exists.
 
 This tranche applies the ratified public naming and compatibility policy to the
 repo-owned API, docs, README, examples, and direct public-surface tests. It may
@@ -686,7 +698,8 @@ any source-specific documentation must be able to tell immediately:
 
 ### Environment and dependency baseline
 
-- Follow the exact public naming and migration scope ratified in Tranche 3
+- Follow the exact public naming and migration scope recorded in the ratified
+  Tranche 3 decision artifact
 - Preserve `FileIO.load(...)` support unless the user explicitly ratifies a
   narrower compatibility contract
 - Use the existing root, test, docs, and examples environments
