@@ -294,6 +294,12 @@ function LineagesIO.validate_extension_load_target(
     return nothing
 end
 
+function LineagesIO.construction_handle_type(
+    ::GraphT,
+)::Type where {GraphT <: MetaGraph}
+    return MetaGraphsNextBuildCursor{GraphT}
+end
+
 # ---------------------------------------------------------------------------
 # Protocol: emit_basenode (library-created path only).
 #

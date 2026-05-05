@@ -49,6 +49,7 @@ end
     include("extensions/phylonetworks_tree_compatible_newick.jl")
     include("extensions/phylonetworks_rejection_paths.jl")
     include("integration/phylonetworks_soft_release.jl")
+    include("core/canonical_load_owner.jl")
 
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(LineagesIO)

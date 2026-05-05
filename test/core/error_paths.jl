@@ -11,7 +11,12 @@ end
         load(fixture_path, MissingConstructionProtocolNode)
     end
     @test missing_construction_error isa ArgumentError
-    @test occursin("add_child(::Nothing", sprint(showerror, missing_construction_error))
+    missing_construction_text = sprint(showerror, missing_construction_error)
+    @test occursin("MissingConstructionProtocolNode", missing_construction_text)
+    @test (
+        occursin("add_child(::Nothing", missing_construction_text) ||
+        occursin("requires a value compatible", missing_construction_text)
+    )
 
     missing_basenode_error = capture_expected_load_error() do
         load(fixture_path, MissingBasenodeProtocolNode(0))

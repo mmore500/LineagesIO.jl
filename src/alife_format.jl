@@ -445,9 +445,14 @@ function load_alife_table(
         builder = nothing,
         source_path::Union{Nothing, AbstractString} = nothing,
     )::LineageGraphStore
-    Tables.istable(typeof(table)) || throw(ArgumentError("`load_alife_table` requires a Tables.jl-compatible input, but received `$(typeof(table))`. Pass a `NamedTuple` of vectors, a `DataFrame`, or any other value satisfying the Tables.jl interface."))
-    request = build_load_request(args, builder)
-    return build_alife_store_from_table(table, normalize_source_path(source_path), request)
+    return canonical_load(
+        AlifeTableSourceDescriptor(
+            table,
+            normalize_source_path(source_path),
+        ),
+        args...;
+        builder = builder,
+    )
 end
 
 function parse_alife_table(

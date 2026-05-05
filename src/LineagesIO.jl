@@ -37,6 +37,7 @@ function MetaGraphsNextTreeView end
 include("core_types.jl")
 include("tables.jl")
 include("views.jl")
+include("load_owner.jl")
 include("construction.jl")
 include("newick_format.jl")
 include("alife_format.jl")

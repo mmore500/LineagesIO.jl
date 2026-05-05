@@ -219,6 +219,16 @@ function LineagesIO.validate_extension_load_target(
     return nothing
 end
 
+function LineagesIO.construction_handle_type(
+    ::PhyloNetworks.HybridNetwork,
+)::Type
+    return PhyloNetworksBuildCursor{
+        PhyloNetworks.HybridNetwork,
+        PhyloNetworks.HybridNetwork,
+        PhyloNetworksBuildState,
+    }
+end
+
 function build_phylonetworks_state(
     node_table::LineagesIO.NodeTable,
 )::PhyloNetworksBuildState
@@ -605,7 +615,7 @@ end
 
 function LineagesIO.build_parent_collection(
     ::LineagesIO.NodeTypeLoadRequest{PhyloNetworks.HybridNetwork},
-    parent_handles::Vector{Any},
+    parent_handles::AbstractVector,
 )::AbstractVector
     all(parent_handle -> parent_handle isa PhyloNetworksBuildCursor, parent_handles) || throw(
         ArgumentError(

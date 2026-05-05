@@ -1,19 +1,3 @@
-abstract type AbstractLoadRequest end
-
-struct TablesOnlyLoadRequest <: AbstractLoadRequest end
-
-struct NodeTypeLoadRequest{NodeT} <: AbstractLoadRequest
-    node_type::Type{NodeT}
-end
-
-struct BasenodeLoadRequest{BasenodeT} <: AbstractLoadRequest
-    basenode::BasenodeT
-end
-
-struct BuilderLoadRequest{BuilderT} <: AbstractLoadRequest
-    builder::BuilderT
-end
-
 """
     bind_basenode!(basenode, nodekey, label; nodedata)
 
@@ -106,6 +90,41 @@ function graph_requires_multi_parent(
     return graph_requires_multi_parent(graph_asset.edge_table)
 end
 
+function build_parent_collection_sample(
+        request::NodeTypeLoadRequest,
+    )::AbstractVector
+    return getfield(request, :node_type)[]
+end
+
+function build_parent_collection_sample(
+        request::BasenodeLoadRequest{<:Any, HandleT},
+    )::AbstractVector where {HandleT}
+    return HandleT[]
+end
+
+function build_parent_collection_sample(
+        request::BuilderLoadRequest,
+    )::AbstractVector
+    return build_builder_parent_collection_sample(getfield(request, :builder))
+end
+
+function build_parent_collection_sample(
+        request::TypedBuilderLoadRequest{
+            <:Any,
+            HandleT,
+            ParentCollectionT,
+            <:Any,
+        },
+    )::ParentCollectionT where {
+        HandleT,
+        ParentCollectionT <: AbstractVector{HandleT},
+    }
+    return build_parent_collection_from_factory(
+        getfield(request, :parent_collection_factory),
+        HandleT[],
+    )
+end
+
 function materialize_graphs(
         graph_assets::GraphAssetVectorT,
         ::TablesOnlyLoadRequest,
@@ -188,13 +207,22 @@ function validate_materialization_request(
     return nothing
 end
 
+function validate_materialization_request(
+        graph_asset::LineageGraphAsset,
+        request::TypedBuilderLoadRequest,
+    )::Nothing
+    graph_requires_multi_parent(graph_asset) || return nothing
+    validate_multi_parent_builder_request(graph_asset, request)
+    return nothing
+end
+
 function validate_multi_parent_node_type_request(
         graph_asset::LineageGraphAsset,
         request::NodeTypeLoadRequest,
     )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
-    sample_parents = request.node_type[]
+    sample_parents = build_parent_collection_sample(request)
     has_custom_multi_parent_add_child(
         sample_parents,
         sample.child_nodekey,
@@ -214,7 +242,7 @@ function validate_multi_parent_basenode_binding_request(
     )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
-    sample_parents = typeof(request.basenode)[]
+    sample_parents = build_parent_collection_sample(request)
     has_custom_multi_parent_add_child(
         sample_parents,
         sample.child_nodekey,
@@ -234,7 +262,7 @@ function validate_multi_parent_builder_request(
     )::Nothing
     sample = build_multi_parent_protocol_sample(graph_asset)
     sample === nothing && return nothing
-    sample_parents = build_builder_parent_collection_sample(request.builder)
+    sample_parents = build_parent_collection_sample(request)
     applicable(
         request.builder,
         sample_parents,
@@ -247,6 +275,27 @@ function validate_multi_parent_builder_request(
     ) && return nothing
 
     throw(ArgumentError("The supplied `builder` callback cannot materialize this source because it does not accept the multi-parent `(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
+end
+
+function validate_multi_parent_builder_request(
+        graph_asset::LineageGraphAsset,
+        request::TypedBuilderLoadRequest,
+    )::Nothing
+    sample = build_multi_parent_protocol_sample(graph_asset)
+    sample === nothing && return nothing
+    sample_parents = build_parent_collection_sample(request)
+    applicable(
+        getfield(request, :builder),
+        sample_parents,
+        sample.child_nodekey,
+        sample.label,
+        sample.edgekeys,
+        sample.edgeweights;
+        edgedata = sample.edgedata,
+        nodedata = sample.nodedata,
+    ) && return nothing
+
+    throw(ArgumentError("The supplied typed builder request cannot materialize this source because it does not accept the multi-parent `(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
 end
 
 function first_multi_parent_nodekey(
@@ -349,7 +398,8 @@ function materialize_graph_basenode(
         return graph_from_finalized(finalized), basenode_from_finalized(finalized)
     end
 
-    materialized_handles = Any[nothing for _ in 1:node_count]
+    HandleT = typeof(basenode_handle)
+    materialized_handles = Vector{HandleT}(undef, node_count)
     materialized_ready = falses(node_count)
     materialized_handles[basenodekey] = basenode_handle
     materialized_ready[basenodekey] = true
@@ -548,7 +598,7 @@ function emit_basenode(
         nodedata = nodedata,
     )
     ensure_constructed_handle(basenode_handle, "basenode-construction")
-    basenode_handle isa NodeT || throw(ArgumentError("The basenode-construction `LineagesIO.add_child(::Nothing, ...)` call returned `$(typeof(basenode_handle))`, but `load(src, $(request.node_type))` requires a value compatible with `$(request.node_type)`."))
+    ensure_request_handle_type(request, basenode_handle, "basenode-construction")
     return basenode_handle
 end
 
@@ -560,6 +610,7 @@ function emit_basenode(
     )
     basenode_handle = bind_basenode!(request.basenode, nodekey, label; nodedata = nodedata)
     ensure_constructed_handle(basenode_handle, "basenode-binding")
+    ensure_request_handle_type(request, basenode_handle, "basenode-binding")
     return basenode_handle
 end
 
@@ -582,9 +633,29 @@ function emit_basenode(
     return basenode_handle
 end
 
+function emit_basenode(
+        request::TypedBuilderLoadRequest,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        nodedata::NodeRowRef,
+    )
+    basenode_handle = getfield(request, :builder)(
+        nothing,
+        nodekey,
+        label,
+        nothing,
+        nothing;
+        edgedata = nothing,
+        nodedata = nodedata,
+    )
+    ensure_constructed_handle(basenode_handle, "typed builder basenode-construction")
+    ensure_request_handle_type(request, basenode_handle, "typed builder basenode-construction")
+    return basenode_handle
+end
+
 function emit_childnode(
         request::AbstractLoadRequest,
-        materialized_handles::Vector{Any},
+        materialized_handles::AbstractVector{HandleT},
         child_nodekey::StructureKeyType,
         labels::AbstractVector{<:AbstractString},
         incoming_edgekeys::AbstractVector{StructureKeyType},
@@ -592,7 +663,7 @@ function emit_childnode(
         edgeweights::AbstractVector{EdgeWeightType},
         node_table::NodeTable,
         edge_table::EdgeTable,
-    )
+    ) where {HandleT}
     if length(incoming_edgekeys) == 1
         edgekey = only(incoming_edgekeys)
         parent_handle = materialized_handles[src_nodekeys[edgekey]]
@@ -608,7 +679,11 @@ function emit_childnode(
         )
     end
 
-    parent_handles = Any[materialized_handles[src_nodekeys[edgekey]] for edgekey in incoming_edgekeys]
+    parent_handles = collect_parent_handles(
+        materialized_handles,
+        incoming_edgekeys,
+        src_nodekeys,
+    )
     parent_collection = build_parent_collection(request, parent_handles)
     edgekey_collection = StructureKeyType[edgekey for edgekey in incoming_edgekeys]
     edgeweight_collection = EdgeWeightType[edgeweights[edgekey] for edgekey in incoming_edgekeys]
@@ -625,21 +700,56 @@ function emit_childnode(
     )
 end
 
-function build_parent_collection(
-        request::NodeTypeLoadRequest,
-        parent_handles::Vector{Any},
-    )::AbstractVector
-    ParentHandleT = request.node_type
-    all(parent_handle -> parent_handle isa ParentHandleT, parent_handles) || throw(ArgumentError("The `load(src, $(request.node_type))` surface returned parent handles that are not all compatible with the requested node type during multi-parent construction."))
-    return ParentHandleT[parent_handle for parent_handle in parent_handles]
+function collect_parent_handles(
+        materialized_handles::AbstractVector{HandleT},
+        incoming_edgekeys::AbstractVector{StructureKeyType},
+        src_nodekeys::AbstractVector{StructureKeyType},
+    )::Vector{HandleT} where {HandleT}
+    parent_handles = Vector{HandleT}(undef, length(incoming_edgekeys))
+    for (parent_index, edgekey) in pairs(incoming_edgekeys)
+        parent_handles[parent_index] = materialized_handles[src_nodekeys[edgekey]]
+    end
+    return parent_handles
 end
 
 function build_parent_collection(
-        ::AbstractLoadRequest,
-        parent_handles::Vector{Any},
-    )::AbstractVector
-    ParentHandleT = reduce(typejoin, map(typeof, parent_handles))
-    return ParentHandleT[parent_handle for parent_handle in parent_handles]
+        request::NodeTypeLoadRequest,
+        parent_handles::AbstractVector{HandleT},
+    )::Vector{HandleT} where {HandleT}
+    all(parent_handle -> parent_handle isa getfield(request, :node_type), parent_handles) || throw(ArgumentError("The `load(src, $(request.node_type))` surface returned parent handles that are not all compatible with the requested node type during multi-parent construction."))
+    return HandleT[parent_handle for parent_handle in parent_handles]
+end
+
+function build_parent_collection(
+        ::BasenodeLoadRequest{<:Any, HandleT},
+        parent_handles::AbstractVector{HandleT},
+    )::Vector{HandleT} where {HandleT}
+    return HandleT[parent_handle for parent_handle in parent_handles]
+end
+
+function build_parent_collection(
+        ::BuilderLoadRequest,
+        parent_handles::AbstractVector{HandleT},
+    )::Vector{HandleT} where {HandleT}
+    return HandleT[parent_handle for parent_handle in parent_handles]
+end
+
+function build_parent_collection(
+        request::TypedBuilderLoadRequest{
+            <:Any,
+            HandleT,
+            ParentCollectionT,
+            <:Any,
+        },
+        parent_handles::AbstractVector{HandleT},
+    )::ParentCollectionT where {
+        HandleT,
+        ParentCollectionT <: AbstractVector{HandleT},
+    }
+    return build_parent_collection_from_factory(
+        getfield(request, :parent_collection_factory),
+        parent_handles,
+    )
 end
 
 function emit_single_parent_childnode(
@@ -708,6 +818,30 @@ function emit_single_parent_childnode(
         nodedata = nodedata,
     )
     ensure_constructed_handle(child_handle, "builder child-construction")
+    return child_handle
+end
+
+function emit_single_parent_childnode(
+        request::TypedBuilderLoadRequest,
+        parent_handle,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekey::StructureKeyType,
+        edgeweight::EdgeWeightType,
+        nodedata::NodeRowRef,
+        edgedata::EdgeRowRef,
+    )
+    child_handle = getfield(request, :builder)(
+        parent_handle,
+        nodekey,
+        label,
+        edgekey,
+        edgeweight;
+        edgedata = edgedata,
+        nodedata = nodedata,
+    )
+    ensure_constructed_handle(child_handle, "typed builder child-construction")
+    ensure_request_handle_type(request, child_handle, "typed builder child-construction")
     return child_handle
 end
 
@@ -810,6 +944,40 @@ function emit_multi_parent_childnode(
     return child_handle
 end
 
+function emit_multi_parent_childnode(
+        request::TypedBuilderLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        nodedata::NodeRowRef,
+        edgedata::AbstractVector,
+    )
+    ensure_multi_parent_protocol_applicable(
+        request,
+        parent_collection,
+        nodekey,
+        label,
+        edgekeys,
+        edgeweights,
+        edgedata,
+        nodedata,
+    )
+    child_handle = getfield(request, :builder)(
+        parent_collection,
+        nodekey,
+        label,
+        edgekeys,
+        edgeweights;
+        edgedata = edgedata,
+        nodedata = nodedata,
+    )
+    ensure_constructed_handle(child_handle, "typed builder multi-parent child-construction")
+    ensure_request_handle_type(request, child_handle, "typed builder multi-parent child-construction")
+    return child_handle
+end
+
 function ensure_multi_parent_protocol_applicable(
         request::NodeTypeLoadRequest,
         parent_collection::AbstractVector,
@@ -877,8 +1045,66 @@ function ensure_multi_parent_protocol_applicable(
     throw(ArgumentError("The supplied `builder` callback cannot materialize this source because it does not accept the multi-parent `(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
 end
 
+function ensure_multi_parent_protocol_applicable(
+        request::TypedBuilderLoadRequest,
+        parent_collection::AbstractVector,
+        nodekey::StructureKeyType,
+        label::AbstractString,
+        edgekeys::AbstractVector{StructureKeyType},
+        edgeweights::AbstractVector{EdgeWeightType},
+        edgedata::AbstractVector,
+        nodedata::NodeRowRef,
+    )::Nothing
+    applicable(
+        getfield(request, :builder),
+        parent_collection,
+        nodekey,
+        label,
+        edgekeys,
+        edgeweights;
+        edgedata = edgedata,
+        nodedata = nodedata,
+    ) && return nothing
+    throw(ArgumentError("The supplied typed builder request cannot materialize this source because it does not accept the multi-parent `(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
+end
+
 function ensure_constructed_handle(handle, phase::AbstractString)::Nothing
     handle === nothing && throw(ArgumentError("The `$(phase)` callback returned `nothing`, but LineagesIO requires a node handle for every emitted construction event."))
+    return nothing
+end
+
+function ensure_request_handle_type(
+        request::NodeTypeLoadRequest{NodeT},
+        handle,
+        phase::AbstractString,
+    )::Nothing where {NodeT}
+    handle isa NodeT || throw(ArgumentError("The `$(phase)` callback returned `$(typeof(handle))`, but `load(src, $(request.node_type))` requires a value compatible with `$(request.node_type)`."))
+    return nothing
+end
+
+function ensure_request_handle_type(
+        request::BasenodeLoadRequest{<:Any, HandleT},
+        handle,
+        phase::AbstractString,
+    )::Nothing where {HandleT}
+    handle isa HandleT || throw(ArgumentError("The `$(phase)` callback returned `$(typeof(handle))`, but the supplied `basenode` request requires a value compatible with `$(getfield(request, :handle_type))`."))
+    return nothing
+end
+
+function ensure_request_handle_type(
+        ::BuilderLoadRequest,
+        handle,
+        phase::AbstractString,
+    )::Nothing
+    return nothing
+end
+
+function ensure_request_handle_type(
+        ::TypedBuilderLoadRequest{<:Any, HandleT, <:Any, <:Any},
+        handle,
+        phase::AbstractString,
+    )::Nothing where {HandleT}
+    handle isa HandleT || throw(ArgumentError("The `$(phase)` callback returned `$(typeof(handle))`, but the typed builder request requires a value compatible with `$(HandleT)`."))
     return nothing
 end
 
