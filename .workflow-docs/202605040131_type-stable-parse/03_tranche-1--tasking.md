@@ -1,6 +1,6 @@
 ---
 date-created: 2026-05-05T00:10:00-07:00
-date-revised: 2026-05-05T00:10:00-07:00
+date-revised: 2026-05-05T01:49:45-07:00
 status: proposed
 ---
 
@@ -69,7 +69,7 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 
 - Read the tranche, the parent PRD, and this tasking file in full.
 - Read the relevant code in `src/fileio_integration.jl`, `src/alife_format.jl`, `src/newick_format.jl`, `src/construction.jl`, `src/views.jl`, `src/tables.jl`, and `src/LineagesIO.jl` in full.
-- Read the relevant tests in `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, `test/core/builder_callback.jl`, `test/core/network_target_validation.jl`, `test/core/network_protocol_multi_parent.jl`, `test/core/network_newick_format.jl`, `test/core/basenode_binding.jl`, and `test/runtests.jl` in full.
+- Read the relevant tests in `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, `test/core/annotation_retention.jl`, `test/core/network_annotation_retention.jl`, `test/core/companion_tables.jl`, `test/core/builder_callback.jl`, `test/core/network_target_validation.jl`, `test/core/network_protocol_multi_parent.jl`, `test/core/network_newick_format.jl`, `test/core/basenode_binding.jl`, and `test/runtests.jl` in full.
 - Read the current public docs in `README.md`, `docs/src/index.md`, and `docs/src/phylonetworks.md` in full, even though docs repositioning is not a Tranche 1 goal, so that no internal change accidentally contradicts current user-facing text.
 - Re-read the upstream `FileIO` and `Tables` primary sources listed above before changing code that depends on their contracts.
 - Re-check the PRD authorization boundary before making deep refactors.
@@ -90,7 +90,7 @@ When Tranche 1 is complete:
 
 ## Non-negotiable execution rules
 
-- Do not move the real semantic owner back into `FileIO` wrappers, positional argument tuples, or split helper entrypoints.
+- Do not move the real semantic owner back into `FileIO` wrappers, positional argument tuples, or split helper entrypoints. `FileIO` wrappers may perform format dispatch and construct package-owned file/path or stream source descriptors, but they must not keep owning package semantic normalization after that handoff.
 - Do not bypass authoritative table construction in favor of direct parser-to-graph or parser-to-basenode construction.
 - Do not replace `Vector{Any}` with another erased container and present that as typed-core repair.
 - Do not hide runtime type recovery behind helper functions, wrapper structs, or test-only assertions.
@@ -114,12 +114,12 @@ When Tranche 1 is complete:
 
 ## Failure-oriented verification
 
-- Add direct canonical-owner tests that exercise file-backed, stream-backed, and in-memory alife sources without relying on `FileIO.load(...)` as the only execution path.
+- Add direct canonical-owner tests that exercise package-owned file/path descriptors, package-owned stream descriptors, text descriptors, and in-memory alife sources without relying on `FileIO.load(...)` as the only execution path.
 - Add direct canonical-owner coverage for tables-only, node-type, supplied-basenode, and typed-builder request or descriptor shapes.
 - Add a synthetic supplied-basenode regression test where the caller-owned basenode type and the true construction-handle type differ. This test must fail the old `typeof(request.basenode)[]` or runtime-recovery design.
 - Add a typed-builder regression test where a single-parent-only builder shape is rejected by the canonical typed multi-parent builder path. This test must fail the old callback-signature-recovery design.
-- Keep wrapper-parity tests so compatibility surfaces are still checked against the canonical owner for equivalent requests.
-- Keep rooted-network scheduling, annotation-retention, and authoritative-table retention tests green throughout.
+- Keep wrapper-parity tests so compatibility surfaces are still checked against the canonical owner for equivalent requests. For tables-only requests, parity must cover the same authoritative tables. For node-type, supplied-basenode, and typed-builder requests, parity must cover graph or basenode projection, stable asset destructuring order, authoritative tables, and relevant error behavior.
+- Keep rooted-network scheduling, annotation-retention, rooted-network annotation-retention, and authoritative-table retention tests green throughout.
 - Run `julia --project=test test/runtests.jl`.
 - Run `julia --project=docs docs/make.jl`.
 - A source-text search for `Vector{Any}` or `typejoin` may be used only as a supplementary audit after behavioral and contract-level tests exist. Source-text policing alone is not sufficient proof.
@@ -129,15 +129,15 @@ When Tranche 1 is complete:
 ### 1. Establish the non-exported canonical load owner and source descriptors
 
 **Type**: WRITE  
-**Output**: A non-exported canonical owner normalizes supported source descriptors and request descriptors for tables-only, node-type, and supplied-basenode flows, and the current file, stream, and in-memory alife entry surfaces delegate to it without public-name changes.  
+**Output**: A non-exported canonical owner normalizes package-owned file/path, stream, text, and in-memory-table source descriptors plus request descriptors for tables-only, node-type, and supplied-basenode flows, and the current file, stream, and in-memory alife entry surfaces delegate to it without public-name changes.  
 **Depends on**: none  
-**Positive contract**: One package-owned owner exists for supported Tranche 1 source normalization. `fileio_load(...)` and `load_alife_table(...)` no longer each own their own semantic normalization path for tables-only, node-type, and supplied-basenode requests. Format-specific parsing still produces authoritative tables first.  
-**Negative contract**: `build_load_request(...)`, `fileio_load(...)`, and `load_alife_table(...)` must not remain parallel semantic owners. Do not present the legacy `builder = fn` path as already first-class and typed in this task. Do not change public exports or public naming.  
+**Positive contract**: One package-owned owner exists for supported Tranche 1 source normalization. Package-owned file/path and stream descriptors exist for both Newick and alife sources, with text descriptors still available where package-owned parsing tests need them. `fileio_load(...)` and `load_alife_table(...)` no longer each own their own semantic normalization path for tables-only, node-type, and supplied-basenode requests. Format-specific parsing still produces authoritative tables first.  
+**Negative contract**: `build_load_request(...)`, `fileio_load(...)`, and `load_alife_table(...)` must not remain parallel semantic owners. `FileIO.File{...}` and `FileIO.Stream{...}` wrappers must not keep package semantic normalization after dispatch and descriptor construction. Do not present the legacy `builder = fn` path as already first-class and typed in this task. Do not change public exports or public naming.  
 **Files**: `src/LineagesIO.jl`, new `src/load_owner.jl`, `src/fileio_integration.jl`, `src/alife_format.jl`, `src/newick_format.jl`, `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, new `test/core/canonical_load_owner.jl`, `test/runtests.jl`  
 **Out of scope**: `src/construction.jl` typed-core repair, `ext/MetaGraphsNextIO.jl`, `ext/PhyloNetworksIO.jl`, `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, any export list change other than including the new internal file in `src/LineagesIO.jl`  
-**Verification**: Add direct tests that call the canonical owner on a Newick file source, a Newick stream source, and an in-memory alife table source for tables-only, node-type, and supplied-basenode requests. Add parity assertions proving current wrappers return the same authoritative tables for the same semantic request. Run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`.
+**Verification**: Add direct tests that call the canonical owner on package-owned Newick file/path and stream descriptors, package-owned alife file/path and stream descriptors, at least one direct alife-text descriptor case, and an in-memory alife table source for tables-only, node-type, and supplied-basenode requests. Add explicit wrapper-parity coverage for `FileIO.File{LineagesIO.NewickFormat}`, `FileIO.Stream{LineagesIO.NewickFormat}`, `FileIO.File{LineagesIO.AlifeStandardFormat}`, and `FileIO.Stream{LineagesIO.AlifeStandardFormat}`. For tables-only requests, parity must prove the same authoritative tables. For node-type and supplied-basenode requests, parity must prove the same graph or basenode projection, stable asset destructuring order, authoritative tables, and relevant error behavior for equivalent semantic requests. Run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`.
 
-Create a new internal owner file and wire it through `src/LineagesIO.jl`. Define one non-exported canonical owner entrypoint plus explicit source descriptors for Newick text, alife text, and in-memory alife tables. Route `src/fileio_integration.jl` and `load_alife_table(...)` in `src/alife_format.jl` through that owner for tables-only, node-type, and supplied-basenode flows. Reuse the existing authoritative-table builders in `src/newick_format.jl` and `src/alife_format.jl` instead of changing parse semantics here. The task is complete only when the supported non-builder entry surfaces delegate into one owner and the repository is green.
+Create a new internal owner file and wire it through `src/LineagesIO.jl`. Define one non-exported canonical owner entrypoint plus explicit package-owned source descriptors for file/path, stream, Newick text, alife text, and in-memory alife tables. Route `src/fileio_integration.jl` so the `FileIO` wrappers stop at format dispatch plus descriptor construction and then delegate into the canonical owner. Route `load_alife_table(...)` in `src/alife_format.jl` through that same owner for tables-only, node-type, and supplied-basenode flows. Reuse the existing authoritative-table builders in `src/newick_format.jl` and `src/alife_format.jl` instead of changing parse semantics here. The task is complete only when the supported non-builder entry surfaces delegate into one owner and the repository is green.
 
 ### 2. Make node-type and supplied-basenode materialization explicitly typed
 
@@ -161,7 +161,7 @@ Refactor `src/construction.jl` around `materialize_graph_basenode(...)`, `emit_c
 **Negative contract**: `build_builder_parent_collection_sample(...)`, `builder_parent_argument_type(...)`, `collect_builder_parent_handle_types!(...)`, and equivalent signature-driven recovery must not remain on the canonical typed path. Do not export or document the final public builder spelling here.  
 **Files**: `src/construction.jl`, `src/load_owner.jl`, `src/fileio_integration.jl`, `src/alife_format.jl`, `test/core/builder_callback.jl`, `test/core/network_newick_format.jl`, `test/core/error_paths.jl`, `test/core/canonical_load_owner.jl`, `test/runtests.jl`  
 **Out of scope**: `README.md`, `docs/src/*`, `ext/*`, public deprecations, exported builder naming, Tranche 2 extension migration  
-**Verification**: Add direct canonical-owner tests for a typed builder descriptor on a rooted tree source and a multi-parent rooted-network source. Add a negative test proving a single-parent-only builder shape is rejected by the canonical typed multi-parent builder path. Preserve the current wrapper-level `builder = fn` behavior as compatibility-only and keep the full test and docs gates green.
+**Verification**: Add direct canonical-owner tests for a typed builder descriptor on a rooted tree source and a multi-parent rooted-network source. Add a negative test proving a single-parent-only builder shape is rejected by the canonical typed multi-parent builder path. Preserve the current wrapper-level `builder = fn` behavior as compatibility-only, and prove wrapper parity on graph or basenode projection, stable asset destructuring order, authoritative tables, and relevant error behavior for equivalent semantic requests. Keep the full test and docs gates green.
 
 Replace the canonical builder path with an explicitly typed internal builder descriptor that stores the builder callable plus the handle type and parent-collection type, or a parent-collection factory tied to that handle type. Route the canonical owner through that descriptor. If the existing public `builder = fn` wrapper must temporarily retain callback-signature recovery to preserve compatibility, isolate that logic outside the canonical owner and mark it in code and tests as compatibility-only rather than first-class typed ownership. Reuse the existing builder-event test style in `test/core/builder_callback.jl` and `test/core/network_newick_format.jl` so the anti-fix checks are behavioral rather than source-text-based.
 
@@ -170,10 +170,10 @@ Replace the canonical builder path with an explicitly typed internal builder des
 **Type**: TEST  
 **Output**: Direct canonical-owner coverage exists for the full Tranche 1 source and request matrix, and fake fixes are caught by behavior-level tests rather than by string-policing or wrapper-only coverage.  
 **Depends on**: 1, 2, 3  
-**Positive contract**: One direct test surface exercises file-backed, stream-backed, and in-memory alife sources plus tables-only, node-type, supplied-basenode, and typed-builder requests. Wrapper-parity tests prove current wrappers delegate rather than diverge.  
+**Positive contract**: One direct test surface exercises package-owned file/path, stream, text, and in-memory alife sources plus tables-only, node-type, supplied-basenode, and typed-builder requests. Wrapper-parity tests prove current wrappers delegate rather than diverge.  
 **Negative contract**: Do not use grep or source-text policing for `Vector{Any}` or `typejoin` as the only proof. Do not let wrapper-only tests stand in for canonical-owner tests. Do not change docs to imply Tranche 3 public ratification.  
 **Files**: `test/core/canonical_load_owner.jl`, `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, `test/core/network_target_validation.jl`, `test/core/network_newick_format.jl`, `test/runtests.jl`  
 **Out of scope**: `src/*` migration work beyond minimal test-only touchups, `ext/*`, `README.md`, `docs/src/*`, public rename or deprecation decisions  
-**Verification**: Ensure one new direct-owner test would fail the old split-owner architecture and one new direct-owner test would fail the old builder or supplied-basenode runtime-recovery path. Then run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`.
+**Verification**: Ensure one new direct-owner test would fail the old split-owner architecture and one new direct-owner test would fail the old builder or supplied-basenode runtime-recovery path. Ensure wrapper-parity tests prove full observable parity: same authoritative tables for tables-only requests, and the same graph or basenode projection, stable asset destructuring order, authoritative tables, and relevant error behavior for equivalent materializing requests. Then run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`.
 
-Strengthen the test suite so the canonical owner, not only the compatibility wrappers, is the explicit subject of verification. Consolidate the new direct-owner coverage into `test/core/canonical_load_owner.jl` and update existing surface tests only where needed to preserve parity assertions and anti-fix checks. The task is complete only when the repository demonstrates one tested canonical owner for Tranche 1 scope, the old fake-fix shapes are behaviorally rejected, and the standard green-state commands pass.
+Strengthen the test suite so the canonical owner, not only the compatibility wrappers, is the explicit subject of verification. Consolidate the new direct-owner coverage into `test/core/canonical_load_owner.jl` and update existing surface tests only where needed to preserve parity assertions and anti-fix checks. The task is complete only when the repository demonstrates one tested canonical owner for Tranche 1 scope, the old fake-fix shapes are behaviorally rejected, wrapper parity is proven at the full observable result contract rather than only at table equality, and the standard green-state commands pass.
