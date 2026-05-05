@@ -156,9 +156,12 @@ compiler inference for every caller or every callback shape.
 - Current typed foundations are real and valuable. `src/construction.jl` already
   defines concrete request types such as `TablesOnlyLoadRequest`,
   `NodeTypeLoadRequest{T}`, `BasenodeLoadRequest{T}`, and
-  `BuilderLoadRequest{T}`. `src/tables.jl` already owns concrete
-  `Tables.AbstractColumns` implementations. `src/views.jl` already owns typed
-  `LineageGraphAsset` and `LineageGraphStore` containers.
+  `BuilderLoadRequest{T}`. `src/tables.jl` already owns package-specific
+  `Tables.AbstractColumns` table families such as `SourceTable`,
+  `CollectionTable`, `GraphTable`, `NodeTable`, and `EdgeTable`, but their
+  concrete type identity is still schema- and column-parameterized.
+  `src/views.jl` already owns typed `LineageGraphAsset` and
+  `LineageGraphStore` containers.
 - Current ownership of the public semantic is blurred. In practice,
   `src/fileio_integration.jl` and implicit argument tuples define the public
   load shape, while the package-owned request and materialization types remain
@@ -190,19 +193,28 @@ compiler inference for every caller or every callback shape.
 - The canonical package-owned owner will define explicit public source
   descriptors and explicit public materialization descriptors. Source and
   materialization concerns will no longer be encoded as positional legacy tuples.
-- The exact exported function name may be `LineagesIO.load` or another explicit
-  package-owned verb chosen during execution, but the architecture must not
-  depend on `FileIO` naming to express LineagesIO's primary contract.
+- The architecture requires a first-class package-owned public load surface, but
+  this PRD does not authorize an implementation tranche to choose its final
+  exported verb on its own. A foundational tranche may establish the canonical
+  owner behind non-breaking delegation, but the choice between
+  `LineagesIO.load` and any distinct exported public verb is a dedicated
+  user-review gate.
 - Candidate source descriptors include package-owned wrappers for file or path,
   stream, and in-memory alife table sources. A source descriptor may carry
   format or provenance data when LineagesIO owns that meaning.
-- Candidate materialization descriptors include explicit tables-only, node-type,
-  supplied-basenode, and builder-driven request types. These descriptors are the
-  first-class public request model and replace implicit tuple recovery.
+- The public request model is fixed at the semantic level: it must provide
+  explicit tables-only, node-type, supplied-basenode, and builder-driven
+  request descriptors, and it must replace implicit tuple recovery in the owned
+  path.
 - Builder-driven materialization must become honestly typed. If a raw callback
   cannot make its handle and parent-collection types explicit, the public
   descriptor must require those types as parameters instead of recovering them
   at runtime.
+- The architecture does not authorize an implementation tranche to choose the
+  final exported public spelling of the builder-driven surface on its own. A
+  foundational tranche may prove the typed builder path internally or behind
+  non-breaking delegation, but any settled repo-owned public builder spelling is
+  a dedicated user-review gate.
 - The canonical parse layer remains format-specific and authoritative.
   `src/newick_format.jl` and `src/alife_format.jl` continue to build
   authoritative `SourceTable`, `CollectionTable`, `GraphTable`, `NodeTable`, and
@@ -244,6 +256,13 @@ compiler inference for every caller or every callback shape.
 - Keep request, handle, parent-collection, and result typing explicit anywhere
   LineagesIO owns the behavior. If a surface cannot do that honestly, it is a
   compatibility surface, not the first-class typed surface.
+- Public-surface naming is not implementation latitude. No tranche may decide or
+  ratify the final exported package-owned load verb or the final exported public
+  spelling of the builder-driven request surface without explicit user review.
+- Foundational implementation work may introduce internal or non-breaking
+  delegating owner layers needed to prove the typed core, but it must preserve
+  current repo-owned public names and stop before locking in new public naming
+  or deprecation decisions.
 - Prefer additive rollout and wrapper delegation first. Any repo-owned public API
   removal, rename, or signature break must be escalated for user review.
 - Preserve current single-parent and multi-parent validation semantics unless a
@@ -385,6 +404,9 @@ compiler inference for every caller or every callback shape.
 - Any tranche that proposes repo-owned public API breakage, including renaming
   or deprecating package-owned load surfaces, must stop for user review with an
   explicit migration and compatibility note before implementation proceeds.
+- Any tranche that would choose the final exported package-owned load verb or
+  the final exported public spelling of the builder-driven surface must stop for
+  user review before that choice is implemented or documented as settled.
 - No tranche may reintroduce package-owned hot-path erasure or runtime type
   recovery as a shortcut to keep compatibility green.
 
@@ -424,20 +446,22 @@ compiler inference for every caller or every callback shape.
 
 ## Open questions
 
-- Owner: implementation review. Question: should the first-class package-owned
-  public verb be exported as `LineagesIO.load` or given a distinct exported name
-  to keep the compatibility story maximally explicit. Suggested resolution path:
-  decide during the foundational tranche, then stop for user review if the
-  answer changes repo-owned public naming.
-- Owner: implementation review. Question: should `load_alife_table` remain a
+- Owner: user review. Question: should the first-class package-owned public verb
+  be exported as `LineagesIO.load` or given a distinct exported name to keep the
+  compatibility story maximally explicit. Suggested resolution path: a
+  foundational tranche may prepare the typed owner and the wrapper or docs
+  impact analysis, but must stop for explicit approval before choosing or
+  shipping the settled repo-owned public name.
+- Owner: user review. Question: should `load_alife_table` remain a
   public convenience wrapper over the canonical owner, or be repositioned more
   strongly as a compatibility or transitional surface. Suggested resolution
   path: keep it as a delegating wrapper unless and until a reviewed migration
   plan says otherwise.
-- Owner: implementation review. Question: what is the most ergonomic builder
-  descriptor spelling that still makes handle and parent-collection types
-  explicit. Suggested resolution path: prototype the foundational typed request
-  layer first, then select the smallest honest public surface.
+- Owner: user review. Question: what exported public spelling should represent
+  the builder-driven descriptor surface once its typed shape is proven. Suggested
+  resolution path: a foundational tranche may prove the builder protocol with
+  internal or non-breaking delegated naming, but must stop for approval before
+  selecting or documenting the settled repo-owned public spelling.
 
 ## Further notes
 
