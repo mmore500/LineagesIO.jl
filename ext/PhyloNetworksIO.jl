@@ -229,6 +229,16 @@ function LineagesIO.construction_handle_type(
     }
 end
 
+function LineagesIO.construction_handle_type(
+    ::Type{PhyloNetworks.HybridNetwork},
+)::Type
+    return PhyloNetworksBuildCursor{
+        PhyloNetworks.HybridNetwork,
+        Nothing,
+        PhyloNetworksBuildState,
+    }
+end
+
 function build_phylonetworks_state(
     node_table::LineagesIO.NodeTable,
 )::PhyloNetworksBuildState
@@ -362,7 +372,10 @@ function build_graph_cursor(
 end
 
 function LineagesIO.emit_basenode(
-    request::LineagesIO.NodeTypeLoadRequest{PhyloNetworks.HybridNetwork},
+    request::LineagesIO.NodeTypeLoadRequest{
+        PhyloNetworks.HybridNetwork,
+        <:Any,
+    },
     nodekey::LineagesIO.StructureKeyType,
     label::AbstractString,
     nodedata::LineagesIO.NodeRowRef,
@@ -614,7 +627,10 @@ function LineagesIO.has_custom_multi_parent_add_child(
 end
 
 function LineagesIO.build_parent_collection(
-    ::LineagesIO.NodeTypeLoadRequest{PhyloNetworks.HybridNetwork},
+    ::LineagesIO.NodeTypeLoadRequest{
+        PhyloNetworks.HybridNetwork,
+        <:Any,
+    },
     parent_handles::AbstractVector,
 )::AbstractVector
     all(parent_handle -> parent_handle isa PhyloNetworksBuildCursor, parent_handles) || throw(

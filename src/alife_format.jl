@@ -445,7 +445,7 @@ function load_alife_table(
         builder = nothing,
         source_path::Union{Nothing, AbstractString} = nothing,
     )::LineageGraphStore
-    return canonical_load(
+    return compat_load(
         AlifeTableSourceDescriptor(
             table,
             normalize_source_path(source_path),

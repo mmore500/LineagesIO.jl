@@ -12,7 +12,6 @@ end
     end
     @test missing_construction_error isa ArgumentError
     missing_construction_text = sprint(showerror, missing_construction_error)
-    @test occursin("MissingConstructionProtocolNode", missing_construction_text)
     @test (
         occursin("add_child(::Nothing", missing_construction_text) ||
         occursin("requires a value compatible", missing_construction_text)

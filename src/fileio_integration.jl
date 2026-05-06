@@ -34,7 +34,7 @@ end
 
 function fileio_load(file::FileIO.File{NewickFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    return canonical_load(
+    return compat_load(
         NewickFilePathSourceDescriptor(FileIO.filename(file)),
         args...;
         builder = builder,
@@ -43,7 +43,7 @@ end
 
 function fileio_load(stream::FileIO.Stream{NewickFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    return canonical_load(
+    return compat_load(
         NewickStreamSourceDescriptor(
             FileIO.stream(stream),
             normalize_source_path(FileIO.filename(stream)),
@@ -55,7 +55,7 @@ end
 
 function fileio_load(file::FileIO.File{AlifeStandardFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    return canonical_load(
+    return compat_load(
         AlifeFilePathSourceDescriptor(FileIO.filename(file)),
         args...;
         builder = builder,
@@ -64,7 +64,7 @@ end
 
 function fileio_load(stream::FileIO.Stream{AlifeStandardFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
     assert_supported_load_keywords(kwargs)
-    return canonical_load(
+    return compat_load(
         AlifeStreamSourceDescriptor(
             FileIO.stream(stream),
             normalize_source_path(FileIO.filename(stream)),

@@ -122,8 +122,15 @@ abstract type AbstractLoadRequest end
 
 struct TablesOnlyLoadRequest <: AbstractLoadRequest end
 
-struct NodeTypeLoadRequest{NodeT} <: AbstractLoadRequest
+struct NodeTypeLoadRequest{NodeT, HandleT} <: AbstractLoadRequest
     node_type::Type{NodeT}
+    handle_type::Type{HandleT}
+end
+
+function NodeTypeLoadRequest(
+        node_type::Type{NodeT},
+    )::NodeTypeLoadRequest where {NodeT}
+    return NodeTypeLoadRequest(node_type, construction_handle_type(node_type))
 end
 
 struct BasenodeLoadRequest{BasenodeT, HandleT} <: AbstractLoadRequest
@@ -134,17 +141,13 @@ end
 function BasenodeLoadRequest(
         basenode::BasenodeT,
     )::BasenodeLoadRequest where {BasenodeT}
-    return BasenodeLoadRequest(basenode, construction_handle_type(basenode))
-end
-
-"""
-    BuilderLoadRequest(builder)
-
-Compatibility-only builder request. This path may retain request-shape recovery
-outside the typed canonical builder contract.
-"""
-struct BuilderLoadRequest{BuilderT} <: AbstractLoadRequest
-    builder::BuilderT
+    handle_type = construction_handle_type(basenode)
+    handle_type === nothing && throw(
+        ArgumentError(
+            "An explicit supplied-basenode handle type is required for the canonical typed request. Use `BasenodeLoadRequest(basenode, HandleT)` or the compatibility wrapper surface instead."
+        )
+    )
+    return BasenodeLoadRequest(basenode, handle_type)
 end
 
 struct ParentCollectionFactory{HandleT, ParentCollectionT <: AbstractVector{HandleT}} end
@@ -214,17 +217,8 @@ function construction_handle_type(
     return node_type
 end
 
-function construction_handle_type(target)::Type
-    return typeof(target)
-end
-
-function canonical_load(
-        source_descriptor::AbstractLoadSourceDescriptor,
-        args...;
-        builder = nothing,
-    )::LineageGraphStore
-    request = normalize_load_request(args, builder)
-    return canonical_load(source_descriptor, request)
+function construction_handle_type(target)
+    return nothing
 end
 
 function canonical_load(
@@ -319,51 +313,6 @@ function canonical_load(
         table,
         getfield(source_descriptor, :source_path),
         request,
-    )
-end
-
-function normalize_load_request(
-        args::Tuple{},
-        builder,
-    )::AbstractLoadRequest
-    builder === nothing && return TablesOnlyLoadRequest()
-    return BuilderLoadRequest(builder)
-end
-
-function normalize_load_request(
-        args::Tuple{Type},
-        builder,
-    )::AbstractLoadRequest
-    builder === nothing || throw(
-        ArgumentError(
-            "Choose either `load(src, NodeT)` or `load(src; builder = fn)`, not both at once."
-        )
-    )
-    node_type = first(args)
-    validate_extension_load_target(node_type)
-    return NodeTypeLoadRequest(node_type)
-end
-
-function normalize_load_request(
-        args::Tuple{BasenodeT},
-        builder,
-    )::AbstractLoadRequest where {BasenodeT}
-    builder === nothing || throw(
-        ArgumentError(
-            "An explicit `builder` callback cannot be combined with a supplied `basenode`; choose one construction ownership model."
-        )
-    )
-    return BasenodeLoadRequest(first(args))
-end
-
-function normalize_load_request(
-        args::Tuple,
-        builder,
-    )::AbstractLoadRequest
-    throw(
-        ArgumentError(
-            "Loads accept at most one positional construction target. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, basenode)`, and `load(src; builder = fn)`."
-        )
     )
 end
 

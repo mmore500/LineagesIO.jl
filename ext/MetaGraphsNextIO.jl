@@ -300,6 +300,12 @@ function LineagesIO.construction_handle_type(
     return MetaGraphsNextBuildCursor{GraphT}
 end
 
+function LineagesIO.construction_handle_type(
+    ::Type{GraphT},
+)::Type where {GraphT <: MetaGraph}
+    return MetaGraphsNextBuildCursor
+end
+
 # ---------------------------------------------------------------------------
 # Protocol: emit_basenode (library-created path only).
 #
@@ -311,7 +317,7 @@ end
 # ---------------------------------------------------------------------------
 
 function LineagesIO.emit_basenode(
-    ::LineagesIO.NodeTypeLoadRequest{<:MetaGraph},
+    ::LineagesIO.NodeTypeLoadRequest{<:MetaGraph, <:Any},
     nodekey::StructureKeyType,
     _label::AbstractString,
     nodedata::NodeRowRef,

@@ -39,7 +39,7 @@ end
 mutable struct CanonicalOwnerProtocolNode
     nodekey::LineagesIO.StructureKeyType
     label::String
-    child_collection::Vector{CanonicalOwnerProtocolNode}
+    child_collection::Vector{Any}
     finalized::Bool
 end
 
@@ -64,7 +64,7 @@ function LineagesIO.add_child(
     return CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
 end
@@ -81,7 +81,7 @@ function LineagesIO.add_child(
     child = CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
     push!(parent.child_collection, child)
@@ -100,7 +100,7 @@ function LineagesIO.add_child(
     child = CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
     for parent in parent_collection
@@ -147,12 +147,6 @@ function canonical_owner_bound_summary(target::CanonicalOwnerBoundTarget)
         edges = sort(copy(target.edges)),
         finalized = target.finalized,
     )
-end
-
-function LineagesIO.construction_handle_type(
-        ::CanonicalOwnerBoundTarget,
-    )::Type{CanonicalOwnerBoundCursor}
-    return CanonicalOwnerBoundCursor
 end
 
 function LineagesIO.bind_basenode!(
@@ -206,6 +200,68 @@ function LineagesIO.basenode_from_finalized(
     return cursor.target
 end
 
+mutable struct CanonicalOwnerDriftNode
+    child_collection::Vector{Any}
+end
+
+function LineagesIO.add_child(
+        parent::CanonicalOwnerDriftNode,
+        nodekey,
+        label,
+        edgekey,
+        edgeweight;
+        edgedata,
+        nodedata,
+    )
+    child = CanonicalOwnerDriftNode(Any[])
+    push!(parent.child_collection, child)
+    return child
+end
+
+mutable struct CanonicalOwnerDriftBoundTarget
+    labels::Vector{String}
+end
+
+struct CanonicalOwnerDriftBoundCursor
+    target::CanonicalOwnerDriftBoundTarget
+end
+
+struct CanonicalOwnerWrongBoundCursor
+    target::CanonicalOwnerDriftBoundTarget
+end
+
+function LineagesIO.bind_basenode!(
+        target::CanonicalOwnerDriftBoundTarget,
+        nodekey,
+        label;
+        nodedata,
+    )
+    push!(target.labels, String(label))
+    return CanonicalOwnerDriftBoundCursor(target)
+end
+
+function LineagesIO.add_child(
+        parent::CanonicalOwnerDriftBoundCursor,
+        nodekey,
+        label,
+        edgekey,
+        edgeweight;
+        edgedata,
+        nodedata,
+    )
+    push!(parent.target.labels, String(label))
+    return CanonicalOwnerWrongBoundCursor(parent.target)
+end
+
+function LineagesIO.finalize_graph!(
+        cursor::Union{
+            CanonicalOwnerDriftBoundCursor,
+            CanonicalOwnerWrongBoundCursor,
+        },
+    )
+    return cursor
+end
+
 const CANONICAL_OWNER_TYPED_BUILDER_EVENTS = Any[]
 
 function canonical_owner_typed_builder(
@@ -221,7 +277,7 @@ function canonical_owner_typed_builder(
     return CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
 end
@@ -239,7 +295,7 @@ function canonical_owner_typed_builder(
     child = CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
     push!(parent.child_collection, child)
@@ -268,7 +324,7 @@ function canonical_owner_typed_builder(
     child = CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
     for parent in parent_collection
@@ -289,7 +345,7 @@ function canonical_owner_single_parent_builder(
     child = CanonicalOwnerProtocolNode(
         nodekey,
         String(label),
-        CanonicalOwnerProtocolNode[],
+        Any[],
         false,
     )
     parent === nothing || push!(parent.child_collection, child)
@@ -386,28 +442,43 @@ end
 end
 
 @testset "Canonical load owner alife-table requests and wrapper parity" begin
-    source_path = "<canonical-inline-alife>"
-    inline_alife_table = (
+    multi_parent_source_path = "<canonical-inline-alife>"
+    inline_multi_parent_alife_table = (
         id = [0, 1, 2, 3],
         ancestor_list = ["[NONE]", "[0]", "[0]", "[1,2]"],
         origin_time = ["0", "1", "1", "2"],
     )
+    single_parent_source_path = "<canonical-inline-single-parent-alife>"
+    inline_single_parent_alife_table = (
+        id = [0, 1, 2, 3],
+        ancestor_list = ["[NONE]", "[0]", "[0]", "[1]"],
+        origin_time = ["0", "1", "1", "2"],
+    )
 
     direct_tables_store = LineagesIO.canonical_load(
-        LineagesIO.AlifeTableSourceDescriptor(inline_alife_table, source_path),
+        LineagesIO.AlifeTableSourceDescriptor(
+            inline_multi_parent_alife_table,
+            multi_parent_source_path,
+        ),
         LineagesIO.TablesOnlyLoadRequest(),
     )
-    wrapper_tables_store = load_alife_table(inline_alife_table; source_path = source_path)
+    wrapper_tables_store = load_alife_table(
+        inline_multi_parent_alife_table;
+        source_path = multi_parent_source_path,
+    )
     assert_same_store_tables(wrapper_tables_store, direct_tables_store)
 
     direct_node_store = LineagesIO.canonical_load(
-        LineagesIO.AlifeTableSourceDescriptor(inline_alife_table, source_path),
+        LineagesIO.AlifeTableSourceDescriptor(
+            inline_multi_parent_alife_table,
+            multi_parent_source_path,
+        ),
         LineagesIO.NodeTypeLoadRequest(CanonicalOwnerProtocolNode),
     )
     wrapper_node_store = load_alife_table(
-        inline_alife_table,
+        inline_multi_parent_alife_table,
         CanonicalOwnerProtocolNode;
-        source_path = source_path,
+        source_path = multi_parent_source_path,
     )
     assert_same_store_tables(wrapper_node_store, direct_node_store)
 
@@ -434,29 +505,18 @@ end
         false,
     )
     direct_bound_store = LineagesIO.canonical_load(
-        LineagesIO.AlifeTableSourceDescriptor(inline_alife_table, source_path),
-        LineagesIO.BasenodeLoadRequest(direct_bound_target),
+        LineagesIO.AlifeTableSourceDescriptor(
+            inline_multi_parent_alife_table,
+            multi_parent_source_path,
+        ),
+        LineagesIO.BasenodeLoadRequest(
+            direct_bound_target,
+            CanonicalOwnerBoundCursor,
+        ),
     )
-    wrapper_bound_target = CanonicalOwnerBoundTarget(
-        nothing,
-        "",
-        Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
-        false,
-    )
-    wrapper_bound_store = load_alife_table(
-        inline_alife_table,
-        wrapper_bound_target;
-        source_path = source_path,
-    )
-    assert_same_store_tables(wrapper_bound_store, direct_bound_store)
-
     direct_bound_asset = only(collect(direct_bound_store.graphs))
-    wrapper_bound_asset = only(collect(wrapper_bound_store.graphs))
     assert_asset_destructuring(direct_bound_asset)
     @test direct_bound_asset.basenode === direct_bound_target
-    @test wrapper_bound_asset.basenode === wrapper_bound_target
-    @test canonical_owner_bound_summary(direct_bound_target) ==
-        canonical_owner_bound_summary(wrapper_bound_target)
     @test canonical_owner_bound_summary(direct_bound_target) == (
         nodekey = 1,
         label = "0",
@@ -470,6 +530,116 @@ end
     assert_same_table(
         direct_bound_asset.edge_table,
         only(collect(direct_tables_store.graphs)).edge_table,
+    )
+
+    wrapper_bound_target = CanonicalOwnerBoundTarget(
+        nothing,
+        "",
+        Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+        false,
+    )
+    wrapper_bound_store = load_alife_table(
+        inline_single_parent_alife_table,
+        wrapper_bound_target;
+        source_path = single_parent_source_path,
+    )
+    direct_single_parent_tables_store = LineagesIO.canonical_load(
+        LineagesIO.AlifeTableSourceDescriptor(
+            inline_single_parent_alife_table,
+            single_parent_source_path,
+        ),
+        LineagesIO.TablesOnlyLoadRequest(),
+    )
+    wrapper_bound_asset = only(collect(wrapper_bound_store.graphs))
+    @test wrapper_bound_asset.basenode === wrapper_bound_target
+    @test canonical_owner_bound_summary(wrapper_bound_target) == (
+        nodekey = 1,
+        label = "0",
+        edges = [(1, 2), (1, 3), (2, 4)],
+        finalized = true,
+    )
+    @test wrapper_bound_asset.source_path == single_parent_source_path
+    assert_same_table(
+        wrapper_bound_asset.node_table,
+        only(collect(direct_single_parent_tables_store.graphs)).node_table,
+    )
+    assert_same_table(
+        wrapper_bound_asset.edge_table,
+        only(collect(direct_single_parent_tables_store.graphs)).edge_table,
+    )
+end
+
+@testset "Canonical load owner supplied-basenode compatibility boundaries" begin
+    tree_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
+    network_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
+    single_parent_target = CanonicalOwnerBoundTarget(
+        nothing,
+        "",
+        Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+        false,
+    )
+    single_parent_store = load(
+        File{LineagesIO.NewickFormat}(tree_path),
+        single_parent_target,
+    )
+    single_parent_asset = only(collect(single_parent_store.graphs))
+    direct_tables_store = LineagesIO.canonical_load(
+        LineagesIO.NewickFilePathSourceDescriptor(tree_path),
+        LineagesIO.TablesOnlyLoadRequest(),
+    )
+    @test single_parent_asset.basenode === single_parent_target
+    @test canonical_owner_bound_summary(single_parent_target) == (
+        nodekey = 1,
+        label = "Root",
+        edges = [(1, 2), (1, 5), (2, 3), (2, 4)],
+        finalized = true,
+    )
+    assert_same_table(
+        single_parent_asset.node_table,
+        only(collect(direct_tables_store.graphs)).node_table,
+    )
+    assert_same_table(
+        single_parent_asset.edge_table,
+        only(collect(direct_tables_store.graphs)).edge_table,
+    )
+
+    legacy_network_error = capture_expected_load_error() do
+        load(
+            File{LineagesIO.NewickFormat}(network_path),
+            CanonicalOwnerBoundTarget(
+                nothing,
+                "",
+                Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+                false,
+            ),
+        )
+    end
+    @test legacy_network_error isa ArgumentError
+    @test occursin(
+        "explicit handle-type contract",
+        sprint(showerror, legacy_network_error),
+    )
+
+    legacy_alife_error = capture_expected_load_error() do
+        load_alife_table(
+            (
+                id = [0, 1, 2, 3],
+                ancestor_list = ["[NONE]", "[0]", "[0]", "[1,2]"],
+                origin_time = ["0", "1", "1", "2"],
+            ),
+            CanonicalOwnerBoundTarget(
+                nothing,
+                "",
+                Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+                false,
+            );
+            source_path = "<legacy-multi-parent-alife>",
+        )
+    end
+    @test legacy_alife_error isa ArgumentError
+    @test occursin(
+        "explicit handle-type contract",
+        sprint(showerror, legacy_alife_error),
     )
 end
 
@@ -492,6 +662,20 @@ end
     assert_asset_destructuring(direct_tree_asset)
     @test direct_tree_asset.basenode.finalized
     @test direct_tree_asset.basenode.label == "Root"
+
+    canonical_builder_boundary_error = try
+        LineagesIO.canonical_load(
+            LineagesIO.NewickTextSourceDescriptor(
+                read(tree_path, String),
+                "<canonical-builder-compat-boundary>",
+            );
+            builder = canonical_owner_typed_builder,
+        )
+        nothing
+    catch err
+        err
+    end
+    @test canonical_builder_boundary_error isa MethodError
 
     empty!(CANONICAL_OWNER_TYPED_BUILDER_EVENTS)
     wrapper_tree_store = load(
@@ -565,4 +749,99 @@ end
     assert_asset_destructuring(direct_asset)
     @test canonical_owner_protocol_shape(direct_asset.basenode) ==
         canonical_owner_protocol_shape(wrapper_asset.basenode)
+end
+
+@testset "Canonical load owner descendant handle enforcement" begin
+    tree_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
+    network_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
+
+    function LineagesIO.add_child(
+            parent::CanonicalOwnerProtocolNode,
+            nodekey,
+            label,
+            edgekey,
+            edgeweight;
+            edgedata,
+            nodedata,
+        )
+        child = CanonicalOwnerDriftNode(Any[])
+        push!(parent.child_collection, child)
+        return child
+    end
+
+    single_parent_node_drift_error = capture_expected_load_error() do
+        load(File{LineagesIO.NewickFormat}(tree_path), CanonicalOwnerProtocolNode)
+    end
+    @test single_parent_node_drift_error isa ArgumentError
+    @test occursin(
+        "requires a value compatible",
+        sprint(showerror, single_parent_node_drift_error),
+    )
+
+    function LineagesIO.add_child(
+            parent::CanonicalOwnerProtocolNode,
+            nodekey,
+            label,
+            edgekey,
+            edgeweight;
+            edgedata,
+            nodedata,
+        )
+        child = CanonicalOwnerProtocolNode(
+            nodekey,
+            String(label),
+            Any[],
+            false,
+        )
+        push!(parent.child_collection, child)
+        return child
+    end
+
+    function LineagesIO.add_child(
+            parent_collection::AbstractVector{CanonicalOwnerProtocolNode},
+            nodekey,
+            label,
+            edgekeys::AbstractVector{LineagesIO.StructureKeyType},
+            edgeweights::AbstractVector;
+            edgedata,
+            nodedata,
+        )
+        child = CanonicalOwnerDriftNode(Any[])
+        for parent in parent_collection
+            push!(parent.child_collection, child)
+        end
+        return child
+    end
+
+    multi_parent_node_drift_error = capture_expected_load_error() do
+        load(File{LineagesIO.NewickFormat}(network_path), CanonicalOwnerProtocolNode)
+    end
+    @test multi_parent_node_drift_error isa ArgumentError
+    @test occursin(
+        "multi-parent child-construction",
+        sprint(showerror, multi_parent_node_drift_error),
+    )
+    @test occursin(
+        "requires a value compatible",
+        sprint(showerror, multi_parent_node_drift_error),
+    )
+
+    supplied_basenode_drift_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(tree_path),
+            LineagesIO.BasenodeLoadRequest(
+                CanonicalOwnerDriftBoundTarget(String[]),
+                CanonicalOwnerDriftBoundCursor,
+            ),
+        )
+    end
+    @test supplied_basenode_drift_error isa ArgumentError
+    @test occursin(
+        "CanonicalOwnerDriftBoundCursor",
+        sprint(showerror, supplied_basenode_drift_error),
+    )
+    @test occursin(
+        "child-construction",
+        sprint(showerror, supplied_basenode_drift_error),
+    )
 end

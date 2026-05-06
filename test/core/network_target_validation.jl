@@ -185,7 +185,7 @@ end
     bound_error = capture_expected_load_error() do
         LineagesIO.materialize_graphs(
             [asset],
-            LineagesIO.BasenodeLoadRequest(bound_root),
+            LineagesIO.BasenodeLoadRequest(bound_root, ValidationBoundNode),
         )
     end
     @test bound_error isa ArgumentError
@@ -207,11 +207,14 @@ end
     builder_error = capture_expected_load_error() do
         LineagesIO.materialize_graphs(
             [asset],
-            LineagesIO.BuilderLoadRequest(single_parent_builder_typed),
+            LineagesIO.TypedBuilderLoadRequest(
+                single_parent_builder_typed,
+                ValidationSingleParentNode,
+            ),
         )
     end
     @test builder_error isa ArgumentError
-    @test occursin("supplied `builder` callback", sprint(showerror, builder_error))
+    @test occursin("supplied typed builder request", sprint(showerror, builder_error))
     @test VALIDATION_BUILDER_EVENTS == Any[]
 
     empty!(VALIDATION_MULTI_PARENT_EVENTS)
