@@ -92,6 +92,35 @@ Every workflow document must state what counts as complete for its scope.
 This includes the required verification artifacts and the green-state gates
 that must pass before the work is considered done.
 
+### Handoff packet
+
+Any workflow document that is meant to be consumed downstream by another
+agent, contributor, tranche, review pass, or audit pass must include a concise
+handoff packet.
+
+The handoff packet must not merely point back to the parent document. It must
+extract and restate the concrete execution controls that the downstream actor
+needs in order to succeed honestly.
+
+At minimum, the handoff packet must include, where applicable:
+
+- active authorities
+- parent documents
+- settled decisions and non-negotiables
+- authorization boundary
+- current-state diagnosis
+- primary-goal lock
+- direct red-state repros
+- owner and invariant being repaired or relied on
+- exact files or surfaces in scope
+- exact files or surfaces out of scope
+- required upstream primary sources
+- green-state gates
+- stop conditions or escalate-if conditions
+
+If a field does not apply, say so explicitly or omit it deliberately with a
+clear reason. Do not silently rely on the downstream actor to infer it.
+
 ### Primary-goal lock
 
 Any workflow document that turns requirements, findings, tranche goals,
@@ -131,6 +160,10 @@ If the diagnosis no longer matches reality, the contributor or agent must stop
 and rewrite, split, or escalate the workflow document rather than blindly
 continuing.
 
+Receivers of a handoff packet must re-check the packet against the current
+code, tests, docs, outputs, and upstream sources before acting on it. A
+handoff packet does not waive revalidation.
+
 ## Anti-drift rules
 
 Workflow documents must not:
@@ -139,6 +172,9 @@ Workflow documents must not:
 - omit architecture concerns merely to make the tranche look thinner
 - omit upstream references when framework semantics matter
 - omit verification gates when user-visible behavior is changing
+- omit the handoff packet when downstream execution is expected
+- pass only parent links or filenames when a downstream actor needs concrete
+  execution controls
 - leave primary goals, review findings, or compatibility requirements as
   descriptive intent without explicit lock items
 - let several distinct primary goals collapse into one generic regression if
@@ -157,6 +193,8 @@ Reviews and audits of workflow documents must ask:
 - did it preserve upstream-reading obligations?
 - did it preserve the correct verification gates?
 - did it create an honest authorization boundary?
+- did it include a usable handoff packet rather than a link-only or
+  context-dump handoff?
 - did every primary goal, review finding, and compatibility boundary become a
   separate lock item with a direct proof obligation?
 - could a fresh implementing agent still declare success while one of those
