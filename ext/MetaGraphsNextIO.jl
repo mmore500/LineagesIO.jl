@@ -362,33 +362,6 @@ function LineagesIO.add_child(
 end
 
 # ---------------------------------------------------------------------------
-# Protocol: add_child — multi-parent probe shim.
-#
-# construction.jl:198 probes for multi-parent add_child support using
-# typeof(request.basenode)[] — a Vector{MetaGraph{...}} — via which(). This
-# overload satisfies that probe so the supplied-instance path passes pre-flight
-# validation for multi-parent sources. During actual construction, parent handles
-# are MetaGraphsNextBuildCursor values (returned by bind_basenode!), and
-# build_parent_collection derives the cursor type via typejoin, so the cursor
-# overload below is called instead — this shim is never reached at runtime.
-# ---------------------------------------------------------------------------
-
-function LineagesIO.add_child(
-    ::AbstractVector{<:MetaGraph},
-    ::StructureKeyType,
-    ::AbstractString,
-    ::AbstractVector{StructureKeyType},
-    ::AbstractVector{EdgeWeightType};
-    edgedata::AbstractVector{<:EdgeRowRef},
-    nodedata::NodeRowRef,
-)
-    error(
-        "internal: MetaGraphsNext multi-parent probe shim must not execute during " *
-        "construction (edgedata: $(typeof(edgedata)), nodedata: $(typeof(nodedata)))",
-    )
-end
-
-# ---------------------------------------------------------------------------
 # Protocol: add_child — multi-parent (supplied-instance path only).
 # ---------------------------------------------------------------------------
 

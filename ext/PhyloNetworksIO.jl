@@ -626,23 +626,6 @@ function LineagesIO.has_custom_multi_parent_add_child(
     return true
 end
 
-function LineagesIO.build_parent_collection(
-    ::LineagesIO.NodeTypeLoadRequest{
-        PhyloNetworks.HybridNetwork,
-        <:Any,
-    },
-    parent_handles::AbstractVector,
-)::AbstractVector
-    all(parent_handle -> parent_handle isa PhyloNetworksBuildCursor, parent_handles) || throw(
-        ArgumentError(
-            "The `load(src, HybridNetwork)` surface received a parent handle that was not constructed by the PhyloNetworks extension.",
-        ),
-    )
-    isempty(parent_handles) && return Any[]
-    ParentHandleT = reduce(typejoin, map(typeof, parent_handles))
-    return ParentHandleT[parent_handle for parent_handle in parent_handles]
-end
-
 function LineagesIO.add_child(
     parent_collection::AbstractVector{<:PhyloNetworksBuildCursor},
     nodekey::LineagesIO.StructureKeyType,
