@@ -92,6 +92,34 @@ Every workflow document must state what counts as complete for its scope.
 This includes the required verification artifacts and the green-state gates
 that must pass before the work is considered done.
 
+### Primary-goal lock
+
+Any workflow document that turns requirements, findings, tranche goals,
+compatibility boundaries, migration boundaries, or explicit non-negotiables
+into downstream execution must convert each primary goal into an explicit lock
+item.
+
+Each lock item must state:
+
+- the failure mode or forbidden surviving shape
+- the non-completion condition in the form "the work is not complete if..."
+- the direct red-state repro, historical bad behavior, or equivalent observed
+  failure mode
+- the task, tranche subsection, or delegated owner that closes it
+- the verification artifact that must fail the old implementation or fake-fix
+  shape
+
+Do not leave a user-stated primary goal or review finding as descriptive prose
+only.
+
+If multiple lock items share the same owning repair, they may point at the same
+task, but they must still remain separately named if one could survive while
+another is fixed.
+
+Green test suites, docs builds, grep checks, and source-text audits are
+necessary but not sufficient as the only proof for a lock item unless no more
+direct artifact is possible and that limitation is stated explicitly.
+
 ## Revalidation rule
 
 Tasking documents must not blindly operationalize stale or partial diagnoses.
@@ -111,6 +139,10 @@ Workflow documents must not:
 - omit architecture concerns merely to make the tranche look thinner
 - omit upstream references when framework semantics matter
 - omit verification gates when user-visible behavior is changing
+- leave primary goals, review findings, or compatibility requirements as
+  descriptive intent without explicit lock items
+- let several distinct primary goals collapse into one generic regression if
+  one of those goals could still survive behind a green suite
 - strip governance obligations from downstream documents
 
 If a downstream document is materially weaker than its parent on these points,
@@ -125,5 +157,9 @@ Reviews and audits of workflow documents must ask:
 - did it preserve upstream-reading obligations?
 - did it preserve the correct verification gates?
 - did it create an honest authorization boundary?
+- did every primary goal, review finding, and compatibility boundary become a
+  separate lock item with a direct proof obligation?
+- could a fresh implementing agent still declare success while one of those
+  lock items survives behind a green suite?
 
 If not, the workflow document is not safe for downstream execution.

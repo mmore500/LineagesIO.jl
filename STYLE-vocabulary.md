@@ -812,6 +812,46 @@ as a substitute for a real downstream governance block.
 
 ---
 
+### `lock item`
+
+**Part of speech:** noun (workflow and verification concept)
+
+**Definition:** A separately named workflow item that turns one primary goal,
+review finding, compatibility boundary, migration boundary, or explicit
+non-negotiable into a concrete non-completion condition with its own red-state
+repro and proof obligation.
+
+**Usage notes:** A lock item must say what surviving shape is forbidden, how
+the historical or current bad behavior is reproduced, what task or owner closes
+it, and what verification artifact fails the bad implementation or fake-fix
+shape. Use separate lock items whenever one goal could survive while another
+is fixed.
+
+**Proscribed alternates:** `goal` when a tracked proof obligation is intended;
+`note`; `intent`.
+
+---
+
+### `primary-goal lock`
+
+**Part of speech:** noun (workflow-governance concept)
+
+**Definition:** The workflow discipline and corresponding document section that
+enumerate the lock items for the primary goals in a PRD, tranche file, tasking
+file, review scope, or remediation plan.
+
+**Usage notes:** A primary-goal lock is incomplete if a fresh implementing
+agent could still declare success while one of its lock items survives behind a
+green suite, docs build, or source-text audit. A primary-goal lock is stronger
+than a summary of goals because it records direct non-completion conditions and
+proof obligations.
+
+**Proscribed alternates:** `goal summary` when direct proof obligations are
+required; `acceptance criteria` when the red-state repro and non-completion
+condition are omitted.
+
+---
+
 ### `task`
 
 **Part of speech:** noun (workflow concept)
