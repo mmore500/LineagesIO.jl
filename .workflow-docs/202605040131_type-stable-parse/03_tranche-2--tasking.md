@@ -47,7 +47,7 @@ Explicit line-by-line reading is mandatory before implementation. All downstream
 - `.workflow-docs/202605040131_type-stable-parse/01_prd.md`
 - `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`
 - `.workflow-docs/202605040131_type-stable-parse/03_tranche-1--tasking.md`
-- `.workflow-docs/202605040131_type-stable-parse/04_tranche-1--remediation-tasking.md`
+- `.workflow-docs/202605040131_type-stable-parse/03_tranche-1a--remediation-tasking.md`
 - `.workflow-docs/202605040131_type-stable-parse/03_tranche-2--tasking.md`
 
 The bundled style baseline under `/home/jeetsukumaran/site/service/env/start/workhost/resources/packages/shared/workhost-resources/configure/coding-agent-skills/development-policies/references/` was also read for this tasking run and is byte-identical to the repo-local `STYLE*.md` files above. Bundled `CONTRIBUTING.md` was not present there, so the repo-local `CONTRIBUTING.md` remains authoritative for contribution guidance.
@@ -123,9 +123,9 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 ## Handoff packet
 
 - Active authorities:
-  `AGENTS.md`, `CONTRIBUTING.md`, `STYLE-agent-handoffs.md`, `STYLE-architecture.md`, `STYLE-docs.md`, `STYLE-git.md`, `STYLE-julia.md`, `STYLE-makie.md`, `STYLE-upstream-contracts.md`, `STYLE-verification.md`, `STYLE-vocabulary.md`, `STYLE-workflow-docs.md`, `STYLE-writing.md`, `.workflow-docs/202605040131_type-stable-parse/01_prd.md`, `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`, `.workflow-docs/202605040131_type-stable-parse/03_tranche-1--tasking.md`, `.workflow-docs/202605040131_type-stable-parse/04_tranche-1--remediation-tasking.md`, and this file.
+  `AGENTS.md`, `CONTRIBUTING.md`, `STYLE-agent-handoffs.md`, `STYLE-architecture.md`, `STYLE-docs.md`, `STYLE-git.md`, `STYLE-julia.md`, `STYLE-makie.md`, `STYLE-upstream-contracts.md`, `STYLE-verification.md`, `STYLE-vocabulary.md`, `STYLE-workflow-docs.md`, `STYLE-writing.md`, `.workflow-docs/202605040131_type-stable-parse/01_prd.md`, `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`, `.workflow-docs/202605040131_type-stable-parse/03_tranche-1--tasking.md`, `.workflow-docs/202605040131_type-stable-parse/03_tranche-1a--remediation-tasking.md`, and this file.
 - Parent documents:
-  `01_prd.md`, `02_tranches.md`, `03_tranche-1--tasking.md`, `04_tranche-1--remediation-tasking.md`.
+  `01_prd.md`, `02_tranches.md`, `03_tranche-1--tasking.md`, `03_tranche-1a--remediation-tasking.md`.
 - Settled decisions and non-negotiables:
   canonical owner and typed core already landed in tranche 1; `FileIO.load(...)` remains a compatibility wrapper; authoritative tables remain canonical; extension cleanup must not settle public naming or docs policy; no public API breakage is authorized.
 - Authorization boundary:

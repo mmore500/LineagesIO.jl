@@ -46,7 +46,7 @@ Explicit line-by-line reading is mandatory before implementation. All downstream
 - `.workflow-docs/202605040131_type-stable-parse/01_prd.md`
 - `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`
 - `.workflow-docs/202605040131_type-stable-parse/03_tranche-1--tasking.md`
-- `.workflow-docs/202605040131_type-stable-parse/04_tranche-1--remediation-tasking.md`
+- `.workflow-docs/202605040131_type-stable-parse/03_tranche-1a--remediation-tasking.md`
 
 The bundled style baseline under `/home/jeetsukumaran/site/service/env/start/workhost/resources/packages/shared/workhost-resources/configure/coding-agent-skills/development-policies/references/` was also read for this remediation run and is byte-identical to the repo-local `STYLE*.md` files above. Bundled `CONTRIBUTING.md` was not present there, so the repo-local `CONTRIBUTING.md` remains authoritative for contribution guidance.
 
