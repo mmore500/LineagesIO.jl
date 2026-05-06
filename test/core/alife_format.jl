@@ -298,6 +298,73 @@ end
     @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4, 4]
 end
 
+@testset "Alife standard load_alife_table — builder compatibility wrapper" begin
+    table = (
+        id = [0, 1, 2, 3],
+        ancestor_list = ["[NONE]", "[0]", "[0]", "[1,2]"],
+        origin_time = ["0", "1", "1", "2"],
+    )
+    source_path = "inline-builder-table"
+
+    captured_events = Any[]
+    builder = function (parent, nodekey, label, edgekey_or_keys, edgeweight_or_weights; edgedata = nothing, nodedata)
+        if parent === nothing
+            push!(
+                captured_events,
+                (
+                    :root,
+                    Int(nodekey),
+                    String(label),
+                    node_property(nodedata, :origin_time),
+                ),
+            )
+        elseif parent isa AbstractVector
+            push!(
+                captured_events,
+                (
+                    :multi,
+                    Int(nodekey),
+                    [Int(parent_node.nodekey) for parent_node in parent],
+                    Int[Int(edgekey) for edgekey in edgekey_or_keys],
+                    node_property(nodedata, :origin_time),
+                ),
+            )
+        else
+            push!(
+                captured_events,
+                (
+                    :single,
+                    Int(nodekey),
+                    Int(parent.nodekey),
+                    Int(edgekey_or_keys),
+                    node_property(nodedata, :origin_time),
+                ),
+            )
+        end
+        return (; nodekey = Int(nodekey), label = String(label))
+    end
+
+    store = load_alife_table(
+        table;
+        builder = builder,
+        source_path = source_path,
+    )
+    asset = first(store.graphs)
+
+    @test asset.source_path == source_path
+    @test asset.graph === nothing
+    @test asset.basenode == (; nodekey = 1, label = "0")
+    @test Tables.getcolumn(asset.node_table, :label) == ["0", "1", "2", "3"]
+    @test Tables.getcolumn(asset.edge_table, :src_nodekey) == [1, 1, 2, 3]
+    @test Tables.getcolumn(asset.edge_table, :dst_nodekey) == [2, 3, 4, 4]
+    @test captured_events == Any[
+        (:root, 1, "0", "0"),
+        (:single, 2, 1, 1, "1"),
+        (:single, 3, 1, 2, "1"),
+        (:multi, 4, [2, 3], [3, 4], "2"),
+    ]
+end
+
 @testset "Alife standard load_alife_table — ancestor_id with self-id basenodes" begin
     table = (
         id = [0, 1, 2, 3],
