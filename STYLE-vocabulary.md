@@ -1,6 +1,6 @@
 ---
 date-created: 2026-04-18T23:01:00
-date-revised: 2026-04-24T00:00:00
+date-revised: 2026-05-06T10:30:00-07:00
 status: ratified
 ---
 
@@ -1002,6 +1002,49 @@ required artifact set.
 
 **Proscribed alternates:** `proof` when no reproducible artifact is recorded;
 `test coverage` as a substitute for a concrete acceptance artifact.
+
+---
+
+### `read_lineages`
+
+**Part of speech:** function name; public API identifier
+
+**Definition:** The first-class package-owned LineagesIO verb for reading
+lineage data through the repo-owned typed load surface.
+
+**Usage notes:** Use `LineagesIO.read_lineages` when referring to the canonical
+package-owned public load contract. `FileIO.load(...)` remains a
+compatibility-only wrapper, and `load_alife_table(...)` remains a repo-owned
+convenience wrapper over the same canonical owner.
+
+**Approval note:** Approved by the project owner on 2026-05-06 during the
+tranche-3 public-surface review and synchronized here by
+`.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`.
+
+**Proscribed alternates:** `LineagesIO.load` as the canonical package-owned
+surface, `readlineages`, `read_lineage`.
+
+---
+
+### `BuilderDescriptor`
+
+**Part of speech:** type name; public API identifier
+
+**Definition:** The first-class typed builder descriptor surface for the
+package-owned LineagesIO read contract.
+
+**Usage notes:** Use `LineagesIO.BuilderDescriptor` for the exported typed
+builder descriptor spelling. Do not expose the internal
+`TypedBuilderLoadRequest` name as the public API surface. Raw `builder = fn`
+entry remains a compatibility-only wrapper unless a later review ratifies a
+different guarantee boundary.
+
+**Approval note:** Approved by the project owner on 2026-05-06 during the
+tranche-3 public-surface review and synchronized here by
+`.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`.
+
+**Proscribed alternates:** `TypedBuilderLoadRequest` as a public API name,
+`BuilderLoadRequest`, `TypedBuilderDescriptor`.
 
 ---
 
