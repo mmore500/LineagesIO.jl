@@ -1,4 +1,3 @@
-using FileIO: load
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 using Tables
@@ -14,7 +13,7 @@ example_path = normpath(
     ),
 )
 
-store = load(example_path, HybridNetwork)
+store = read_lineages(example_path, HybridNetwork)
 asset = first(store.graphs)
 
 net = asset.graph

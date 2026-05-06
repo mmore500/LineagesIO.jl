@@ -15,9 +15,6 @@ also `load_alife_table` for direct in-memory Tables.jl input.
 """
 const AlifeStandardFormat = FileIO.DataFormat{:AlifeStandard}
 const AmbiguousCSVFormat = FileIO.DataFormat{:LineagesIOAmbiguousCSV}
-const SAFE_NEWICK_EXTENSIONS = (".nwk", ".newick", ".tree", ".tre", ".trees")
-const AMBIGUOUS_TEXT_EXTENSIONS = (".txt",)
-const AMBIGUOUS_CSV_EXTENSIONS = (".csv",)
 const _FILEIO_REGISTERED = Ref(false)
 
 function register_newick_format!()::Nothing

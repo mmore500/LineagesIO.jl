@@ -4,9 +4,12 @@ CurrentModule = LineagesIO
 
 # LineagesIO
 
-LineagesIO.jl provides FileIO-compatible loading of rooted lineage graph
-sources into package-owned authoritative tables and, when requested, through
-single-parent or multi-parent graph-construction protocol tiers.
+LineagesIO.jl provides a package-owned public read surface,
+`LineagesIO.read_lineages(...)`, for rooted lineage graph sources. That
+surface owns the authoritative-table-first load contract. Retained
+`FileIO.load(...)` entry points stay available as compatibility wrappers, and
+`load_alife_table(...)` stays available as the in-memory Tables.jl convenience
+wrapper.
 
 ## Quick start
 
@@ -14,10 +17,9 @@ Tables-only loads preserve authoritative structure and retained annotations
 without forcing graph materialization:
 
 ```julia
-using FileIO: load
 using LineagesIO
 
-store = load("primates.nwk")
+store = read_lineages("primates.nwk")
 asset = first(store.graphs)
 
 graph, basenode, node_table, edge_table = asset
@@ -32,19 +34,25 @@ edge_table === asset.edge_table
 
 Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 
-- `load("tree.nwk")` for safe Newick extensions
-- `load(File{format"Newick"}("tree.txt"))` for explicit override on ambiguous paths
-- `load(Stream{format"Newick"}(io, "tree.txt"))` for already-open I/O
-- `load("tree.nwk", NodeT)` for library-created-basenode construction
-- `load("tree.nwk", basenode)` for supplied-basenode binding on one-graph sources
+- `read_lineages("tree.nwk")` for safe Newick extensions
+- `read_lineages("tree.txt"; format = :newick)` for explicit package-owned
+  override on ambiguous `.txt` paths
+- `read_lineages(io; source_path = "tree.nwk")` or
+  `read_lineages(io; format = :newick)` for already-open I/O
+- `read_lineages("tree.nwk", NodeT)` for library-created-basenode construction
+- `read_lineages("tree.nwk", basenode)` for supplied-basenode binding on
+  one-graph sources when `construction_handle_type(basenode)` is defined
+- `read_lineages("tree.nwk", BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`
+  for the first-class typed builder surface
 - the optional `PhyloNetworks.jl` extension path for rooted-network and
   tree-compatible rooted `HybridNetwork` materialization
 - secondary supplied-target `HybridNetwork()` binding on one-graph sources
 - the optional `MetaGraphsNext.jl` extension path for MetaGraph materialization
-- `load("tree.nwk"; builder = fn)` for explicit builder callbacks
-- `load(File{format"AlifeStandard"}("phylogeny.csv"))` for alife data standard CSV
-  sources (see [Alife data standard](@ref))
+- `read_lineages("phylogeny.csv")` for alife data standard CSV sources
+  (see [Alife data standard](@ref))
 - `load_alife_table(table)` for in-memory Tables.jl-compatible alife inputs
+- retained `FileIO.load(...)` compatibility wrappers, including
+  `File{format"..."}`
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
@@ -57,7 +65,6 @@ annotation values through `NodeRowRef`, `EdgeRowRef`, `node_property`, and
 `edge_property`:
 
 ```julia
-using FileIO: load
 using LineagesIO
 
 mutable struct DemoNode
@@ -95,12 +102,24 @@ function LineagesIO.add_child(
     return child
 end
 
-store = load("annotated_tree.nwk", DemoNode)
+store = read_lineages("annotated_tree.nwk", DemoNode)
 asset = first(store.graphs)
 graph, basenode, node_table, edge_table = asset
 graph === nothing
 LineagesIO.basenode(asset) === basenode
 ```
+
+For typed builder-driven construction, use `BuilderDescriptor`:
+
+```julia
+store = read_lineages(
+    "annotated_tree.nwk",
+    BuilderDescriptor(my_builder, DemoNode),
+)
+```
+
+The older `load(...; builder = fn)` surface remains supported as a
+compatibility wrapper only.
 
 ## Alife data standard
 
@@ -117,16 +136,18 @@ component's alife `id` values remapped onto sequential `nodekey`s with
 the basenode pinned at `nodekey == 1` (the original `id` is retained
 as the node `label`).
 
-`.csv` is registered as ambiguous, so the FileIO entry point requires an
-explicit format wrapper:
+The package-owned first-class surface treats `.csv` as alife input directly:
 
 ```julia
-using FileIO: File, Stream, load
 using LineagesIO
 
-store = load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))
+store = read_lineages("phylogeny.csv")
 asset = first(store.graphs)
 ```
+
+If you already rely on `FileIO`, the retained compatibility wrapper
+`load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))` continues to
+work.
 
 For data already in memory, `load_alife_table` accepts any
 Tables.jl-compatible object (`DataFrame`, `NamedTuple` of vectors, Arrow
@@ -142,19 +163,25 @@ store = load_alife_table(table; source_path = "in-memory")
 ```
 
 Both surfaces accept the same construction targets as Newick loads
-(`load(src, NodeT)`, `load(src, basenode)`, `load(src; builder = fn)`).
+(`read_lineages(src, NodeT)`, `read_lineages(src, basenode)`,
+`read_lineages(src, BuilderDescriptor(...))`). The raw `builder = fn`
+compatibility wrapper remains on `load(...)` and `load_alife_table(...)`.
 
 ## PhyloNetworks extension
 
 The current PhyloNetworks soft-release workflow is documented on the
 [PhyloNetworks workflow](phylonetworks.md) page. That workflow covers:
 
-- rooted-network native loads through `load(path, HybridNetwork)`
-- explicit overrides through `load(File{format"Newick"}(...), HybridNetwork)`
+- rooted-network native loads through `read_lineages(path, HybridNetwork)`
+- explicit overrides through
+  `read_lineages(path, HybridNetwork; format = :newick)`
 - tree-compatible rooted loads through the same public surface
 - authoritative `node_table` and `edge_table` retention after load
-- secondary supplied-target binding for an empty `HybridNetwork()` on
-  one-graph sources
+- secondary supplied-target binding for an empty `HybridNetwork()` on one-graph
+  sources
+
+Retained `FileIO.load(...)` flows remain available as compatibility-only
+wrappers.
 
 ## MetaGraphsNext extension
 
@@ -163,18 +190,17 @@ MetaGraph materialization. Nodes are labelled with `Symbol` keys so that
 standard MetaGraph access works without wrapper types: `graph[Symbol(3)]` for
 vertex data, `graph[Symbol(1), Symbol(2)]` for edge data. (Symbol literals
 like `:foo` require an identifier name; integer-keyed nodes need `Symbol(n)`.)
-The library-created path (`load(src, MetaGraph)`) always produces a directed
+The library-created path (`read_lineages(src, MetaGraph)`) always produces a directed
 MetaGraph with `Nothing` vertex data and `Union{Nothing, Float64}` edge data,
 making source edge weights immediately accessible. The library-created path
 supports only single-parent (tree) sources; pass an empty MetaGraph instance
-to `load` for multi-parent (network) sources.
+to `read_lineages` for multi-parent (network) sources.
 
 ```julia
-using FileIO: load
 using LineagesIO
 using MetaGraphsNext
 
-store = load("annotated_tree.nwk", MetaGraph)
+store = read_lineages("annotated_tree.nwk", MetaGraph)
 asset = first(store.graphs)
 
 # MetaGraph{Int, SimpleDiGraph{Int}, Symbol, Nothing, Union{Nothing,Float64}, ...}
@@ -201,7 +227,7 @@ my_graph = MetaGraph(
     identity,      # weight_function: edge weight IS the stored Float64
     0.0,
 )
-store = load("annotated_network.nwk", my_graph)
+store = read_lineages("annotated_network.nwk", my_graph)
 graph = first(store.graphs).graph
 graph[Symbol(1), Symbol(2)]   # → Float64 edge weight
 ```

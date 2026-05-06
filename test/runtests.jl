@@ -43,6 +43,7 @@ end
     include("extensions/metagraphsnext_abstracttrees.jl")
     include("extensions/metagraphsnext_network_rejection.jl")
     include("extensions/metagraphsnext_canonical_owner.jl")
+    include("extensions/metagraphsnext_public_surface.jl")
     include("extensions/phylonetworks_activation.jl")
     include("extensions/phylonetworks_newick_networks.jl")
     include("extensions/phylonetworks_annotation_paths.jl")
@@ -50,8 +51,10 @@ end
     include("extensions/phylonetworks_tree_compatible_newick.jl")
     include("extensions/phylonetworks_rejection_paths.jl")
     include("extensions/phylonetworks_canonical_owner.jl")
+    include("extensions/phylonetworks_public_surface.jl")
     include("integration/phylonetworks_soft_release.jl")
     include("core/canonical_load_owner.jl")
+    include("core/read_lineages_public_surface.jl")
 
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(LineagesIO)

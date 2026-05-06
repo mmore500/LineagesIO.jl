@@ -1,10 +1,9 @@
-using FileIO
 using LineagesIO
 using PhyloNetworks: HybridNetwork, writenewick
 using Tables
 
-# Explicit format override for a tree-compatible rooted source, followed by
-# supplied-target binding for the rooted-network path.
+# Package-owned explicit format override for a tree-compatible rooted source,
+# followed by supplied-target binding for the rooted-network path.
 tree_path = normpath(
     joinpath(
         @__DIR__,
@@ -13,7 +12,7 @@ tree_path = normpath(
         "phylonetworks_mwe02_tree_compatible_rooted.txt",
     ),
 )
-tree_store = load(File{format"Newick"}(tree_path), HybridNetwork)
+tree_store = read_lineages(tree_path, HybridNetwork; format = :newick)
 tree_asset = first(tree_store.graphs)
 tree = tree_asset.graph
 
@@ -33,7 +32,7 @@ network_path = normpath(
     ),
 )
 target = HybridNetwork()
-network_store = load(network_path, target)
+network_store = read_lineages(network_path, target)
 network_asset = first(network_store.graphs)
 
 println("supplied-target rooted-network path: ", network_path)

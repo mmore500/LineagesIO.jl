@@ -1,19 +1,23 @@
 # PhyloNetworks workflow
 
-LineagesIO's current PhyloNetworks soft release centers one public
-`HybridNetwork` workflow over rooted-network-capable `format"Newick"` sources.
-The extension stays a thin projection over authoritative LineagesIO tables and
-protocol events, so every load keeps first-class `node_table` and `edge_table`
-access attached to the returned `LineageGraphAsset`.
+LineagesIO's current PhyloNetworks soft release centers one package-owned
+`HybridNetwork` workflow over rooted-network-capable Newick sources through
+`read_lineages(...)`. The extension stays a thin projection over authoritative
+LineagesIO tables and protocol events, so every load keeps first-class
+`node_table` and `edge_table` access attached to the returned
+`LineageGraphAsset`. Retained `FileIO.load(...)` flows stay available as
+compatibility-only wrappers.
 
 ## Supported scope
 
 The ratified soft-release contract includes:
 
-- rooted-network native loads through `load(path, HybridNetwork)`
-- explicit override through `load(File{format"Newick"}(...), HybridNetwork)`
+- rooted-network native loads through `read_lineages(path, HybridNetwork)`
+- explicit override through
+  `read_lineages(path, HybridNetwork; format = :newick)`
 - tree-compatible rooted loads through the same `HybridNetwork` surface
-- secondary supplied-target binding through `load(path, HybridNetwork())`
+- secondary supplied-target binding through
+  `read_lineages(path, HybridNetwork())`
 - authoritative `node_table` and `edge_table` retention after load
 
 The current soft-release contract does not include:
@@ -29,11 +33,10 @@ Use the native `HybridNetwork` target directly for rooted-network-capable
 Newick inputs:
 
 ```julia
-using FileIO: load
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
-store = load("hybrid_example.nwk", HybridNetwork)
+store = read_lineages("hybrid_example.nwk", HybridNetwork)
 asset = first(store.graphs)
 
 graph = asset.graph
@@ -58,17 +61,16 @@ example.
 ## Explicit override and tree-compatible rooted loads
 
 Tree-compatible rooted inputs use the same public `HybridNetwork` surface.
-When the source path is intentionally ambiguous, use FileIO's explicit
-override wrapper. A bare `load(path, HybridNetwork)` call on an ambiguous
-`.txt` path is expected to fail fast and tell the caller to resolve the
-format explicitly:
+When the source path is intentionally ambiguous, use the package-owned
+`format = :newick` override. A bare `read_lineages(path, HybridNetwork)` call
+on an ambiguous `.txt` path is expected to fail fast and tell the caller to
+resolve the format explicitly:
 
 ```julia
-using FileIO
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
-store = load(File{format"Newick"}("primates.txt"), HybridNetwork)
+store = read_lineages("primates.txt", HybridNetwork; format = :newick)
 asset = first(store.graphs)
 
 graph = asset.graph
@@ -77,7 +79,9 @@ asset.edge_table
 ```
 
 This is still a native `HybridNetwork` load, not a separate tree-only
-materialization path.
+materialization path. The retained compatibility wrapper
+`load(File{format"Newick"}("primates.txt"), HybridNetwork)` remains supported
+when you need to stay on the `FileIO` host surface.
 
 If a tree-compatible rooted source carries an empty leaf label, LineagesIO
 preserves that exact authoritative label in `node_table`, while the native
@@ -102,20 +106,19 @@ If the caller already owns an empty `HybridNetwork()`, the extension also
 supports supplied-target binding on one-graph sources:
 
 ```julia
-using FileIO: load
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
 target = HybridNetwork()
-store = load("hybrid_example.nwk", target)
+store = read_lineages("hybrid_example.nwk", target)
 asset = first(store.graphs)
 
 asset.graph === target
 ```
 
 The supplied target must be empty before loading. This path is secondary to
-`load(path, HybridNetwork)`, which remains the primary public happy path for
-the soft release.
+`read_lineages(path, HybridNetwork)`, which remains the primary public happy
+path for the soft release.
 
 ## Current boundaries
 

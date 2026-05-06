@@ -5,6 +5,7 @@ import FileIO
 import Tables
 
 export CollectionTable
+export BuilderDescriptor
 export EdgeRowRef
 export EdgeTable
 export GraphTable
@@ -24,6 +25,7 @@ export finalize_graph!
 export graph_from_finalized
 export load_alife_table
 export node_property
+export read_lineages
 
 """
     MetaGraphsNextTreeView(asset)
@@ -38,6 +40,7 @@ include("core_types.jl")
 include("tables.jl")
 include("views.jl")
 include("load_owner.jl")
+include("read_lineages.jl")
 include("load_compat.jl")
 include("construction.jl")
 include("newick_format.jl")

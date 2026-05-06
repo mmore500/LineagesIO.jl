@@ -1,10 +1,10 @@
-using FileIO: File, load
 using LineagesIO
 using Tables
 
 # Minimal example loading an alife data standard CSV phylogeny
 # (https://alife-data-standards.github.io/alife-data-standards/phylogeny.html)
-# through the FileIO entry point and inspecting the authoritative tables.
+# through the package-owned `read_lineages` surface and inspecting the
+# authoritative tables.
 example_path = normpath(
     joinpath(
         @__DIR__,
@@ -14,7 +14,7 @@ example_path = normpath(
     ),
 )
 
-store = load(File{LineagesIO.AlifeStandardFormat}(example_path))
+store = read_lineages(example_path)
 asset = first(store.graphs)
 node_table = asset.node_table
 edge_table = asset.edge_table
@@ -31,9 +31,10 @@ println("origin_time annotations: ",
 println("multi-parent source detected: ",
     LineagesIO.graph_requires_multi_parent(edge_table))
 
-# Same source loaded directly from an in-memory Tables.jl object via
-# `load_alife_table`. Cells may be `Integer`, `AbstractString`, or
-# `AbstractVector` — `load_alife_table` coerces them uniformly.
+# Same source loaded directly from an in-memory Tables.jl object via the
+# convenience wrapper `load_alife_table`. Cells may be `Integer`,
+# `AbstractString`, or `AbstractVector` — `load_alife_table` coerces them
+# uniformly.
 in_memory_table = (
     id            = [0, 1, 2, 3, 4, 5],
     ancestor_list = [Int[], [0], [0], [1], [1, 2], [3, 4]],

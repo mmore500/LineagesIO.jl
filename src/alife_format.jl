@@ -431,6 +431,7 @@ end
     load_alife_table(table; source_path = nothing) -> LineageGraphStore
     load_alife_table(table, NodeT; source_path = nothing) -> LineageGraphStore
     load_alife_table(table, basenode; source_path = nothing) -> LineageGraphStore
+    load_alife_table(table, BuilderDescriptor(...); source_path = nothing) -> LineageGraphStore
     load_alife_table(table; builder = fn, source_path = nothing) -> LineageGraphStore
 
 Load a Tables.jl-compatible columnar object whose schema follows the alife
@@ -439,6 +440,19 @@ one of `ancestor_list` or `ancestor_id`. Root entries are identified by
 `[NONE]`/empty `ancestor_list` or by `ancestor_id` equal to the row's own
 `id`. All other columns are retained as node annotations.
 """
+function load_alife_table(
+        table,
+        builder_descriptor::BuilderDescriptor;
+        source_path::Union{Nothing, AbstractString} = nothing,
+    )::LineageGraphStore
+    source_descriptor = AlifeTableSourceDescriptor(
+        table,
+        normalize_source_path(source_path),
+    )
+    request = typed_builder_request(builder_descriptor)
+    return canonical_load(source_descriptor, request)
+end
+
 function load_alife_table(
         table,
         args...;
