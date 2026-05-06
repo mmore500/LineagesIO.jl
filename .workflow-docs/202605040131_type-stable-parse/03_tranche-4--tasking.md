@@ -25,7 +25,11 @@ Parent PRD: `01_prd.md`
 - The repo-local `STYLE-vocabulary.md` is the higher-priority vocabulary authority for this tranche. It supersedes the bundled baseline because it now contains the 2026-05-06 ratifications for `read_lineages` and `BuilderDescriptor`.
 - The current repository already contains the internal typed owner and direct-owner tests from earlier tranches. This tranche must not retask owner repair work as if it were still red.
 
-The following public-surface decisions are derivable from the active sources and are settled for downstream implementation in this tranche:
+The following public-surface contract details were explicitly ratified by the
+project owner in `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`
+and in the workflow thread that closed the tranche-4 review ambiguity. They
+are settled for downstream implementation in this tranche and are not left as
+implementation latitude:
 
 - `read_lineages` is a path-or-stream surface only. Raw text descriptors and internal source descriptor types remain internal and must not become part of the public contract in this tranche.
 - `read_lineages(path::AbstractString, args...; format = nothing)` is the package-owned path surface. Package-owned automatic source selection must recognize Newick safe extensions `.nwk`, `.newick`, `.tree`, `.tre`, and `.trees` as Newick, and `.csv` as alife CSV. The ambiguous `.txt` extension must not be auto-inferred; it requires explicit package-owned override via `format = :newick`.
@@ -259,15 +263,15 @@ Make the first-class package-owned public surface, not only internal helpers, th
 ### 3. Synchronize the general public contract in README, index docs, and the alife example
 
 **Type**: WRITE
-**Output**: `README.md`, `docs/src/index.md`, and `examples/src/alife_standard_mwe.jl` present `read_lineages` as the first-class package-owned public surface, `load_alife_table(...)` as the convenience wrapper, `BuilderDescriptor` as the typed builder surface, and `FileIO.load(...)` as compatibility-only.
+**Output**: `README.md`, `docs/src/index.md`, and `examples/src/alife_standard_mwe.jl` present `read_lineages` as the first-class package-owned public surface, `load_alife_table(...)` as the convenience wrapper, `BuilderDescriptor` as the typed builder surface, `MetaGraph` loads through `read_lineages` as part of the first-class package-owned story, and `FileIO.load(...)` as compatibility-only.
 **Depends on**: 1
-**Positive contract**: Update the general user-facing story so the first code path and first narrative path use `read_lineages`. Show `read_lineages(path)` for Newick and alife file-backed sources, `read_lineages(io; ...)` where stream behavior is being explained, and `load_alife_table(...)` only in the in-memory Tables.jl section. If builder behavior is documented here, use `BuilderDescriptor` for the first-class typed story and move raw `builder = fn` into an explicit compatibility note. The alife runnable example should demonstrate both `read_lineages(path)` for file-backed alife input and `load_alife_table(...)` for the in-memory convenience wrapper.
-**Negative contract**: Do not leave wrapper-first wording or FileIO-wrapper examples in the lead position. Do not describe `load_alife_table(...)` as compatibility-only or as the first-class file or stream surface. Do not document `TypedBuilderLoadRequest` or `canonical_load(...)` as public API. Do not imply any deprecations or removals.
+**Positive contract**: Update the general user-facing story so the first code path and first narrative path use `read_lineages`. Show `read_lineages(path)` for Newick and alife file-backed sources, `read_lineages(io; ...)` where stream behavior is being explained, and `load_alife_table(...)` only in the in-memory Tables.jl section. If builder behavior is documented here, use `BuilderDescriptor` for the first-class typed story and move raw `builder = fn` into an explicit compatibility note. Update the MetaGraphsNext sections in `README.md` and `docs/src/index.md` so they also lead with `read_lineages(path, MetaGraph)` or `read_lineages(path, metagraph_instance)` as appropriate, while preserving the same extension behavior and compatibility notes. The alife runnable example should demonstrate both `read_lineages(path)` for file-backed alife input and `load_alife_table(...)` for the in-memory convenience wrapper.
+**Negative contract**: Do not leave wrapper-first wording or FileIO-wrapper examples in the lead position. Do not leave the MetaGraphsNext sections on a wrapper-first public story while the general docs claim the package-owned public surface has rolled out. Do not describe `load_alife_table(...)` as compatibility-only or as the first-class file or stream surface. Do not document `TypedBuilderLoadRequest` or `canonical_load(...)` as public API. Do not imply any deprecations or removals.
 **Files**: `README.md`, `docs/src/index.md`, `examples/src/alife_standard_mwe.jl`
 **Out of scope**: `docs/src/phylonetworks.md`, extension-specific examples, new public behavior beyond the ratified names
 **Verification**: Task 5 must be able to leave the docs build and `examples/src/alife_standard_mwe.jl` green. Manual docs review must make it obvious which surface is first-class, which is the in-memory convenience wrapper, and which remains compatibility-only.
 
-Rewrite the general user story, not just isolated snippets. The task is complete only when a reader can identify the ownership boundary without inferring hidden policy from prior wrapper examples.
+Rewrite the general user story, including the MetaGraphsNext user-facing sections in `README.md` and `docs/src/index.md`, not just isolated snippets. The task is complete only when a reader can identify the ownership boundary without inferring hidden policy from prior wrapper examples.
 
 ### 4. Synchronize the PhyloNetworks public docs and runnable examples
 
@@ -277,7 +281,7 @@ Rewrite the general user story, not just isolated snippets. The task is complete
 **Positive contract**: Update the rooted-network, tree-compatible rooted, and supplied-target examples and docs so they lead with `read_lineages(path, HybridNetwork)` or `read_lineages(path, HybridNetwork())` as appropriate. Keep the authoritative-table retention story unchanged. Keep any mention of `FileIO.load(...)` explicitly labeled as compatibility-only. Preserve scope notes about rooted-network support, tree-compatible rooted support, explicit format override on `.txt`, synthesized leaf-name behavior, and no unrooted-network support.
 **Negative contract**: Do not leave `load(path, HybridNetwork)` as the primary happy path. Do not remove the compatibility note entirely. Do not imply deprecations, removals, or broader extension-surface changes that were not ratified. Do not broaden extension scope while updating examples.
 **Files**: `docs/src/phylonetworks.md`, `examples/src/phylonetworks_mwe01.jl`, `examples/src/phylonetworks_mwe02.jl`
-**Out of scope**: core API code, MetaGraphsNext docs beyond the general docs touched in task 3, extension internals, public renames or deprecations
+**Out of scope**: core API code, MetaGraphsNext docs already assigned to task 3, extension internals, public renames or deprecations
 **Verification**: Task 5 must leave both PhyloNetworks example scripts green. Manual docs review must confirm that `read_lineages` is the first-class public path and `FileIO.load(...)` is clearly secondary and compatibility-only.
 
 Keep the extension docs and examples aligned with the ratified ownership boundary, not just with legacy code snippets.

@@ -350,8 +350,66 @@ These positions are ratified for tranche 4 rollout:
   package-owned file or stream surface.
 - `STYLE-vocabulary.md` records `read_lineages` and `BuilderDescriptor` as the
   exact approved public spellings for this boundary.
+- The exact signature-level and format-policy details recorded in the
+  `Ratified signature and format-policy supplement` section below are approved
+  for tranche 4 implementation and are not left open for AFK redesign.
 - No rename, deprecation, removal, export break, or public migration breakage
   is ratified in this tranche.
+
+## Ratified signature and format-policy supplement
+
+This supplement records additional explicit project-owner ratification from the
+workflow thread on 2026-05-06 after tranche-4 review identified that the
+name-level tranche-3 decision alone was being re-litigated as if these
+signature-level details were still open.
+
+These points are therefore not merely local implementation guesses or
+"derivable defaults" for tranche 4. They are explicitly approved public
+contract details for the additive rollout of the already-ratified names
+`LineagesIO.read_lineages` and `LineagesIO.BuilderDescriptor`.
+
+The following points are ratified:
+
+- `LineagesIO.read_lineages` is a path-or-stream public surface only for this
+  rollout boundary. Internal raw-text descriptors and internal source
+  descriptor types remain internal and are not promoted to public API here.
+- The package-owned path surface is
+  `read_lineages(path::AbstractString, args...; format = nothing)`.
+- The package-owned stream surface is
+  `read_lineages(io::IO, args...; source_path = nothing, format = nothing)`.
+- Package-owned path autodetection recognizes `.nwk`, `.newick`, `.tree`,
+  `.tre`, and `.trees` as Newick and `.csv` as alife CSV.
+- The ambiguous `.txt` extension is not auto-inferred on the package-owned
+  surface. It requires explicit package-owned override through
+  `format = :newick`.
+- A package-owned stream load must succeed when `format` is supplied as
+  `:newick` or `:alife`, or when `source_path` carries a non-ambiguous
+  supported extension.
+- A package-owned stream load with neither explicit `format` nor an inferable
+  `source_path` must fail with a contract-level `ArgumentError` instead of
+  guessing.
+- The only package-owned `format` keyword values approved in this rollout are
+  `:newick` and `:alife`.
+- `FileIO.File{...}` and `FileIO.Stream{...}` wrappers remain
+  compatibility-only surfaces and are not part of the `read_lineages`
+  contract.
+- The first-class typed builder descriptor shape is
+  `BuilderDescriptor(builder, HandleT[, ParentCollectionT])`.
+- `read_lineages(source, BuilderDescriptor(...))` is the first-class typed
+  builder path.
+- Raw `builder = fn` remains compatibility-only and must not be accepted on
+  `read_lineages`.
+- `load_alife_table(table, BuilderDescriptor(...); source_path = ...)` is
+  approved as the additive typed convenience-wrapper counterpart for in-memory
+  Tables.jl input so the convenience wrapper stays aligned with the same
+  canonical typed owner.
+- `read_lineages(source, basenode)` is a typed supplied-basenode path only. It
+  must translate directly to the internal typed supplied-basenode request.
+- If `construction_handle_type(basenode)` is `nothing`, the first-class
+  package-owned surface must fail honestly with a precise error that points the
+  caller to the compatibility wrapper story or to implementing
+  `construction_handle_type`. It must not silently revive the legacy
+  single-parent compatibility fallback.
 
 ## Ratified decisions
 
