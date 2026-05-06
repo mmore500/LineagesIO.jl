@@ -1,5 +1,10 @@
 using PhyloNetworks
 
+function method_first_argument_type(method::Method)
+    signature = Base.unwrap_unionall(method.sig)
+    return signature.parameters[2]
+end
+
 function phylonetworks_canonical_node(
     graph::PhyloNetworks.HybridNetwork,
     number::Integer,
@@ -60,6 +65,9 @@ function phylonetworks_graph_contract(graph::PhyloNetworks.HybridNetwork)
 end
 
 @testset "PhyloNetworks canonical owner dispatch and anti-regrowth" begin
+    extension = Base.get_extension(LineagesIO, :PhyloNetworksIO)
+    @test extension !== nothing
+
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
     table_asset = first(load(fixture_path).graphs)
     request = LineagesIO.NodeTypeLoadRequest(PhyloNetworks.HybridNetwork)
@@ -79,14 +87,46 @@ end
 
     @test dispatch_method.module === LineagesIO
     @test occursin("src/construction.jl", String(dispatch_method.file))
-
-    extension_source = read(
-        abspath(joinpath(@__DIR__, "..", "..", "ext", "PhyloNetworksIO.jl")),
-        String,
+    @test isempty(
+        [
+            method for method in methods(LineagesIO.build_parent_collection) if
+            method.module === extension
+        ],
     )
-    @test !occursin("reduce(typejoin", extension_source)
-    @test !occursin("Any[]", extension_source)
-    @test !occursin("Vector{Any}", extension_source)
+
+    extension_multi_parent_methods = [
+        method for method in methods(LineagesIO.add_child) if
+        method.module === extension &&
+        method_first_argument_type(method) <: AbstractVector
+    ]
+    @test length(extension_multi_parent_methods) == 1
+    typed_parent_dispatch = which(
+        LineagesIO.add_child,
+        (
+            Vector{typeof(basenode_handle)},
+            LineagesIO.StructureKeyType,
+            String,
+            Vector{LineagesIO.StructureKeyType},
+            Vector{LineagesIO.EdgeWeightType},
+        ),
+    )
+    @test typed_parent_dispatch === only(extension_multi_parent_methods)
+
+    erased_parent_dispatch = which(
+        LineagesIO.add_child,
+        (
+            Vector{Any},
+            LineagesIO.StructureKeyType,
+            String,
+            Vector{LineagesIO.StructureKeyType},
+            Vector{LineagesIO.EdgeWeightType},
+        ),
+    )
+    @test erased_parent_dispatch.module === LineagesIO
+    @test occursin(
+        "src/construction.jl",
+        String(erased_parent_dispatch.file),
+    )
 end
 
 @testset "PhyloNetworks canonical owner parity — rooted-network node-type" begin

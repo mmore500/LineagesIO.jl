@@ -1,6 +1,11 @@
 using AbstractTrees
 using MetaGraphsNext
 
+function method_first_argument_type(method::Method)
+    signature = Base.unwrap_unionall(method.sig)
+    return signature.parameters[2]
+end
+
 function metagraphsnext_canonical_child_nodekeys(graph, nodekey::Integer)
     nodecode = MetaGraphsNext.code_for(graph, Symbol(nodekey))
     return [
@@ -75,6 +80,9 @@ function weighted_metagraph_target()
 end
 
 @testset "MetaGraphsNext canonical owner dispatch and no-shim proof" begin
+    extension = Base.get_extension(LineagesIO, :MetaGraphsNextIO)
+    @test extension !== nothing
+
     basenode = MetaGraphsNext.MetaGraph(
         MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
         Symbol,
@@ -98,22 +106,32 @@ end
     )
 
     @test dispatch_method.module ===
-        Base.get_extension(LineagesIO, :MetaGraphsNextIO)
+        extension
     @test occursin("ext/MetaGraphsNextIO.jl", String(dispatch_method.file))
-    @test !any(
-        method -> occursin(
-            "AbstractVector{<:MetaGraph}",
-            sprint(show, method.sig),
-        ),
-        methods(LineagesIO.add_child),
-    )
 
-    extension_source = read(
-        abspath(joinpath(@__DIR__, "..", "..", "ext", "MetaGraphsNextIO.jl")),
-        String,
+    extension_multi_parent_methods = [
+        method for method in methods(LineagesIO.add_child) if
+        method.module === extension &&
+        method_first_argument_type(method) <: AbstractVector
+    ]
+    @test length(extension_multi_parent_methods) == 1
+    @test dispatch_method === only(extension_multi_parent_methods)
+
+    graph_vector_dispatch = which(
+        LineagesIO.add_child,
+        (
+            Vector{typeof(basenode)},
+            LineagesIO.StructureKeyType,
+            String,
+            Vector{LineagesIO.StructureKeyType},
+            Vector{LineagesIO.EdgeWeightType},
+        ),
     )
-    @test !occursin("probe shim", extension_source)
-    @test !occursin("AbstractVector{<:MetaGraph}", extension_source)
+    @test graph_vector_dispatch.module === LineagesIO
+    @test occursin(
+        "src/construction.jl",
+        String(graph_vector_dispatch.file),
+    )
 end
 
 @testset "MetaGraphsNext canonical owner parity — tree node-type" begin
