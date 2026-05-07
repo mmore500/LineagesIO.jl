@@ -129,17 +129,18 @@ contract is owner-level type honesty.
 
 ## Primary-goal lock coverage
 
-- Lock 1: governed remedial workflow integrity is closed at the tranche-design
-  layer by this file's active-authorities block, pass-forward mandates, and
-  handoff packets. Tranche 2 must preserve that closure by recording the
-  reviewed supplied-instance contract branch explicitly. Tranche 4 must ensure
-  final public docs and verification artifacts do not drift back to the design
-  note alone.
+- Lock 1: governed remedial workflow integrity is satisfied by this tranche
+  file's active-authorities block, pass-forward mandates, and handoff packets,
+  and it must be preserved by every downstream tasking, implementation, review,
+  and handoff artifact. Tranche 2 owns the explicit reviewed supplied-instance
+  contract gate, Tranches 3 and 4 must preserve that gate in implementation
+  handoffs, and Tranche 5 must preserve it in public docs and verification
+  artifacts.
 - Lock 2: library-created MetaGraphsNext type-request honesty is owned by
-  Tranche 3.
+  Tranche 4.
 - Lock 3: supplied-instance MetaGraphsNext contract honesty is owned at the
-  runtime-contract level by Tranche 2 and closed at the public-surface
-  synchronization level by Tranche 4.
+  review-gate layer by Tranche 2, at the runtime-contract layer by Tranche 3,
+  and at the public-surface synchronization layer by Tranche 5.
 - Lock 4: first-class `BuilderDescriptor` concrete-handle guarantee is owned by
   Tranche 1.
 
@@ -148,9 +149,10 @@ contract is owner-level type honesty.
 | Tranch id | Title | Status |
 |---|---|---|
 | 1 | `BuilderDescriptor` concrete-handle boundary repair | Proposed |
-| 2 | Supplied-instance MetaGraphsNext contract ratification and owner repair | Proposed |
-| 3 | Library-created MetaGraphsNext target tightening | Proposed |
-| 4 | Public contract synchronization and audit closure | Proposed |
+| 2 | Supplied-instance MetaGraphsNext contract decision record | Proposed |
+| 3 | Supplied-instance MetaGraphsNext owner repair | Proposed |
+| 4 | Library-created MetaGraphsNext target tightening | Proposed |
+| 5 | Public contract synchronization and audit closure | Proposed |
 
 ## Tranche summary
 
@@ -158,17 +160,21 @@ contract is owner-level type honesty.
    Type: `AFK`
    Blocked by: `None -- can start immediately`
    User stories covered: `5`, `7`
-2. Title: Supplied-instance MetaGraphsNext contract ratification and owner repair
+2. Title: Supplied-instance MetaGraphsNext contract decision record
    Type: `HITL`
    Blocked by: `None -- can start immediately`
-   User stories covered: `1`, `3`, `4`, `7`, `8`, `10`
-3. Title: Library-created MetaGraphsNext target tightening
+   User stories covered: `1`, `7`, `8`, `10`
+3. Title: Supplied-instance MetaGraphsNext owner repair
    Type: `AFK`
    Blocked by: `Tranche 2`
-   User stories covered: `2`, `6`, `7`, `8`, `10`
-4. Title: Public contract synchronization and audit closure
+   User stories covered: `1`, `3`, `4`, `7`, `8`, `10`
+4. Title: Library-created MetaGraphsNext target tightening
    Type: `AFK`
-   Blocked by: `Tranche 1`, `Tranche 2`, `Tranche 3`
+   Blocked by: `Tranche 3`
+   User stories covered: `2`, `6`, `7`, `8`, `10`
+5. Title: Public contract synchronization and audit closure
+   Type: `AFK`
+   Blocked by: `Tranche 1`, `Tranche 3`, `Tranche 4`
    User stories covered: `1`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `10`
 
 ## Tranche 1: BuilderDescriptor concrete-handle boundary repair
@@ -195,9 +201,11 @@ contract is owner-level type honesty.
   `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-02_audit-fix-decisions.md`,
   `.workflow-docs/202605070011--type-stable-parse--audit-fix/01_prd.md`, and
   this tranche file
-- Mandated reading of the installed upstream sources named in the parent PRD;
-  no additional upstream contract beyond those sources is introduced by this
-  tranche
+- No external host-framework contract materially constrains this narrow public-
+  boundary fix beyond the repo-owned authorities and parent workflow already
+  listed above. If scope expands into `FileIO`, `Tables`, or `MetaGraphsNext`
+  behavior, reread the installed upstream sources named in the parent PRD
+  before continuing.
 
 ### Primary-goal lock
 
@@ -289,8 +297,10 @@ first-class typed guarantee.
   canonical-owner builder tests
 - **Exact files or surfaces out of scope**: MetaGraphsNext owner repair, docs
   rewrite, README synchronization, and compatibility-wrapper contract changes
-- **Required upstream primary sources**: the parent PRD's installed FileIO,
-  MetaGraphsNext, and Tables sources; no new upstream source is needed
+- **Required upstream primary sources**: no additional external upstream source
+  materially constrains this narrow builder-boundary repair; if scope expands
+  into wrapper, table, or extension behavior, use the installed FileIO,
+  MetaGraphsNext, and Tables sources named in the parent PRD
 - **Green-state gates**: direct regression for `BuilderDescriptor(builder, Any)`,
   continued success for a concrete `HandleT`, `julia --project=test test/runtests.jl`,
   and `julia --project=docs docs/make.jl`
@@ -322,6 +332,10 @@ first-class typed guarantee.
 - [ ] Given the legacy erased handle shape named above, when this tranche is
       complete, then it is removed or prevented from surviving as a first-class
       typed request
+- [ ] Given any downstream tasking, review, or handoff derived from this
+      tranche, when it is prepared, then it restates the active authorities,
+      direct red-state repro, and green-state gates for Lock 4 instead of
+      relying on a link-only parent reference
 - [ ] Given a forbidden regression shape that delays the rejection until later
       normalization or materialization, when verification is run, then the
       tranche fails rather than reporting a fake green
@@ -331,7 +345,7 @@ first-class typed guarantee.
 - User story 5: first-class typed builder surface rejects erased handle types
 - User story 7: each surviving audit finding gets a direct proof artifact
 
-## Tranche 2: Supplied-instance MetaGraphsNext contract ratification and owner repair
+## Tranche 2: Supplied-instance MetaGraphsNext contract decision record
 
 **Type**: HITL
 **Blocked by**: None -- can start immediately
@@ -363,21 +377,21 @@ first-class typed guarantee.
 
 ### Primary-goal lock
 
-- Owns Lock 3 at the reviewed runtime-contract layer: the supplied-instance
-  `MetaGraph` path must have one explicit custom-data contract whose runtime
-  behavior is honest
-- Preserves Lock 1 by requiring a reviewed decision artifact that records the
-  ratified supplied-instance contract branch before implementation claims the
-  finding is closed
-- The work is not complete if unsupported custom `VertexData` or `EdgeData`
-  shapes still fail with a raw internal `MethodError`, or if downstream work
-  still acts as though the contract branch was settled by the design note alone
+- Owns Lock 3 at the review-gate layer: the supplied-instance `MetaGraph` path
+  must have one explicitly reviewed custom-data contract before any
+  implementation tranche can honestly claim the finding is closed
+- Preserves Lock 1 by recording the reviewed contract branch, active
+  authorities, direct red-state repros, and green-state gates in a dedicated
+  artifact rather than treating the design note as sufficient
+- The work is not complete if downstream implementation can still begin from
+  this tranche without a reviewed decision artifact that resolves the open
+  contract branch explicitly
 
 ### What to build
 
-Build the HITL owner-repair tranche for the caller-supplied `MetaGraph` path.
+Build the pure HITL decision tranche for the caller-supplied `MetaGraph` path.
 
-This tranche must first produce an explicit reviewed decision artifact at:
+This tranche must produce an explicit reviewed decision artifact at:
 
 - `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
 
@@ -386,20 +400,185 @@ That artifact must record which of the two parent-PRD branches is ratified:
 - constructor-based extension on user-owned `VertexData` and `EdgeData` types
 - narrowed supported-shape contract with precise early rejection
 
-After the user ratifies the branch, this tranche implements only that branch in
-`ext/MetaGraphsNextIO.jl` and the directly affected tests. The owner that must
-remain is the supplied-instance MetaGraphsNext path itself. The runtime must not
-rely on broad docs promises, raw internal dispatch failure, or a hidden second
-extension protocol.
+This tranche is decision-only. It must not produce code tasking, runtime
+implementation, docs synchronization, or tests that claim the runtime finding
+is closed. Its job is to create the reviewed decision artifact that Tranche 3
+must treat as a hard prerequisite.
 
-Public README and docs synchronization may be staged into Tranche 4, but this
+If review cannot ratify one branch honestly, this tranche must record that
+deferral explicitly and leave Tranches 3 through 5 blocked.
+
+### Legacy artifacts to retire or demote
+
+- the current broad but unratified supplied-instance custom-data story
+- any downstream assumption that `00-02_audit-fix-decisions.md` already settled
+  the supplied-instance contract branch
+- any mixed workflow artifact that combines the review gate and the
+  implementation plan into one unbroken tranche
+
+### Forbidden regressions
+
+- code tasking or runtime implementation produced from this tranche before the
+  reviewed decision artifact exists
+- a decision artifact that records only a preference rather than a ratified or
+  explicitly deferred branch
+- link-only handoff that points at the parent PRD or design note without
+  restating the active authorities, direct repros, review gate, and gates
+
+### Environment and dependency baseline
+
+- This tranche is workflow-only and may inherit the current green code state if
+  it does not modify repo code, tests, docs, or examples
+- Preserve the ratified `read_lineages`, `BuilderDescriptor`,
+  `FileIO.load(...)`, and `load_alife_table(...)` classification boundaries
+- Do not widen this tranche into a broader MetaGraph factory redesign, code
+  patch, or public naming decision
+
+### Handoff packet
+
+- **Active authorities**: `AGENTS.md`, `CONTRIBUTING.md`,
+  `STYLE-agent-handoffs.md`, `STYLE-architecture.md`, `STYLE-docs.md`,
+  `STYLE-git.md`, `STYLE-julia.md`, `STYLE-upstream-contracts.md`,
+  `STYLE-verification.md`, `STYLE-vocabulary.md`, `STYLE-workflow-docs.md`,
+  `STYLE-writing.md`, `.workflow-docs/202605040131_type-stable-parse/01_prd.md`,
+  `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`,
+  `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-01_production-final-audit.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-02_audit-fix-decisions.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/01_prd.md`, and
+  this tranche file
+- **Parent documents**: the parent type-stable parse PRD and tranche file, the
+  tranche-3 decision record, the audit report, the audit-fix design note, the
+  remedial PRD, and this tranche file
+- **Settled decisions and non-negotiables**: the ratified public names and
+  wrapper classifications remain fixed; the supplied-instance branch is not
+  settled by the design note and must be reviewed explicitly here; no runtime
+  implementation is authorized from this tranche alone
+- **Authorization boundary**: only the reviewed decision artifact and the
+  workflow reasoning needed to produce it are in scope
+- **Current-state diagnosis**: the supplied-instance path currently supports a
+  narrow hard-coded set of `VertexData` and `EdgeData` shapes while public docs
+  still imply a broader custom-data contract
+- **Primary-goal lock**: record one reviewed contract branch or explicit
+  deferral before any implementation tranche can proceed
+- **Direct red-state repros**: caller-supplied custom `MetaGraph` types outside
+  the narrow built-in method set currently fail with raw internal dispatch while
+  docs still suggest broader support
+- **Owner and invariant under repair**: the workflow must review and ratify the
+  supplied-instance custom-data contract before the runtime owner is modified
+- **Exact files or surfaces in scope**:
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
+  and any directly supporting workflow notes
+- **Exact files or surfaces out of scope**: `ext/MetaGraphsNextIO.jl`, tests,
+  README, `docs/src/index.md`, and public-surface runtime changes
+- **Required upstream primary sources**: the installed MetaGraphsNext
+  `metagraph.jl`, `graphs.jl`, and `weights.jl` sources, plus the installed
+  Tables README and `Tables.jl` source
+- **Green-state gates**: a reviewed decision artifact exists and restates the
+  authorities, review gate, direct red-state repros, and green-state gates; if
+  this tranche remains workflow-only, it may inherit the current code green
+  state without rerunning the suite
+- **Stop conditions**: stop and escalate if review cannot ratify one branch
+  honestly, or if the branch choice appears to require reopening the ratified
+  public naming boundary or wrapper classification
+
+### How to verify
+
+- **Manual**: produce and review
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
+- **Manual**: confirm that artifact records either a ratified branch or an
+  explicit deferral, rather than an implied preference
+- **Manual**: confirm no code tasking or runtime implementation is derived from
+  this tranche before the reviewed artifact exists
+- **Automated**: none required if this tranche remains workflow-only
+
+### Acceptance criteria
+
+- [ ] Given the open supplied-instance contract question in the parent PRD,
+      when this tranche completes, then a reviewed decision artifact exists and
+      records either the ratified branch or an explicit deferral
+- [ ] Given the parent PRD's hard stop requirement, when this tranche
+      completes, then no code tasking or runtime implementation is authorized
+      before the reviewed artifact exists
+- [ ] Given downstream tasking or handoff derived from this tranche, when it is
+      prepared, then it restates the active authorities, parent documents,
+      reviewed contract branch, direct red-state repros, and green-state gates
+      instead of relying on a link-only parent reference
+- [ ] Given a forbidden regression shape that folds the review gate and the
+      implementation plan into one artifact, when verification is run, then the
+      tranche fails rather than reporting a fake green
+
+### User stories addressed
+
+- User story 1: one governed remedial workflow instead of scattered notes
+- User story 7: each surviving audit finding gets a direct proof artifact
+- User story 8: downstream agents receive exact authorities and stop conditions
+- User story 10: the remediation stays inside the authorized contract-repair
+  boundary
+
+## Tranche 3: Supplied-instance MetaGraphsNext owner repair
+
+**Type**: AFK
+**Blocked by**: Tranche 2
+
+### Parent PRD
+
+`.workflow-docs/202605070011--type-stable-parse--audit-fix/01_prd.md`
+
+### Governance and required reading
+
+- Mandated line-by-line reading of `AGENTS.md`, `CONTRIBUTING.md`,
+  `STYLE-agent-handoffs.md`, `STYLE-architecture.md`, `STYLE-docs.md`,
+  `STYLE-git.md`, `STYLE-julia.md`, `STYLE-upstream-contracts.md`,
+  `STYLE-verification.md`, `STYLE-vocabulary.md`, `STYLE-workflow-docs.md`,
+  and `STYLE-writing.md`
+- Mandated line-by-line reading of
+  `.workflow-docs/202605040131_type-stable-parse/01_prd.md`,
+  `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`,
+  `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-01_production-final-audit.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-02_audit-fix-decisions.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/01_prd.md`, and
+  this tranche file
+- Mandated reading of `/home/jeetsukumaran/.julia/packages/MetaGraphsNext/0QPgf/src/metagraph.jl`,
+  `/home/jeetsukumaran/.julia/packages/MetaGraphsNext/0QPgf/src/graphs.jl`,
+  `/home/jeetsukumaran/.julia/packages/MetaGraphsNext/0QPgf/src/weights.jl`,
+  `/home/jeetsukumaran/.julia/packages/Tables/cRTb7/README.md`, and
+  `/home/jeetsukumaran/.julia/packages/Tables/cRTb7/src/Tables.jl`
+
+### Primary-goal lock
+
+- Owns Lock 3 at the runtime-contract layer: the supplied-instance `MetaGraph`
+  owner must implement exactly the branch reviewed in Tranche 2
+- Preserves Lock 1 by requiring any downstream tasking or handoff for this
+  tranche to restate the reviewed decision artifact, active authorities, direct
+  red-state repros, and green-state gates explicitly
+- The work is not complete if unsupported custom `VertexData` or `EdgeData`
+  shapes still fail with a raw internal `MethodError`, or if the implemented
+  runtime branch differs from the reviewed artifact
+
+### What to build
+
+Build the owner repair for the caller-supplied `MetaGraph` path after Tranche 2
+has produced the reviewed decision artifact.
+
+This tranche implements only the branch ratified in:
+
+- `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
+
+The owner that must remain is the supplied-instance MetaGraphsNext path itself.
+The runtime must not rely on broad docs promises, raw internal dispatch
+failure, or a hidden second extension protocol.
+
+Public README and docs synchronization may be staged into Tranche 5, but this
 tranche must leave behind the runtime support matrix and direct tests that make
 that later sync mechanical rather than interpretive.
 
 ### Legacy artifacts to retire or demote
 
-- the current broad but unratified custom-data story for supplied-instance
-  `MetaGraph` loads
+- the broad but unratified custom-data story for supplied-instance `MetaGraph`
+  loads
 - raw `MethodError` from `add_node_to_metagraph!` or `add_edge_to_metagraph!`
   as a user-facing unsupported-shape failure surface
 - any shadow constructor or validation path that exists only to preserve the
@@ -408,13 +587,14 @@ that later sync mechanical rather than interpretive.
 ### Forbidden regressions
 
 - implementing both contract branches simultaneously and leaving two competing
-  public stories alive
+  runtime stories alive
 - preserving raw internal dispatch failures for unsupported shapes and calling
   them the reviewed contract
-- claiming constructor-based extension without direct tests that prove supported
-  custom types succeed
+- claiming constructor-based extension without direct tests that prove
+  supported custom types succeed
 - claiming a narrowed contract without early validation that rejects
   unsupported shapes precisely at the public boundary
+- starting code work without the reviewed artifact from Tranche 2 in place
 
 ### Environment and dependency baseline
 
@@ -436,40 +616,40 @@ that later sync mechanical rather than interpretive.
   `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`,
   `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-01_production-final-audit.md`,
   `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-02_audit-fix-decisions.md`,
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`,
   `.workflow-docs/202605070011--type-stable-parse--audit-fix/01_prd.md`, and
   this tranche file
 - **Parent documents**: the parent type-stable parse PRD and tranche file, the
   tranche-3 decision record, the audit report, the audit-fix design note, the
-  remedial PRD, this tranche file, and the decision artifact this tranche must
-  create
+  reviewed supplied-instance contract decision artifact, the remedial PRD, and
+  this tranche file
 - **Settled decisions and non-negotiables**: the ratified public names and
-  wrapper classifications remain fixed; the supplied-instance custom-data branch
-  is not settled by the design note and must be reviewed explicitly here; no
-  broader redesign or migration policy change is authorized
+  wrapper classifications remain fixed; the supplied-instance branch is settled
+  by the reviewed Tranche 2 artifact for this tranche; no broader redesign or
+  migration policy change is authorized
 - **Authorization boundary**: only the supplied-instance MetaGraphsNext owner,
-  the required decision artifact, directly affected tests, and narrowly
-  required internal wording are in scope
+  directly affected tests, and narrowly required internal wording are in scope
 - **Current-state diagnosis**: the supplied-instance path currently supports a
   narrow hard-coded set of `VertexData` and `EdgeData` shapes while public docs
   still imply a broader custom-data contract
-- **Primary-goal lock**: review and implement one honest supplied-instance
-  support matrix, eliminate raw internal failure as the unsupported-shape
-  contract, and pass that decision forward explicitly
+- **Primary-goal lock**: implement the reviewed support matrix, eliminate raw
+  internal failure as the unsupported-shape contract, and pass that decision
+  forward explicitly
 - **Direct red-state repros**: caller-supplied custom `MetaGraph` types outside
   the narrow built-in method set currently fail with raw internal dispatch while
   docs still suggest broader support
 - **Owner and invariant under repair**: the supplied-instance MetaGraphsNext
   path must be the single honest owner of custom-data behavior for caller-
   supplied `MetaGraph` targets
-- **Exact files or surfaces in scope**: `ext/MetaGraphsNextIO.jl`,
-  directly affected MetaGraphsNext tests, and the workflow decision artifact
+- **Exact files or surfaces in scope**: `ext/MetaGraphsNextIO.jl` and directly
+  affected MetaGraphsNext tests
 - **Exact files or surfaces out of scope**: library-created `MetaGraph` target
   validation, README and index docs synchronization, and broader public-surface
   migration
 - **Required upstream primary sources**: the installed MetaGraphsNext
   `metagraph.jl`, `graphs.jl`, and `weights.jl` sources, plus the installed
   Tables README and `Tables.jl` source
-- **Green-state gates**: reviewed decision artifact exists, supported and
+- **Green-state gates**: the reviewed decision artifact exists, supported and
   unsupported supplied-instance shapes are directly tested, `julia --project=test test/runtests.jl`,
   and `julia --project=docs docs/make.jl`
 - **Stop conditions**: stop and escalate if the reviewed branch would require
@@ -479,11 +659,10 @@ that later sync mechanical rather than interpretive.
 
 ### How to verify
 
-- **Manual**: produce and review
-  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
-  before implementation continues
 - **Manual**: confirm the implemented runtime branch matches the reviewed
-  support matrix exactly
+  support matrix in
+  `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`
+  exactly
 - **Automated**: if constructor-based extension is ratified, add direct tests
   that supported custom `VertexData` and `EdgeData` types succeed and that a
   missing user constructor fails at the user-owned constructor entrypoint rather
@@ -497,15 +676,18 @@ that later sync mechanical rather than interpretive.
 
 ### Acceptance criteria
 
-- [ ] Given the open supplied-instance contract question in the parent PRD,
-      when this tranche proceeds, then a reviewed decision artifact records the
-      ratified branch explicitly before implementation claims the finding is
-      closed
+- [ ] Given the reviewed contract branch in Tranche 2, when this tranche
+      proceeds, then it implements only that branch and does not silently widen
+      or narrow it
 - [ ] Given the ratified branch, when a caller supplies a supported custom
       `MetaGraph` shape, then the runtime behaves according to that branch
 - [ ] Given an unsupported custom `MetaGraph` shape, when verification is run,
       then the public failure surface is explicit and contract-level rather than
       a raw internal `MethodError`
+- [ ] Given downstream tasking or handoff derived from this tranche, when it is
+      prepared, then it restates the active authorities, the reviewed contract
+      artifact, the direct red-state repros, and the green-state gates instead
+      of relying on a link-only parent reference
 - [ ] Given the legacy broad-but-unratified custom-data story named above, when
       this tranche is complete, then it is removed, narrowed, or otherwise
       prevented from surviving as an implicit second contract
@@ -524,10 +706,10 @@ that later sync mechanical rather than interpretive.
 - User story 10: the remediation stays inside the authorized contract-repair
   boundary
 
-## Tranche 3: Library-created MetaGraphsNext target tightening
+## Tranche 4: Library-created MetaGraphsNext target tightening
 
 **Type**: AFK
-**Blocked by**: Tranche 2
+**Blocked by**: Tranche 3
 
 ### Parent PRD
 
@@ -557,7 +739,7 @@ that later sync mechanical rather than interpretive.
 
 - Owns Lock 2: the library-created MetaGraphsNext path must be exact and honest
   about accepted target requests and the concrete graph type it returns
-- Preserves the reviewed supplied-instance branch from Tranche 2: any redirect
+- Preserves the reviewed supplied-instance branch from Tranche 3: any redirect
   to the caller-supplied path is only honest after that path has been ratified
   and repaired
 - The work is not complete if the owner can still accept an unsupported
@@ -597,7 +779,7 @@ freeze a new public interpretation.
 
 - post-hoc casting, wrapping, or reinterpretation that still returns the wrong
   concrete graph type for an accepted request
-- redirecting callers to the supplied-instance path before Tranche 2 made that
+- redirecting callers to the supplied-instance path before Tranche 3 made that
   path honest
 - changing docs alone without a runtime validator that enforces the narrowed
   accepted family
@@ -629,7 +811,7 @@ freeze a new public interpretation.
   supplied-instance contract decision artifact, the remedial PRD, and this
   tranche file
 - **Settled decisions and non-negotiables**: the first-class public names,
-  wrapper classifications, and supplied-instance branch from Tranche 2 remain
+  wrapper classifications, and supplied-instance branch from Tranche 3 remain
   fixed; no broader MetaGraph factory redesign is authorized by default
 - **Authorization boundary**: only the library-created MetaGraphsNext target
   validator, constructor boundary, directly affected tests, and narrowly
@@ -684,6 +866,10 @@ freeze a new public interpretation.
 - [ ] Given the broad validator artifact named above, when this tranche is
       complete, then it is removed, narrowed, or otherwise prevented from
       surviving as a second unsupported accepted-family story
+- [ ] Given downstream tasking or handoff derived from this tranche, when it is
+      prepared, then it restates the active authorities, the reviewed
+      supplied-instance contract artifact, the direct red-state repros, and the
+      green-state gates instead of relying on a link-only parent reference
 - [ ] Given a forbidden regression shape that still returns the wrong concrete
       type for an accepted request, when verification is run, then the tranche
       fails rather than reporting a fake green
@@ -697,10 +883,10 @@ freeze a new public interpretation.
 - User story 10: the remediation stays inside the authorized contract-repair
   boundary
 
-## Tranche 4: Public contract synchronization and audit closure
+## Tranche 5: Public contract synchronization and audit closure
 
 **Type**: AFK
-**Blocked by**: Tranche 1, Tranche 2, Tranche 3
+**Blocked by**: Tranche 1, Tranche 3, Tranche 4
 
 ### Parent PRD
 
@@ -802,8 +988,8 @@ or stale public error stories.
   supplied-instance contract decision artifact, the remedial PRD, and this
   tranche file
 - **Settled decisions and non-negotiables**: the public names and wrapper
-  classifications remain fixed; the supplied-instance branch from Tranche 2 and
-  the library-created accepted-family repair from Tranche 3 must be treated as
+  classifications remain fixed; the supplied-instance branch from Tranche 3 and
+  the library-created accepted-family repair from Tranche 4 must be treated as
   settled input here
 - **Authorization boundary**: public docs, README, touched examples, and the
   direct proof artifacts needed to show the repaired contracts honestly are in
@@ -832,7 +1018,7 @@ or stale public error stories.
   `julia --project=docs docs/make.jl`, and any touched example runs
 - **Stop conditions**: stop and escalate if final public synchronization
   appears to require reopening the ratified public naming boundary, wrapper
-  classification, or the reviewed Tranche 2 contract branch
+  classification, or the reviewed Tranche 3 contract branch
 
 ### How to verify
 
@@ -863,6 +1049,11 @@ or stale public error stories.
 - [ ] Given the stale public artifacts named above, when this tranche is
       complete, then they are removed, narrowed, or otherwise prevented from
       surviving as a second public contract
+- [ ] Given downstream tasking, review, or audit derived from this tranche,
+      when it is prepared, then it restates the active authorities, the
+      reviewed supplied-instance contract artifact, the direct audit repros,
+      and the green-state gates instead of relying on a link-only parent
+      reference
 - [ ] Given a forbidden regression shape such as stale broad docs or weak proof
       artifacts, when verification is run, then the tranche fails rather than
       reporting a fake green
