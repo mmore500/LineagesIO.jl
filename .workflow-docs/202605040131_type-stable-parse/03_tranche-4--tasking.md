@@ -1,48 +1,66 @@
 ---
 date-created: 2026-05-06T08:48:28-0700
+date-revised: 2026-05-06T20:08:14-0700
 status: approved
 ---
 
-# Tasks for Tranche 4: approved public rollout and contract synchronization
+# Tasks for Tranche 4: authoritative public rollout completion and cross-surface rejection-path repair
 
-Tasking identifier: `20260506T0848--tranche-4-tasking`
+Tasking identifier: `20260506T200814--tranche-4-authoritative-tasking`
+
+This file supersedes the earlier contents of
+`.workflow-docs/202605040131_type-stable-parse/03_tranche-4--tasking.md`
+and the follow-on remediation file
+`.workflow-docs/202605040131_type-stable-parse/03_tranche-4a--remediation-tasking.md`.
+
+If this file is executed honestly, no further tranche-4 remediation tasking
+should be required. A single fresh implementation agent should be able to use
+this file, together with the parent PRD, tranche file, and tranche-3 decision
+record, as the sole authoritative tranche-4 execution handoff.
 
 Parent tranche: Tranche 4
 Parent PRD: `01_prd.md`
+Parent tranche decision record: `00_tranche3-public-surface-decision.md`
+Current implementation under repair: commit `c4bbaa5`
 
 ## Settled user decisions and environment baseline
 
-- `LineagesIO.read_lineages` is the ratified first-class package-owned public file or stream verb.
-- `LineagesIO.BuilderDescriptor` is the ratified first-class typed builder descriptor spelling.
-- `FileIO.load(...)` remains a compatibility-only wrapper.
-- `load_alife_table(...)` remains a repo-owned convenience wrapper over the same canonical owner. It is not the first-class package-owned file or stream surface, and it is not compatibility-only in the same sense as `FileIO.load(...)`.
-- No deprecations, renames, removals, export breaks, or signature breaks are authorized in this tranche. The rollout is additive only.
-- `canonical_load(...)`, the package-owned source descriptors, and the internal typed request types remain internal owner surfaces. This tranche must not export or document them as first-class public API.
-- The canonical parse invariant remains fixed: package-owned load surfaces normalize once, build authoritative tables first, and only then materialize graph or basenode results.
-- Authoritative `node_table` and `edge_table` semantics, retained annotation semantics, rooted-tree and rooted-network validation semantics, extension activation behavior, and stable asset destructuring order `(graph, basenode, node_table, edge_table)` remain non-negotiable.
-- Use the existing root environment and the existing `test/Project.toml`, `docs/Project.toml`, and `examples/Project.toml` environments. Do not add dependencies or edit dependency declarations directly without explicit user review.
-- Use the approved upstream workspace at `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/` for `FileIO`, `Tables`, `PhyloNetworks.jl`, and `MetaGraphsNext.jl` primary-source reading.
-- The repo-local `STYLE-vocabulary.md` is the higher-priority vocabulary authority for this tranche. It supersedes the bundled baseline because it now contains the 2026-05-06 ratifications for `read_lineages` and `BuilderDescriptor`.
-- The current repository already contains the internal typed owner and direct-owner tests from earlier tranches. This tranche must not retask owner repair work as if it were still red.
-
-The following public-surface contract details were explicitly ratified by the
-project owner in `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`
-and in the workflow thread that closed the tranche-4 review ambiguity. They
-are settled for downstream implementation in this tranche and are not left as
-implementation latitude:
-
-- `read_lineages` is a path-or-stream surface only. Raw text descriptors and internal source descriptor types remain internal and must not become part of the public contract in this tranche.
-- `read_lineages(path::AbstractString, args...; format = nothing)` is the package-owned path surface. Package-owned automatic source selection must recognize Newick safe extensions `.nwk`, `.newick`, `.tree`, `.tre`, and `.trees` as Newick, and `.csv` as alife CSV. The ambiguous `.txt` extension must not be auto-inferred; it requires explicit package-owned override via `format = :newick`.
-- `read_lineages(io::IO, args...; source_path = nothing, format = nothing)` is the package-owned stream surface. A stream load must succeed when `format` is supplied as `:newick` or `:alife`, or when `source_path` carries a non-ambiguous supported extension. A stream surface with neither explicit `format` nor an inferable `source_path` must fail with a contract-level `ArgumentError` instead of guessing.
-- The only package-owned `format` keyword values authorized in this tranche are `:newick` and `:alife`. `FileIO.File{...}` and `FileIO.Stream{...}` wrappers remain compatibility-only surfaces and must not become part of the `read_lineages` contract.
-- `BuilderDescriptor` must mirror the internal typed builder contract rather than invent a second builder model. The public typed descriptor shape for this tranche is `BuilderDescriptor(builder, HandleT[, ParentCollectionT])`.
-- `read_lineages(source, BuilderDescriptor(...))` is the first-class typed builder path. Raw `builder = fn` remains compatibility-only and must not be accepted on `read_lineages`.
-- `read_lineages(source, basenode)` is a typed supplied-basenode path only. It must translate directly to the internal typed supplied-basenode request. If `construction_handle_type(basenode)` is `nothing`, the package-owned first-class surface must fail honestly with a precise error that points the caller to the compatibility wrapper story or to implementing `construction_handle_type`. It must not silently route through the legacy single-parent compatibility fallback.
-- `load_alife_table(table, BuilderDescriptor(...); source_path = ...)` should be added in this tranche as the additive typed convenience-wrapper counterpart for in-memory Tables.jl input so the convenience wrapper stays aligned with the same canonical typed owner. Raw `builder = fn` remains supported on `load_alife_table(...)` as a compatibility or convenience surface.
+- `LineagesIO.read_lineages` is the ratified first-class package-owned public
+  file or stream verb.
+- `LineagesIO.BuilderDescriptor` is the ratified first-class typed builder
+  descriptor spelling.
+- `FileIO.load(...)` remains a retained compatibility wrapper.
+- `load_alife_table(...)` remains a repo-owned convenience wrapper.
+- No deprecations, renames, removals, export breaks, or success-path contract
+  changes are authorized in tranche 4. The rollout remains additive only.
+- The tranche-3 ratified signature and format-policy supplement remains in
+  force. This tranche must not reopen the `read_lineages` path or stream
+  signatures, the `format` policy, `.csv` and `.txt` behavior, the
+  `BuilderDescriptor(builder, HandleT[, ParentCollectionT])` shape, or the
+  honest typed supplied-basenode rule.
+- The settled rejection-path repair strategy for the remaining tranche-4 work
+  is a surface-neutral shared-owner and shared-extension repair.
+- For the shared rejection paths in scope here, do not thread entry-surface
+  identity into the shared owner or shared extension validation layer merely so
+  one message can say `read_lineages(...)` and another can say `load(...)`.
+- If a rejection path is genuinely shared by both `read_lineages(...)` and
+  `load(...)`, the shared layer must describe the capability boundary or
+  corrective model in surface-neutral terms.
+- If a message is truly unique to one entry surface, that message may remain
+  boundary-owned by that entry surface. This tasking does not authorize new
+  per-surface branching for the shared rejection paths listed below.
+- Use the existing root environment and the existing `test/Project.toml`,
+  `docs/Project.toml`, and `examples/Project.toml` environments. Do not add
+  dependencies or edit dependency declarations directly without explicit user
+  review.
+- Use the approved upstream workspace at
+  `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/`
+  for primary-source reading.
 
 ## Governance
 
-Explicit line-by-line reading is mandatory before implementation. All downstream work must read and conform to:
+Explicit line-by-line reading is mandatory before implementation. All
+downstream work must read and conform to:
 
 - `AGENTS.md`
 - `CONTRIBUTING.md`
@@ -60,11 +78,23 @@ Explicit line-by-line reading is mandatory before implementation. All downstream
 - `.workflow-docs/202605040131_type-stable-parse/01_prd.md`
 - `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`
 - `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`
-- `.workflow-docs/202605040131_type-stable-parse/03_tranche-4--tasking.md`
+- this tasking file
 
-The bundled style baseline under `/home/jeetsukumaran/site/service/env/start/workhost/resources/packages/shared/workhost-resources/configure/coding-agent-skills/development-policies/references/` was also read during this tasking run. It is byte-identical to the repo-local style files except for `STYLE-vocabulary.md`. The repo-local vocabulary file is newer and higher priority because it carries the ratified public identifiers `read_lineages` and `BuilderDescriptor`. Bundled `CONTRIBUTING.md` was not present there, so repo-local `CONTRIBUTING.md` remains authoritative for contribution guidance.
+The bundled style baseline under
+`/home/jeetsukumaran/site/service/env/start/workhost/resources/packages/shared/workhost-resources/configure/coding-agent-skills/development-policies/references/`
+was also read during this rewrite. It is byte-identical to the repo-local
+style files except for `STYLE-vocabulary.md`. The repo-local vocabulary file
+is higher priority because it carries the ratified public identifiers
+`read_lineages` and `BuilderDescriptor`. Bundled `CONTRIBUTING.md` was not
+present there, so repo-local `CONTRIBUTING.md` remains authoritative for
+contribution guidance.
 
-Workflow authorities used to produce this tasking were `development-policies` and `devflow-architecture-03--tranche-to-tasks`. Downstream implementation must preserve their pass-forward mandates, especially active-authority restatement, exact upstream-source naming, exact authorization boundaries, controlled vocabulary, primary-goal lock items, direct red-state repros, and failure-oriented verification.
+Workflow authorities used to produce this tasking were `development-policies`
+and `devflow-architecture-03--tranche-to-tasks`. Downstream implementation
+must preserve their pass-forward mandates, especially active-authority
+restatement, exact upstream-source naming, exact authorization boundaries,
+controlled vocabulary, primary-goal lock items, direct red-state repros, and
+failure-oriented verification.
 
 Upstream primary sources that must be read line by line for this tranche are:
 
@@ -74,227 +104,575 @@ Upstream primary sources that must be read line by line for this tranche are:
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/fileio.jl/src/types.jl`
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/Tables.jl/README.md`
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/Tables.jl/src/Tables.jl`
-
-These sources constrain the public rollout as follows:
-
-- `FileIO` owns the host-framework `load(...)` surface, format detection, ambiguity handling, `File{fmt}` wrappers, `Stream{fmt}` wrappers, and formatted dispatch. The package-owned public rollout must therefore keep `FileIO.load(...)` documented as a compatibility wrapper rather than as the canonical package-owned contract.
-- `Tables` owns the in-memory table contract used by `load_alife_table(...)`, including `Tables.istable`, `Tables.columns`, `Tables.columnnames`, `Tables.getcolumn`, and the optional typed `getcolumn(table, ::Type{T}, i, nm)` entrypoint. The convenience-wrapper story for in-memory alife data must therefore stay explicitly distinct from the file-or-stream `read_lineages` story.
-
-Conditional extension upstreams are mandatory if implementation touches extension-facing behavior, extension-facing public tests, or source-specific docs and examples that assert extension semantics:
-
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/PhyloNetworks.jl/README.md`
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/PhyloNetworks.jl/src/types.jl`
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/PhyloNetworks.jl/src/readwrite.jl`
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/PhyloNetworks.jl/src/manipulateNet.jl`
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/PhyloNetworks.jl/src/auxiliary.jl`
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/MetaGraphsNext.jl/README.md`
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/MetaGraphsNext.jl/src/metagraph.jl`
 - `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/MetaGraphsNext.jl/src/graphs.jl`
-- `/home/jeetsukumaran/site/storage/local/00_resources/codebases-and-documentation/MetaGraphsNext.jl/src/weights.jl`
 
-Controlled vocabulary from `STYLE-vocabulary.md` is mandatory. Use `basenode`, `package-owned public surface`, `compatibility wrapper`, `convenience wrapper`, `authoritative tables`, `materialized graph or basenode result`, `source descriptor`, `materialization descriptor`, `ownership boundary`, `green state`, `lock item`, `red-state repro`, `handoff packet`, and `verification artifact` consistently. Do not use `type stable` as shorthand for universal exact inference when the real contract is absence of package-owned erasure and runtime recovery in owned paths.
+These sources constrain the tranche as follows:
 
-Read-only git and shell commands may be used freely. Mutating git operations such as commit, merge, push, rebase, reset, and branch creation remain the human project owner's responsibility unless the user explicitly instructs otherwise.
+- `FileIO` owns `load(...)`, format inference, ambiguity handling,
+  `File{fmt}` wrappers, `Stream{fmt}` wrappers, and formatted dispatch. Local
+  shared-owner repair must not make the compatibility wrapper dishonest while
+  repairing the first-class package-owned surface.
+- `Tables` owns the in-memory table contract used by `load_alife_table(...)`.
+  The convenience-wrapper classification remains settled and must not drift
+  while this tranche finishes.
+- MetaGraphsNext upstream owns the concrete `MetaGraph` type and supplied
+  target story. Local validation messages may describe the library-created
+  target path versus the caller-supplied target path, but shared validation
+  must not falsely claim that one entry surface is the active one when the path
+  is reachable from both `read_lineages(...)` and `load(...)`.
+
+Controlled vocabulary from `STYLE-vocabulary.md` is mandatory. Use
+`package-owned public surface`, `compatibility wrapper`, `convenience wrapper`,
+`authoritative tables`, `materialized graph or basenode result`,
+`ownership boundary`, `lock item`, `red-state repro`, `handoff packet`, and
+`verification artifact` consistently.
+
+Read-only git and shell commands may be used freely. Mutating git operations
+such as commit, merge, push, rebase, reset, and branch creation remain the
+human project owner's responsibility unless the user explicitly instructs
+otherwise.
+
+## Revalidated current state
+
+This tranche is no longer a from-scratch public rollout. Most of tranche 4 is
+already landed and green.
+
+Revalidated green state:
+
+- `src/LineagesIO.jl` exports `read_lineages`, `BuilderDescriptor`, and
+  `load_alife_table(...)`.
+- `src/read_lineages.jl` implements the ratified package-owned path and stream
+  surfaces, format policy, typed builder boundary, and typed supplied-basenode
+  boundary.
+- `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, and the three
+  tranche-4 example scripts now tell the first-class package-owned happy-path
+  story rather than a wrapper-first story.
+- `test/core/read_lineages_public_surface.jl` exists and covers direct
+  first-class public-surface loads and several failure boundaries.
+- The current repository is green on the full tranche gates re-run during this
+  rewrite:
+  - `julia --project=test test/runtests.jl` passes with `1204/1204`
+  - `julia --project=docs docs/make.jl` passes
+  - `julia --project=examples examples/src/alife_standard_mwe.jl` passes
+  - `julia --project=examples examples/src/phylonetworks_mwe01.jl` passes
+  - `julia --project=examples examples/src/phylonetworks_mwe02.jl` passes
+
+Revalidated remaining red state:
+
+- The surviving tranche-4 problem is no longer missing exports, stale docs, or
+  missing first-class tests. It is a cross-surface rejection-path dishonesty
+  problem caused by a shared-owner anti-fix.
+- Shared rejection paths in `src/construction.jl` and
+  `ext/MetaGraphsNextIO.jl` were rewritten to repair the first-class
+  `read_lineages(...)` failures, but that shared rewrite made the retained
+  `load(...)` compatibility wrapper dishonest on the same paths.
+- The live six-command rejection matrix is:
+
+```text
+LineagesIO.read_lineages("test/fixtures/single_rooted_tree.nwk", Int)
+load("test/fixtures/single_rooted_tree.nwk", Int)
+LineagesIO.read_lineages("test/fixtures/rooted_network_with_annotations.nwk", Int)
+load("test/fixtures/rooted_network_with_annotations.nwk", Int)
+LineagesIO.read_lineages("test/fixtures/rooted_network_with_annotations.nwk", MetaGraph)
+load("test/fixtures/rooted_network_with_annotations.nwk", MetaGraph)
+```
+
+- Current observed surfaced wording from that matrix is:
+  - `read_lineages(tree, Int)` now says to implement the basenode-construction
+    method or use the first-class typed builder surface `read_lineages(source,
+    BuilderDescriptor(...))`, with a secondary compatibility note for raw
+    `builder = fn`
+  - `load(tree, Int)` surfaces the same message, which is dishonest for the
+    compatibility wrapper call
+  - `read_lineages(network, Int)` now says
+    `The package-owned node-type load surface for Int64 ...`
+  - `load(network, Int)` surfaces that same package-owned wording, which is
+    dishonest for the compatibility wrapper call
+  - `read_lineages(network, MetaGraph)` now says the unsupported path is the
+    first-class package-owned `read_lineages(source, MetaGraph)` library-created
+    target surface
+  - `load(network, MetaGraph)` surfaces that same first-class wording, which is
+    dishonest for the compatibility wrapper call
+- The root cause is structural:
+  - `src/construction.jl` now hard-codes first-class or package-owned wording
+    in shared owner paths that are reached by both entry surfaces
+  - `ext/MetaGraphsNextIO.jl` now hard-codes first-class `read_lineages(...)`
+    wording in a shared extension validation path reached by both entry
+    surfaces
+- Current test coverage is also asymmetric:
+  - `test/core/read_lineages_public_surface.jl` now contains direct first-class
+    rejection checks, but some of those assertions encode the obsolete
+    first-class-specific wording that the new surface-neutral strategy must
+    remove from shared paths
+  - `test/core/fileio_load_surfaces.jl` does not directly assert wrapper-path
+    rejection honesty for `load(..., Int)`
+  - `test/extensions/metagraphsnext_network_rejection.jl` checks the
+    first-class message directly, but its `load(..., MetaGraph)` assertion is
+    still too weak to catch the current cross-surface dishonesty
+
+This is therefore not a docs tranche, not an export tranche, and not a
+success-path tranche. It is the final owner-level rejection-path contract
+repair plus the missing two-surface proof.
 
 ## Primary-goal lock
 
-### Lock 1: the first-class package-owned public surface must exist as `LineagesIO.read_lineages`
+### Lock 1: ratified public-surface classification must remain in force
 
-- The work is not complete if `LineagesIO.read_lineages` is still missing, still internal-only, or still documented only through wrapper-first `load(...)` flows.
-- Direct red-state repro: `src/LineagesIO.jl` currently exports `load_alife_table` but does not export `read_lineages`, while `README.md` and `docs/src/index.md` still teach wrapper-first `load(...)` flows as the primary public story.
-- Closing tasks: 1, 2, 3, 4, and 5.
-- Verification artifact that must fail the old implementation or fake-fix shape: direct public-surface tests for `read_lineages` on path and stream sources plus user-facing docs and example updates that place `read_lineages` at the front of the package-owned story. Current code fails because the public name does not exist and the docs still lead with compatibility wrappers.
-
-### Lock 2: the first-class typed builder descriptor surface must exist as `LineagesIO.BuilderDescriptor`
-
-- The work is not complete if the tranche exposes `TypedBuilderLoadRequest` as public API, leaves the first-class typed builder story implicit, or accepts raw `builder = fn` on `read_lineages`.
-- Direct red-state repro: the typed builder path already exists internally through `TypedBuilderLoadRequest(...)`, but there is no public `BuilderDescriptor` name and current user-facing docs teach only the compatibility-only `load(src; builder = fn)` flow.
-- Closing tasks: 1, 2, 3, and 5.
-- Verification artifact that must fail the old implementation or fake-fix shape: public tests that use `BuilderDescriptor(builder, HandleT[, ParentCollectionT])` through `read_lineages` and `load_alife_table(...)`, combined with negative regressions proving that `read_lineages(...; builder = fn)` is rejected with a contract-level error that points callers toward `BuilderDescriptor`. Current code fails because `BuilderDescriptor` does not exist and `read_lineages` does not exist.
-
-### Lock 3: the first-class typed supplied-basenode boundary must stay honest
-
-- The work is not complete if `read_lineages(source, basenode)` silently falls back to the legacy supplied-basenode compatibility path when no explicit handle-type contract is available.
-- Direct red-state repro: `src/load_owner.jl` and `src/construction.jl` already distinguish between `BasenodeLoadRequest` and the legacy compatibility fallback. `BasenodeLoadRequest(basenode)` requires `construction_handle_type(basenode)`, while the compatibility wrappers still permit a single-parent fallback through `LegacyBasenodeLoadRequest`. A fake rollout could blur that distinction by routing `read_lineages` through compatibility normalization.
-- Closing tasks: 1, 2, and 5.
-- Verification artifact that must fail the old implementation or fake-fix shape: public tests that prove `read_lineages(source, basenode)` succeeds when `construction_handle_type(basenode)` exists, fails with a precise typed-boundary error when it does not, and does not silently inherit the legacy single-parent compatibility fallback. Current code fails because `read_lineages` does not exist and therefore there is no first-class typed boundary to verify.
-
-### Lock 4: `load_alife_table(...)` must stay explicitly a convenience wrapper
-
-- The work is not complete if `load_alife_table(...)` still reads as a policy-ambiguous public surface, if it is documented as the first-class package-owned file or stream surface, or if it is demoted inaccurately into the compatibility-only bucket.
-- Direct red-state repro: `src/alife_format.jl` and `docs/src/index.md` currently teach `load_alife_table(...)` directly, but the Tranche 3 decision record ratifies it specifically as a convenience wrapper over the canonical owner.
+- The work is not complete if `read_lineages`, `BuilderDescriptor`,
+  `load_alife_table(...)`, README/index/PhyloNetworks docs, or the runnable
+  examples regress back toward wrapper-first classification while this repair is
+  being made.
+- Historical red state: missing `read_lineages` export, missing
+  `BuilderDescriptor`, wrapper-first docs, and wrapper-first examples.
+- Current status: revalidated green. This lock is now a preservation lock.
+- Owner and invariant under protection: the repo-owned public contract must
+  keep one first-class package-owned public surface, one convenience wrapper,
+  and retained compatibility wrappers without reopening the tranche-3
+  classification decision.
 - Closing tasks: 1, 2, and 3.
-- Verification artifact that must fail the old implementation or fake-fix shape: direct docs language and public tests that classify `load_alife_table(...)` as a convenience wrapper, keep its existing convenience behavior, and add the additive typed `BuilderDescriptor` convenience path without relabeling it as the first-class file or stream surface. Current code fails because the ratified classification is not yet rolled out anywhere user-facing.
+- Verification artifact: revalidated exports, revalidated docs and examples,
+  and the standing green-state gates.
 
-### Lock 5: the wrapper-first public contract must be removed from docs and examples
+### Lock 2: the typed builder boundary must stay honest
 
-- The work is not complete if `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, or the runnable examples still present `FileIO.load(...)` or extension-specific wrapper flows as the primary public happy path.
-- Direct red-state repro: `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, `examples/src/alife_standard_mwe.jl`, `examples/src/phylonetworks_mwe01.jl`, and `examples/src/phylonetworks_mwe02.jl` all currently lead with compatibility-wrapper flows.
-- Closing tasks: 3, 4, and 5.
-- Verification artifact that must fail the old implementation or fake-fix shape: docs review plus runnable examples that use `read_lineages` as the first-class public story, while keeping `FileIO.load(...)` documented only as compatibility-only and `load_alife_table(...)` as the in-memory convenience wrapper. Current code fails because the examples and docs are still wrapper-first.
+- The work is not complete if `read_lineages(...; builder = fn)` becomes
+  accepted, if the first-class typed builder story regresses, or if the shared
+  rejection-path repair breaks the current honest builder boundary.
+- Historical red state: no public `BuilderDescriptor`, no `read_lineages`, and
+  wrapper-only raw builder guidance.
+- Current status: revalidated green.
+- Owner and invariant under protection: `read_lineages` owns the typed builder
+  path; raw `builder = fn` remains compatibility-only.
+- Closing tasks: 1, 2, and 3.
+- Verification artifact: retained first-class builder rejection tests plus the
+  six-command matrix for the shared `tree, Int` failure path.
 
-### Lock 6: the rollout must stay additive-only and preserve retained wrapper support
+### Lock 3: the typed supplied-basenode boundary must stay honest
 
-- The work is not complete if the tranche removes or deprecates existing wrapper surfaces, broadens the authorization boundary beyond the ratified names, or changes extension-facing behavior while updating the public story.
-- Direct red-state repro: the current repository still needs the new public surface, but a fake rollout could achieve that by renaming or deprecating retained wrappers instead of adding the ratified surface alongside them.
-- Closing tasks: 1, 2, 3, 4, and 5.
-- Verification artifact that must fail the old implementation or fake-fix shape: retained FileIO-wrapper parity tests, retained `load_alife_table(...)` compatibility and convenience tests, extension public-surface parity tests, and review of touched exports and docs proving that no deprecation, removal, or renamed wrapper story was smuggled in. Current code fails because the additive public rollout is still absent.
+- The work is not complete if `read_lineages(source, basenode)` regresses to
+  the legacy single-parent compatibility fallback, or if the final tranche-4
+  repair blurs the distinction between the first-class typed boundary and the
+  compatibility wrapper boundary.
+- Historical red state: no first-class `read_lineages` basenode boundary.
+- Current status: revalidated green.
+- Owner and invariant under protection: the first-class supplied-basenode path
+  remains typed and honest; the compatibility wrapper retains the legacy
+  fallback story.
+- Closing tasks: 1, 2, and 3.
+- Verification artifact: retained supplied-basenode tests in
+  `test/core/read_lineages_public_surface.jl` and the standing full test gate.
+
+### Lock 4: docs, examples, and public-contract prose must stay synchronized
+
+- The work is not complete if the current synced docs/examples are reopened
+  into wrapper-first contract drift while this repair is underway.
+- Historical red state: README/index/PhyloNetworks docs and examples taught
+  wrapper-first public flows.
+- Current status: revalidated green.
+- Owner and invariant under protection: the user-facing ownership story must
+  stay aligned with the tranche-3 decision and the shipped tranche-4 happy
+  path.
+- Closing tasks: 1 and 3.
+- Verification artifact: README/docs/example revalidation plus docs/examples
+  gate runs.
+
+### Lock 5: cross-surface rejection honesty must hold in both directions
+
+- The work is not complete if any rejection path shared by `read_lineages(...)`
+  and `load(...)` identifies the sibling entry surface as the active contract.
+- Direct red-state repro matrix: the six commands listed in the current-state
+  section above.
+- Current bad behavior:
+  - `load(tree, Int)` currently surfaces a first-class `read_lineages(...,
+    BuilderDescriptor(...))` correction path as if it were the active surface
+  - `load(network, Int)` currently says `package-owned node-type load surface`
+  - `load(network, MetaGraph)` currently says the unsupported path is
+    `read_lineages(source, MetaGraph)` and recommends `read_lineages(source,
+    my_graph)`
+- Owner and invariant under repair: shared rejection paths must be truthful for
+  both the first-class package-owned surface and the retained compatibility
+  wrapper.
+- Closing tasks: 1, 2, and 3.
+- Verification artifact: the six-command matrix plus direct two-surface tests
+  that fail both the old wrapper-first drift and the current “fix one surface /
+  break the sibling surface” anti-fix.
+
+### Lock 6: shared-owner and shared-extension repair must be surface-neutral
+
+- The work is not complete if the fix rewrites one shared message to name
+  `read_lineages(...)`, `load(...)`, `package-owned`, or `first-class` as the
+  active surface for a path that is actually shared by both entrypoints.
+- Direct red-state sites:
+  - `src/construction.jl` shared add-child rejection and node-type rejection
+    helpers
+  - `ext/MetaGraphsNextIO.jl` shared `MetaGraph` multi-parent validation
+- Anti-fix shapes that must fail:
+  - repairing `read_lineages(...)` by making `load(...)` dishonest
+  - repairing `load(...)` by making `read_lineages(...)` wrapper-first again
+  - threading entry-surface identity into the shared owner merely so the shared
+    path can print different strings
+- Owner and invariant under repair: the shared layer owns capability and
+  corrective-model wording; it must not impersonate one entrypoint.
+- Closing tasks: 1 and 3.
+- Verification artifact: direct code review of the touched shared layers plus
+  the six-command matrix.
+
+### Lock 7: direct first-class rejection proof must match the settled strategy
+
+- The work is not complete if the first-class tests are left in a state where
+  they still encode the obsolete first-class-specific wording for shared paths,
+  or if they are weakened to generic checks that no longer protect the contract.
+- Direct red-state repros:
+  - `test/core/read_lineages_public_surface.jl` currently expects the shared
+    network `Int` rejection to say `package-owned node-type load surface`
+  - `test/extensions/metagraphsnext_network_rejection.jl` currently expects the
+    shared `MetaGraph` rejection to say `read_lineages(source, MetaGraph)` and
+    `read_lineages(source, my_graph)`
+- Owner and invariant under repair: first-class tests must assert rejection
+  honesty for the first-class surface without forcing shared-layer messages to
+  impersonate that surface.
+- Closing tasks: 2 and 3.
+- Verification artifact: updated first-class rejection tests that assert
+  surface-neutral honesty on shared paths while preserving boundary-specific
+  first-class checks where the path is truly first-class-owned.
+
+### Lock 8: direct compatibility-wrapper rejection proof must exist independently
+
+- The work is not complete if wrapper-path rejection dishonesty can still
+  survive behind a green suite because wrapper tests assert only generic failure
+  markers.
+- Direct red-state repros:
+  - `test/core/fileio_load_surfaces.jl` currently lacks direct `load(..., Int)`
+    rejection assertions for the tree and rooted-network cases
+  - `test/extensions/metagraphsnext_network_rejection.jl` currently checks only
+    `multi-parent` on the `load(..., MetaGraph)` path
+- Owner and invariant under repair: retained compatibility wrappers are still
+  part of the supported contract and must be tested honestly on their own
+  boundary.
+- Closing tasks: 2 and 3.
+- Verification artifact: direct wrapper-path rejection tests for
+  `load(tree, Int)`, `load(network, Int)`, and `load(network, MetaGraph)` that
+  fail the current shared-message anti-fix.
 
 ## Handoff packet
 
 - Active authorities:
-  `AGENTS.md`, `CONTRIBUTING.md`, `STYLE-agent-handoffs.md`, `STYLE-architecture.md`, `STYLE-docs.md`, `STYLE-git.md`, `STYLE-julia.md`, `STYLE-makie.md`, `STYLE-upstream-contracts.md`, `STYLE-verification.md`, `STYLE-vocabulary.md`, `STYLE-workflow-docs.md`, `STYLE-writing.md`, `.workflow-docs/202605040131_type-stable-parse/01_prd.md`, `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`, `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`, and this tasking file.
+  `AGENTS.md`, `CONTRIBUTING.md`, `STYLE-agent-handoffs.md`,
+  `STYLE-architecture.md`, `STYLE-docs.md`, `STYLE-git.md`,
+  `STYLE-julia.md`, `STYLE-makie.md`, `STYLE-upstream-contracts.md`,
+  `STYLE-verification.md`, `STYLE-vocabulary.md`,
+  `STYLE-workflow-docs.md`, `STYLE-writing.md`,
+  `.workflow-docs/202605040131_type-stable-parse/01_prd.md`,
+  `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`,
+  `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`,
+  and this tasking file
 - Parent documents:
-  `.workflow-docs/202605040131_type-stable-parse/01_prd.md`, `.workflow-docs/202605040131_type-stable-parse/02_tranches.md`, `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`, and this file.
+  `01_prd.md`, `02_tranches.md`,
+  `00_tranche3-public-surface-decision.md`, and this tasking file
 - Settled decisions and non-negotiables:
-  `read_lineages` is the ratified first-class package-owned public file or stream verb; `BuilderDescriptor` is the ratified first-class typed builder descriptor spelling; `FileIO.load(...)` remains compatibility-only; `load_alife_table(...)` remains a convenience wrapper; no deprecations, removals, or public breakage are authorized; source descriptors and internal typed request names remain internal.
+  `read_lineages` is first-class; `BuilderDescriptor` is first-class;
+  `FileIO.load(...)` remains compatibility-only; `load_alife_table(...)`
+  remains a convenience wrapper; additive-only rollout remains in force; the
+  settled tranche-4 rejection-path strategy is a surface-neutral shared-owner
+  and shared-extension repair
 - Authorization boundary:
-  additive rollout only across repo-owned API, docs, README, examples, exports, and public-surface tests; no deprecations, renames, removals, or broader vocabulary changes.
+  preserve the landed public rollout and green docs/examples/tests; repair only
+  the remaining shared rejection-path dishonesty and strengthen direct
+  rejection-path proof on both entry surfaces; no deprecations, renames,
+  removals, export changes, or success-path behavior changes
 - Current-state diagnosis:
-  the internal typed owner already exists and is directly tested; `src/LineagesIO.jl` still does not export `read_lineages` or `BuilderDescriptor`; user-facing docs and examples remain wrapper-first; `load_alife_table(...)` is already exported but not yet repositioned as a convenience wrapper; the first-class typed supplied-basenode boundary still needs explicit rollout rather than compatibility fallback.
+  exports, docs, examples, first-class rollout, and green gates are landed;
+  the remaining red state is cross-surface rejection dishonesty in shared owner
+  and shared extension paths plus insufficient wrapper-path rejection proof
 - Primary-goal lock:
-  locks 1 through 6 above.
+  locks 1 through 8 above
 - Direct red-state repros:
-  missing `read_lineages` and `BuilderDescriptor` exports; wrapper-first docs and examples; no public-surface tests for the ratified names; no first-class typed supplied-basenode boundary at the public surface.
+  the six-command rejection matrix and the weak wrapper-test gaps listed above
 - Owner and invariant under repair:
-  the repo-owned public load contract must name one first-class package-owned surface, keep wrapper boundaries explicit, and preserve the authoritative-table-first invariant without reopening typed-core ownership.
+  shared rejection paths reachable from both `read_lineages(...)` and
+  `load(...)` must stay truthful for both entry surfaces at once; they must
+  describe capability boundaries in surface-neutral terms rather than
+  impersonating one entrypoint
 - Exact files or surfaces in scope:
-  `src/LineagesIO.jl`, a new package-owned public-surface file for `read_lineages`, `src/load_owner.jl` only as needed for additive public bridging, `src/alife_format.jl` only as needed for additive convenience-wrapper typed-descriptor support, `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, `examples/src/alife_standard_mwe.jl`, `examples/src/phylonetworks_mwe01.jl`, `examples/src/phylonetworks_mwe02.jl`, and the public-surface test files created or updated to prove the rollout.
-- Exact files or surfaces out of scope:
-  deprecations, removals, export breaks, changes to the canonical owner boundary beyond additive bridging, changes to authoritative table semantics, retained annotation semantics, stable asset destructuring order, or extension-core ownership; internal source descriptor promotion; public raw-text read surface design.
+  `src/construction.jl`, `ext/MetaGraphsNextIO.jl`,
+  `test/core/read_lineages_public_surface.jl`,
+  `test/core/fileio_load_surfaces.jl`,
+  `test/extensions/metagraphsnext_network_rejection.jl`, and `test/runtests.jl`
+  only if new file inclusion becomes necessary
+- Exact files or surfaces requiring revalidation even if they are not primary
+  edit targets:
+  `src/read_lineages.jl`, `src/load_compat.jl`, `src/fileio_integration.jl`,
+  `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`,
+  `examples/src/alife_standard_mwe.jl`,
+  `examples/src/phylonetworks_mwe01.jl`,
+  `examples/src/phylonetworks_mwe02.jl`
+- Exact files or surfaces out of scope unless revalidation contradicts the
+  current diagnosis:
+  exports, `src/load_owner.jl`, `src/alife_format.jl`, README/docs/example
+  churn, PhyloNetworks extension behavior, public signature changes,
+  deprecations, removals, authoritative table semantics, retained annotation
+  semantics, stable asset order, and success-path behavior
 - Required upstream primary sources:
-  the exact `FileIO`, `Tables`, and conditional extension sources named in the Governance section.
+  the exact `FileIO`, `Tables`, and `MetaGraphsNext` sources named in the
+  Governance section
 - Green-state gates:
-  `julia --project=test test/runtests.jl`; `julia --project=docs docs/make.jl`; `julia --project=examples examples/src/alife_standard_mwe.jl`; `julia --project=examples examples/src/phylonetworks_mwe01.jl`; `julia --project=examples examples/src/phylonetworks_mwe02.jl`.
+  the six-command rejection matrix with honest surfaced wording on both entry
+  surfaces; `julia --project=test test/runtests.jl`;
+  `julia --project=docs docs/make.jl`;
+  `julia --project=examples examples/src/alife_standard_mwe.jl`;
+  `julia --project=examples examples/src/phylonetworks_mwe01.jl`;
+  `julia --project=examples examples/src/phylonetworks_mwe02.jl`
 - Stop conditions:
-  stop if implementation appears to require a different public name, deprecations, removals, or broader vocabulary changes; stop if the first-class supplied-basenode path cannot be rolled out honestly without inventing a new public spelling or reviving the legacy compatibility fallback; stop if the extension-facing public tests or docs reveal a deeper behavior break that belongs to a different tranche than this public rollout.
+  stop if the only apparent repair is to introduce per-surface branching in the
+  shared owner or shared extension layer; stop if a new current-state
+  revalidation shows docs/examples or public-surface classification are no
+  longer green; stop if PhyloNetworks reveals a live shared rejection-path
+  drift that would broaden this tranche beyond the scope documented here
 
 ## Required revalidation before implementation
 
-- Read the parent tranche, parent PRD, and Tranche 3 decision record in full.
-- Read `src/LineagesIO.jl`, `src/load_owner.jl`, `src/load_compat.jl`, `src/fileio_integration.jl`, and `src/alife_format.jl` in full.
-- Read `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, `examples/src/alife_standard_mwe.jl`, `examples/src/phylonetworks_mwe01.jl`, and `examples/src/phylonetworks_mwe02.jl` in full.
-- Read `test/core/canonical_load_owner.jl`, `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, `test/extensions/phylonetworks_canonical_owner.jl`, `test/extensions/metagraphsnext_canonical_owner.jl`, and `test/runtests.jl` in full.
-- Re-read the exact `FileIO` and `Tables` primary sources listed above in full before changing the public surface, and re-read the conditional extension upstream sources if extension-facing docs, examples, or public-surface tests are touched.
-- Re-check that `src/LineagesIO.jl` still exports `load_alife_table` but not `read_lineages` or `BuilderDescriptor`.
-- Re-check that `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`, and the three runnable examples still present wrapper-first flows as the primary public story.
-- Re-check that `src/load_owner.jl` still defines the typed internal source descriptors, `TypedBuilderLoadRequest`, and the typed `BasenodeLoadRequest` boundary, and that `src/construction.jl` still contains the legacy supplied-basenode compatibility path for retained wrapper surfaces only.
-- Re-check that `test/core/canonical_load_owner.jl` still proves direct-owner typed entry through `canonical_load(...)`, and that there is still no public-surface test file for `read_lineages`.
-- If any of those revalidation points no longer hold, stop and revise this tasking before changing code.
+- Read the parent PRD, parent tranche file, tranche-3 decision record, and
+  this tasking file in full.
+- Read `src/LineagesIO.jl`, `src/read_lineages.jl`, `src/construction.jl`,
+  `src/load_compat.jl`, `src/fileio_integration.jl`, and
+  `ext/MetaGraphsNextIO.jl` in full.
+- Read `README.md`, `docs/src/index.md`, `docs/src/phylonetworks.md`,
+  `examples/src/alife_standard_mwe.jl`,
+  `examples/src/phylonetworks_mwe01.jl`, and
+  `examples/src/phylonetworks_mwe02.jl` in full.
+- Read `test/core/read_lineages_public_surface.jl`,
+  `test/core/fileio_load_surfaces.jl`,
+  `test/extensions/metagraphsnext_network_rejection.jl`, and
+  `test/runtests.jl` in full.
+- Re-read the exact upstream primary sources named in the Governance section
+  before changing rejection-path wording or tests.
+- Re-run the exact six-command rejection matrix named in the current-state
+  section before editing.
+- Re-check that the docs, examples, and full green-state gates remain green
+  before changing code, so this tranche starts from an honest shipped state.
+- Re-check that the current first-class rejection tests still encode the
+  obsolete shared-path wording expectations named in Lock 7.
+- Re-check that the current wrapper-path tests are still too weak in the ways
+  named in Lock 8.
+- If any of those revalidation points no longer hold, stop and revise this
+  tasking before changing code.
 
 ## Tranche execution rule
 
-This tranche is a public rollout and contract-synchronization tranche. It may add exports, additive bridging code, public tests, docs, and examples needed to ship the ratified names, but it must begin and end in a green, policy-compliant state and it must not reopen the already-settled design decisions from the PRD or Tranche 3.
+This tranche begins from an already-shipped tranche-4 happy path. Execution
+must preserve that green public rollout and repair only the remaining
+cross-surface rejection dishonesty plus the missing wrapper-path proof.
 
 When this tranche is complete:
 
-- `LineagesIO.read_lineages` is implemented, exported, tested, and documented as the first-class package-owned file or stream surface.
-- `LineagesIO.BuilderDescriptor` is implemented, exported, tested, and documented as the first-class typed builder descriptor surface.
-- `FileIO.load(...)` remains supported and documented as compatibility-only.
-- `load_alife_table(...)` remains supported and documented as the in-memory convenience wrapper over the same canonical owner.
-- Public docs, runnable examples, and direct public-surface tests all tell the same ownership story.
+- the landed first-class public rollout remains intact
+- the landed docs/examples/public classification remain intact
+- shared owner and shared extension rejection paths in scope are surface-neutral
+- both `read_lineages(...)` and `load(...)` are honest on the six-command
+  rejection matrix
+- first-class rejection tests protect the right contract
+- compatibility-wrapper rejection tests protect the sibling contract directly
+- no further tranche-4 remediation tasking should be needed
 
 ## Non-negotiable execution rules
 
-- Do not export or document `canonical_load(...)`, source descriptor types, `TypedBuilderLoadRequest`, `BasenodeLoadRequest`, or other internal owner types as first-class public API.
-- Do not accept raw `builder = fn` on `read_lineages`. Keep that raw builder surface compatibility-only.
-- Do not silently route `read_lineages(source, basenode)` through the legacy supplied-basenode compatibility path when `construction_handle_type(basenode)` is unavailable. Fail honestly instead.
-- Do not require FileIO `File{fmt}` or `Stream{fmt}` wrappers on `read_lineages`. Those remain compatibility surfaces.
-- Do not remove, rename, or deprecate `FileIO.load(...)`, `load_alife_table(...)`, `load(src, NodeT)`, `load(src, basenode)`, `load(src; builder = fn)`, or extension-specific wrapper flows in this tranche.
-- Do not change authoritative table semantics, retained annotation semantics, rooted-network scheduling and validation semantics, stable asset destructuring order, or extension activation behavior while updating the public contract.
-- Do not promote internal raw-text descriptors or invent a new public raw-text read surface in this tranche.
-- Do not replace contract-level verification with grep checks, docs-string policing, or helper-only tests. These may supplement but must not replace direct public-surface verification.
+- Do not reopen tranche-4 naming, format policy, builder shape, or
+  supplied-basenode design.
+- Do not repair the shared rejection paths by threading entry-surface identity
+  through the shared owner or shared extension layer.
+- Do not hard-code `read_lineages(...)`, `load(...)`, `package-owned`, or
+  `first-class` as the active surface in any shared rejection path listed in
+  this tasking.
+- Do not rewrite `src/load_compat.jl` or `src/fileio_integration.jl` as the
+  primary repair path unless revalidation proves a rejection path unique to the
+  compatibility wrapper still remains stale after the shared surface-neutral
+  repair.
+- Do not change success-path behavior, authoritative table semantics, retained
+  annotation semantics, stable asset destructuring order, extension activation,
+  or green docs/examples while repairing messages.
+- Do not fix this only by editing tests while leaving runtime wording
+  dishonest.
+- Do not “fix” the first-class tests by weakening them to generic
+  `multi-parent` or `ArgumentError` checks that would miss the current anti-fix
+  shape.
+- Do not broaden this tranche into README/docs/example churn unless current
+  revalidation contradicts the green state recorded above.
+- Do not introduce deprecations, removals, export changes, or wrapper-surface
+  policy changes.
 
 ## Concrete anti-patterns or removal targets
 
-- missing `read_lineages` and `BuilderDescriptor` exports
-- wrapper-first public contract wording in `README.md`, `docs/src/index.md`, and `docs/src/phylonetworks.md`
-- wrapper-first runnable examples in `examples/src/alife_standard_mwe.jl`, `examples/src/phylonetworks_mwe01.jl`, and `examples/src/phylonetworks_mwe02.jl`
-- any attempt to expose `TypedBuilderLoadRequest` or `canonical_load(...)` as public API instead of introducing the ratified names
-- any first-class `read_lineages` implementation that silently inherits the legacy supplied-basenode compatibility fallback
-- any docs update that blurs `compatibility wrapper`, `convenience wrapper`, and `package-owned public surface` back together
-- any additive rollout that quietly broadens into deprecations, removals, or export breaks
+- any shared-owner or shared-extension message that repairs one entry surface
+  by lying about the sibling surface
+- `src/construction.jl` helper wording that labels shared node-type failures as
+  `package-owned` or `first-class`
+- `ext/MetaGraphsNextIO.jl` validation wording that says the active shared path
+  is `read_lineages(source, MetaGraph)` or `load(source, MetaGraph)`
+- first-class rejection tests that force shared messages to impersonate the
+  first-class surface
+- compatibility-wrapper rejection tests that assert only generic substrings and
+  therefore allow shared dishonesty to survive
+- any implementation that treats the continued green docs/examples state as
+  permission to skip the six-command rejection matrix
 
 ## Failure-oriented verification
 
-- Add direct public-surface tests proving that `read_lineages` exists and supports the ratified path and stream stories for Newick and alife file-backed or stream-backed sources. Current code must fail because the public name does not exist.
-- Add direct negative regressions proving that:
-  - `read_lineages("tree.txt")` without `format = :newick` fails with a precise package-owned ambiguity error.
-  - `read_lineages(io)` without `format` or an inferable `source_path` fails with a precise package-owned stream-format error.
-  - `read_lineages(source; builder = fn)` is rejected and points callers to `BuilderDescriptor`.
-  - `read_lineages(source, basenode)` fails honestly when `construction_handle_type(basenode)` is unavailable instead of silently inheriting the compatibility fallback.
-- Add direct `BuilderDescriptor` public tests proving that `read_lineages(source, BuilderDescriptor(...))` and `load_alife_table(table, BuilderDescriptor(...))` reach the typed canonical owner and preserve multi-parent builder behavior.
-- Add direct extension public-surface parity tests proving that `read_lineages(path, HybridNetwork)`, `read_lineages(path, HybridNetwork())`, `read_lineages(path, MetaGraph)`, and `read_lineages(path, metagraph_instance)` preserve the same authoritative tables and extension-facing behavior as the underlying canonical-owner and retained-wrapper paths.
-- Keep the retained `FileIO.load(...)` parity tests, `load_alife_table(...)` tests, canonical-owner tests, and extension activation or canonical-owner parity tests green so the additive rollout cannot hide behind the new public surface alone.
-- Run `julia --project=test test/runtests.jl`.
-- Run `julia --project=docs docs/make.jl`.
-- Run `julia --project=examples examples/src/alife_standard_mwe.jl`.
-- Run `julia --project=examples examples/src/phylonetworks_mwe01.jl`.
-- Run `julia --project=examples examples/src/phylonetworks_mwe02.jl`.
+Run and inspect the following exact matrix:
+
+```julia
+LineagesIO.read_lineages("test/fixtures/single_rooted_tree.nwk", Int)
+load("test/fixtures/single_rooted_tree.nwk", Int)
+LineagesIO.read_lineages("test/fixtures/rooted_network_with_annotations.nwk", Int)
+load("test/fixtures/rooted_network_with_annotations.nwk", Int)
+LineagesIO.read_lineages("test/fixtures/rooted_network_with_annotations.nwk", MetaGraph)
+load("test/fixtures/rooted_network_with_annotations.nwk", MetaGraph)
+```
+
+The repaired matrix must satisfy all of the following:
+
+- the shared `tree, Int` rejection must not present either `read_lineages(...)`
+  or `load(...; builder = fn)` as the active surface for that call path
+- the shared `tree, Int` rejection may mention `BuilderDescriptor(...)` and the
+  retained raw builder callback availability, but only in a surface-neutral way
+- the shared network `Int` rejection must not say `package-owned node-type load
+  surface`, `first-class`, or ``load(src, Int64)``
+- the shared `MetaGraph` rejection must not say
+  `read_lineages(source, MetaGraph)` or `load(source, MetaGraph)` as the
+  active surface
+- the shared `MetaGraph` rejection may describe the library-created versus
+  caller-supplied `MetaGraph` construction model, and may mention retained
+  wrapper availability secondarily, but not as the active path identity
+- the three `read_lineages(...)` calls may share the same surface-neutral
+  message text with the three `load(...)` calls where the rejection path is
+  truly shared
+- the implementation completion report must include the post-fix surfaced
+  wording for all six commands above, not just “tests passed”
+
+Full green-state gates remain mandatory:
+
+- `julia --project=test test/runtests.jl`
+- `julia --project=docs docs/make.jl`
+- `julia --project=examples examples/src/alife_standard_mwe.jl`
+- `julia --project=examples examples/src/phylonetworks_mwe01.jl`
+- `julia --project=examples examples/src/phylonetworks_mwe02.jl`
 
 ## Tasks
 
-### 1. Introduce the ratified public owner and typed builder surface
+### 1. Repair the shared owner and shared MetaGraphsNext rejection paths with surface-neutral wording
 
-**Type**: WRITE
-**Output**: `LineagesIO.read_lineages` and `LineagesIO.BuilderDescriptor` exist as exported public API, and the first-class package-owned file or stream surface delegates directly into the canonical typed owner without exposing internal owner names.
-**Depends on**: none
-**Positive contract**: Implement and export `read_lineages` and `BuilderDescriptor`. Support `read_lineages(path::AbstractString, args...; format = nothing)` and `read_lineages(io::IO, args...; source_path = nothing, format = nothing)` for tables-only, node-type, supplied-basenode, and typed builder flows. Recognize `.nwk`, `.newick`, `.tree`, `.tre`, and `.trees` as Newick and `.csv` as alife. Require `format = :newick` for `.txt`. Require either explicit `format` or an inferable `source_path` for streams. Support `BuilderDescriptor(builder, HandleT[, ParentCollectionT])` as the public typed builder descriptor. Add the additive convenience-wrapper overload `load_alife_table(table, BuilderDescriptor(...); source_path = ...)` so in-memory Tables.jl input can use the same typed builder path.
-**Negative contract**: Do not export or publicly document `canonical_load`, internal source descriptors, `TypedBuilderLoadRequest`, or `BasenodeLoadRequest`. Do not accept raw `builder = fn` on `read_lineages`. Do not silently route `read_lineages(source, basenode)` through the legacy compatibility fallback when `construction_handle_type(basenode)` is unavailable. Do not require FileIO wrapper types on `read_lineages`. Do not add deprecations, removals, or export breaks.
-**Files**: `src/LineagesIO.jl`, new `src/read_lineages.jl`, `src/load_owner.jl` only if a narrow additive bridge or helper is required, `src/alife_format.jl`
-**Out of scope**: `src/fileio_integration.jl`, `src/load_compat.jl`, public docs, examples, tests, deprecations, removals, internal owner redesign
-**Verification**: Task 2 must be able to prove the new exports exist and that the typed public surface behaves as specified. The old implementation must fail because neither public name exists. At minimum, leave direct public call sites possible for `read_lineages("tree.nwk")`, `read_lineages("phylogeny.csv")`, `read_lineages(io; format = :newick)`, `read_lineages(path, NodeT)`, `read_lineages(path, basenode)` when `construction_handle_type` exists, and `read_lineages(path, BuilderDescriptor(...))`.
+**Type**: WRITE  
+**Output**: the shared rejection paths in `src/construction.jl` and
+`ext/MetaGraphsNextIO.jl` describe the capability gap or corrective
+construction model in surface-neutral terms that are honest for both
+`read_lineages(...)` and `load(...)`.  
+**Depends on**: none  
+**Positive contract**:
 
-Create one additive public-surface file and wire it from `src/LineagesIO.jl`. Use package-owned format selection rather than FileIO host wrappers for the new surface. Keep the source descriptors internal and translate public calls into the existing internal typed request objects. Treat path and stream source selection as a public contract, not as an implementation detail left for the next agent to invent.
+- Repair the shared `tree, Int`, shared network `Int`, and shared
+  `MetaGraph` rejection paths so they no longer impersonate either entry
+  surface.
+- For shared node-type failures, prefer a neutral phrase such as
+  `node-type construction path` or an equivalent capability description over
+  `package-owned node-type load surface` or ``load(src, NodeT)` surface``.
+- For the shared `MetaGraph` failure, describe the library-created target path
+  versus the caller-supplied empty target path in neutral terms without naming
+  either `read_lineages(...)` or `load(...)` as the active entry surface.
+- If the shared `tree, Int` message needs to mention builder alternatives,
+  present them as available corrective models without pretending one is the
+  active surface for the current call path.
+- Keep the landed first-class unique boundary messages in `src/read_lineages.jl`
+  intact where the path is actually first-class-owned and not shared.
 
-### 2. Lock core public-surface behavior and compatibility boundaries
+**Negative contract**:
 
-**Type**: TEST
-**Output**: The test suite directly proves the first-class `read_lineages` and `BuilderDescriptor` behavior, while retained wrappers and convenience wrappers stay green.
-**Depends on**: 1
-**Positive contract**: Add direct public-surface tests that cover `read_lineages` on Newick safe extensions, `read_lineages` on alife `.csv`, explicit `format = :newick` for `.txt`, stream loads through `format` or `source_path`, node-type targets, typed supplied-basenode targets, and typed builder targets. Add additive typed convenience-wrapper tests for `load_alife_table(table, BuilderDescriptor(...))`. Keep retained wrapper parity proofs for `FileIO.load(...)` and current `load_alife_table(...)` flows.
-**Negative contract**: Do not rely on helper-only canonical-owner tests as the sole proof for the new public surface. Do not let `read_lineages` inherit raw `builder = fn` or legacy supplied-basenode fallback behavior silently. Do not use generic `MethodError` acceptance where a contract-level `ArgumentError` is available and derivable.
-**Files**: new `test/core/read_lineages_public_surface.jl`, `test/core/canonical_load_owner.jl`, `test/core/fileio_load_surfaces.jl`, `test/core/alife_format.jl`, `test/runtests.jl`
-**Out of scope**: user-facing docs and examples, extension-specific docs, export changes beyond those from task 1
-**Verification**: Add direct negative regressions proving that `read_lineages("tree.txt")` without `format = :newick` fails, `read_lineages(io)` without enough format information fails, `read_lineages(source; builder = fn)` is rejected with a `BuilderDescriptor`-pointing error, and `read_lineages(source, basenode)` fails honestly when `construction_handle_type` is unavailable. Keep retained wrapper parity tests green so the additive rollout does not alter existing wrapper behavior. Then run the full test gate.
+- Do not fix this by making the compatibility wrapper dishonest in a different
+  direction.
+- Do not introduce new per-surface branching in the shared owner or shared
+  extension layer.
+- Do not change success-path behavior, request normalization, docs/examples, or
+  wrapper policy.
+- Do not edit `src/load_compat.jl` or `src/fileio_integration.jl` unless
+  revalidation proves a wrapper-only stale rejection path remains after the
+  shared repair.
 
-Make the first-class package-owned public surface, not only internal helpers, the explicit subject of verification. The task is complete only when a fake fix that leaves the public contract implicit or permissive would fail.
+**Files**: `src/construction.jl`, `ext/MetaGraphsNextIO.jl`  
+**Out of scope**: README/docs/examples, exports, `src/load_owner.jl`,
+`src/alife_format.jl`, PhyloNetworks surfaces, and all success-path semantics  
+**Verification**: Task 2 and Task 3 must be able to fail the current head
+`c4bbaa5` because cases 2, 4, and 6 in the six-command matrix are currently
+dishonest.
 
-### 3. Synchronize the general public contract in README, index docs, and the alife example
+### 2. Rewrite the rejection-path tests so they protect both surfaces and the settled strategy
 
-**Type**: WRITE
-**Output**: `README.md`, `docs/src/index.md`, and `examples/src/alife_standard_mwe.jl` present `read_lineages` as the first-class package-owned public surface, `load_alife_table(...)` as the convenience wrapper, `BuilderDescriptor` as the typed builder surface, `MetaGraph` loads through `read_lineages` as part of the first-class package-owned story, and `FileIO.load(...)` as compatibility-only.
-**Depends on**: 1
-**Positive contract**: Update the general user-facing story so the first code path and first narrative path use `read_lineages`. Show `read_lineages(path)` for Newick and alife file-backed sources, `read_lineages(io; ...)` where stream behavior is being explained, and `load_alife_table(...)` only in the in-memory Tables.jl section. If builder behavior is documented here, use `BuilderDescriptor` for the first-class typed story and move raw `builder = fn` into an explicit compatibility note. Update the MetaGraphsNext sections in `README.md` and `docs/src/index.md` so they also lead with `read_lineages(path, MetaGraph)` or `read_lineages(path, metagraph_instance)` as appropriate, while preserving the same extension behavior and compatibility notes. The alife runnable example should demonstrate both `read_lineages(path)` for file-backed alife input and `load_alife_table(...)` for the in-memory convenience wrapper.
-**Negative contract**: Do not leave wrapper-first wording or FileIO-wrapper examples in the lead position. Do not leave the MetaGraphsNext sections on a wrapper-first public story while the general docs claim the package-owned public surface has rolled out. Do not describe `load_alife_table(...)` as compatibility-only or as the first-class file or stream surface. Do not document `TypedBuilderLoadRequest` or `canonical_load(...)` as public API. Do not imply any deprecations or removals.
-**Files**: `README.md`, `docs/src/index.md`, `examples/src/alife_standard_mwe.jl`
-**Out of scope**: `docs/src/phylonetworks.md`, extension-specific examples, new public behavior beyond the ratified names
-**Verification**: Task 5 must be able to leave the docs build and `examples/src/alife_standard_mwe.jl` green. Manual docs review must make it obvious which surface is first-class, which is the in-memory convenience wrapper, and which remains compatibility-only.
+**Type**: TEST  
+**Output**: direct first-class and direct compatibility-wrapper rejection tests
+protect the surface-neutral repair rather than the obsolete first-class-only
+wording.  
+**Depends on**: 1  
+**Positive contract**:
 
-Rewrite the general user story, including the MetaGraphsNext user-facing sections in `README.md` and `docs/src/index.md`, not just isolated snippets. The task is complete only when a reader can identify the ownership boundary without inferring hidden policy from prior wrapper examples.
+- Update `test/core/read_lineages_public_surface.jl` so the shared rejection
+  paths assert surface-neutral honesty rather than forcing
+  `package-owned` or `read_lineages(...)` wording on shared paths.
+- Extend `test/core/fileio_load_surfaces.jl` with direct wrapper-path rejection
+  assertions for:
+  - `load("test/fixtures/single_rooted_tree.nwk", Int)`
+  - `load("test/fixtures/rooted_network_with_annotations.nwk", Int)`
+- Strengthen `test/extensions/metagraphsnext_network_rejection.jl` so both
+  `read_lineages(..., MetaGraph)` and `load(..., MetaGraph)` assert the neutral
+  shared-path contract directly.
+- Keep the existing green first-class and wrapper success-path proof in place.
+- Keep the builder and supplied-basenode negative tests that are already green.
 
-### 4. Synchronize the PhyloNetworks public docs and runnable examples
+**Negative contract**:
 
-**Type**: WRITE
-**Output**: `docs/src/phylonetworks.md`, `examples/src/phylonetworks_mwe01.jl`, and `examples/src/phylonetworks_mwe02.jl` use `read_lineages` as the primary package-owned public story while preserving explicit compatibility notes for retained wrappers.
-**Depends on**: 1
-**Positive contract**: Update the rooted-network, tree-compatible rooted, and supplied-target examples and docs so they lead with `read_lineages(path, HybridNetwork)` or `read_lineages(path, HybridNetwork())` as appropriate. Keep the authoritative-table retention story unchanged. Keep any mention of `FileIO.load(...)` explicitly labeled as compatibility-only. Preserve scope notes about rooted-network support, tree-compatible rooted support, explicit format override on `.txt`, synthesized leaf-name behavior, and no unrooted-network support.
-**Negative contract**: Do not leave `load(path, HybridNetwork)` as the primary happy path. Do not remove the compatibility note entirely. Do not imply deprecations, removals, or broader extension-surface changes that were not ratified. Do not broaden extension scope while updating examples.
-**Files**: `docs/src/phylonetworks.md`, `examples/src/phylonetworks_mwe01.jl`, `examples/src/phylonetworks_mwe02.jl`
-**Out of scope**: core API code, MetaGraphsNext docs already assigned to task 3, extension internals, public renames or deprecations
-**Verification**: Task 5 must leave both PhyloNetworks example scripts green. Manual docs review must confirm that `read_lineages` is the first-class public path and `FileIO.load(...)` is clearly secondary and compatibility-only.
+- Do not weaken the first-class tests to generic `ArgumentError` or
+  `multi-parent` checks that would miss the cross-surface anti-fix.
+- Do not delete wrapper tests simply because first-class tests exist.
+- Do not reintroduce first-class-specific wording expectations for shared paths.
+- Do not broaden the proof into unrelated docs or example churn.
 
-Keep the extension docs and examples aligned with the ratified ownership boundary, not just with legacy code snippets.
+**Files**: `test/core/read_lineages_public_surface.jl`,
+`test/core/fileio_load_surfaces.jl`,
+`test/extensions/metagraphsnext_network_rejection.jl`, `test/runtests.jl` only
+if new file inclusion becomes necessary  
+**Out of scope**: README/docs/examples, unrelated extension tests, and
+success-path parity tests that are already green  
+**Verification**: the new test set must fail the current head `c4bbaa5`
+because the wrapper paths are currently dishonest and the first-class shared
+path assertions are currently keyed to the wrong wording strategy.
 
-### 5. Add extension public-surface parity tests and close the green gates
+### 3. Close the full tranche gates and report completion against the six-command matrix
 
-**Type**: TEST
-**Output**: Extension public-surface tests prove that `read_lineages` is the first-class package-owned public path for `HybridNetwork` and `MetaGraph` targets, retained wrappers stay thin, and the repository ends green.
-**Depends on**: 2, 3, 4
-**Positive contract**: Add direct public-surface parity tests for `read_lineages(path, HybridNetwork)`, `read_lineages(path, HybridNetwork())`, `read_lineages(path, MetaGraph)`, and `read_lineages(path, metagraph_instance)` on the same sources already covered by direct canonical-owner and retained-wrapper tests. Verify authoritative tables, basenode projection, graph materialization shape, extension-facing round-trip or traversal behavior, and source-specific data behavior such as retained gamma or MetaGraph weight semantics. Keep retained `FileIO.load(...)` and `load_alife_table(...)` tests green so wrappers remain supported and explicitly secondary.
-**Negative contract**: Do not rely on docs-string checks, helper-only tests, or wrapper-only tests as the sole proof. Do not broaden the public API surface beyond `read_lineages` and `BuilderDescriptor` while adding these tests. Do not skip MetaGraphsNext coverage because it lacks a dedicated docs page.
-**Files**: new `test/extensions/phylonetworks_public_surface.jl`, new `test/extensions/metagraphsnext_public_surface.jl`, `test/extensions/phylonetworks_canonical_owner.jl`, `test/extensions/metagraphsnext_canonical_owner.jl`, `test/runtests.jl`
-**Out of scope**: public docs beyond the files touched in tasks 3 and 4, extension-core redesign, deprecations, removals, dependency changes
-**Verification**: Run `julia --project=test test/runtests.jl`, `julia --project=docs docs/make.jl`, `julia --project=examples examples/src/alife_standard_mwe.jl`, `julia --project=examples examples/src/phylonetworks_mwe01.jl`, and `julia --project=examples examples/src/phylonetworks_mwe02.jl`. The old implementation must fail because there is no `read_lineages` surface to test. The tranche is complete only when all locks above are closed against real public behavior, not against helper-level proxies alone.
+**Type**: TEST  
+**Output**: the repository ends green, the six-command rejection matrix is
+honest on both surfaces, and the completion report includes the surfaced
+wording for all six commands.  
+**Depends on**: 1, 2  
+**Positive contract**:
 
-Finish by proving the new public surface and the retained wrappers can coexist honestly inside one green repository state.
+- Run the six-command rejection matrix and confirm that the shared-path wording
+  is honest for both entry surfaces.
+- Run:
+  - `julia --project=test test/runtests.jl`
+  - `julia --project=docs docs/make.jl`
+  - `julia --project=examples examples/src/alife_standard_mwe.jl`
+  - `julia --project=examples examples/src/phylonetworks_mwe01.jl`
+  - `julia --project=examples examples/src/phylonetworks_mwe02.jl`
+- In the implementation completion report, report lock-by-lock closure and
+  include the surfaced wording for all six matrix commands so a review can
+  audit the shared-path honesty directly.
+
+**Negative contract**:
+
+- Do not declare success on the basis of `1204/1204` alone.
+- Do not omit the six surfaced messages from the completion report.
+- Do not substitute grep checks or source-text inspection for the live
+  rejection matrix.
+
+**Files**: verification-only unless test-file inclusion changes are required  
+**Out of scope**: any additional tranche-4 workflow-doc creation  
+**Verification**: this task itself is the final verification gate. If any one
+of the six surfaced messages is still dishonest, tranche 4 remains incomplete.
