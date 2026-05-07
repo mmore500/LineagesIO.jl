@@ -29,7 +29,11 @@ function add_child(
         nodedata,
     )
     if parent === nothing
-        throw(ArgumentError("No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)` or use `load(src; builder = fn)` instead."))
+        throw(
+            ArgumentError(
+                "No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)`, or use the first-class typed builder surface `read_lineages(source, BuilderDescriptor(...))`. The retained compatibility wrapper `load(...; builder = fn)` remains available for raw builder callbacks.",
+            ),
+        )
     end
     throw(ArgumentError("No single-parent `LineagesIO.add_child` method is defined for parent handles of type `$(typeof(parent))`. Implement `add_child(parent, nodekey, label, edgekey, edgeweight; edgedata, nodedata)` for this node-handle type."))
 end
@@ -90,6 +94,12 @@ function graph_requires_multi_parent(
     return graph_requires_multi_parent(graph_asset.edge_table)
 end
 
+function node_type_surface_label(
+        request::NodeTypeLoadRequest,
+    )::String
+    return "package-owned node-type load surface for `$(request.node_type)`"
+end
+
 function build_parent_collection_sample(
         ::NodeTypeLoadRequest{<:Any, HandleT},
     )::AbstractVector where {HandleT}
@@ -136,7 +146,11 @@ function materialize_graphs(
         GraphAssetT <: LineageGraphAsset,
         GraphAssetVectorT <: AbstractVector{GraphAssetT},
     }
-    length(graph_assets) == 1 || throw(ArgumentError("The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use `load(src)` for tables-only access or a library-created-basenode construction surface instead."))
+    length(graph_assets) == 1 || throw(
+        ArgumentError(
+            "The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use the package-owned `read_lineages(source)` surface for authoritative tables only, or choose a library-created-basenode construction surface instead.",
+        ),
+    )
     validate_materialization_request(graph_assets, request)
     graph_asset::GraphAssetT = graph_assets[begin]
     first_graph = materialize_graph(graph_asset, request)
@@ -150,7 +164,11 @@ function materialize_graphs(
         GraphAssetT <: LineageGraphAsset,
         GraphAssetVectorT <: AbstractVector{GraphAssetT},
     }
-    length(graph_assets) == 1 || throw(ArgumentError("The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use `load(src)` for tables-only access or a library-created-basenode construction surface instead."))
+    length(graph_assets) == 1 || throw(
+        ArgumentError(
+            "The supplied-basenode load surface is valid only for a source that yields exactly one graph, but this source yielded $(length(graph_assets)) graphs. Use the package-owned `read_lineages(source)` surface for authoritative tables only, or choose a library-created-basenode construction surface instead.",
+        ),
+    )
     graph_asset::GraphAssetT = graph_assets[begin]
     explicit_handle_type = construction_handle_type(getfield(request, :basenode))
     explicit_handle_type !== nothing && return materialize_graphs(
@@ -267,7 +285,11 @@ function validate_multi_parent_node_type_request(
         nodedata = sample.nodedata,
     ) && return nothing
 
-    throw(ArgumentError("The `load(src, $(request.node_type))` surface cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
+    throw(
+        ArgumentError(
+            "The $(node_type_surface_label(request)) cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source.",
+        ),
+    )
 end
 
 function validate_multi_parent_basenode_binding_request(
@@ -726,7 +748,11 @@ function build_parent_collection(
         request::NodeTypeLoadRequest{<:Any, HandleT},
         parent_handles::AbstractVector{HandleT},
     )::Vector{HandleT} where {HandleT}
-    all(parent_handle -> parent_handle isa getfield(request, :handle_type), parent_handles) || throw(ArgumentError("The `load(src, $(request.node_type))` surface returned parent handles that are not all compatible with the declared construction handle type during multi-parent construction."))
+    all(parent_handle -> parent_handle isa getfield(request, :handle_type), parent_handles) || throw(
+        ArgumentError(
+            "The $(node_type_surface_label(request)) returned parent handles that are not all compatible with the declared construction handle type during multi-parent construction.",
+        ),
+    )
     return HandleT[parent_handle for parent_handle in parent_handles]
 end
 
@@ -995,7 +1021,11 @@ function ensure_multi_parent_protocol_applicable(
         edgedata = edgedata,
         nodedata = nodedata,
     ) && return nothing
-    throw(ArgumentError("The `load(src, $(request.node_type))` surface cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source."))
+    throw(
+        ArgumentError(
+            "The $(node_type_surface_label(request)) cannot materialize this source because it does not implement the multi-parent `LineagesIO.add_child(parent_collection, nodekey, label, edgekeys, edgeweights; edgedata, nodedata)` construction tier required by this source.",
+        ),
+    )
 end
 
 function ensure_multi_parent_protocol_applicable(
@@ -1053,7 +1083,11 @@ function ensure_request_handle_type(
         handle,
         phase::AbstractString,
     )::Nothing where {NodeT, HandleT}
-    handle isa HandleT || throw(ArgumentError("The `$(phase)` callback returned `$(typeof(handle))`, but `load(src, $(request.node_type))` requires a value compatible with `$(getfield(request, :handle_type))`."))
+    handle isa HandleT || throw(
+        ArgumentError(
+            "The `$(phase)` callback returned `$(typeof(handle))`, but the $(node_type_surface_label(request)) requires a value compatible with `$(getfield(request, :handle_type))`.",
+        ),
+    )
     return nothing
 end
 

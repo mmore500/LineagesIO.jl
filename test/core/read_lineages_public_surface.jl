@@ -163,6 +163,32 @@ end
     @test builder_error isa ArgumentError
     @test occursin("BuilderDescriptor", sprint(showerror, builder_error))
 
+    node_type_tree_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(tree_path, Int)
+    end
+    @test node_type_tree_error isa ArgumentError
+    @test occursin(
+        "package-owned node-type load surface",
+        sprint(showerror, node_type_tree_error),
+    )
+    @test !occursin(
+        "load(src, Int64)",
+        sprint(showerror, node_type_tree_error),
+    )
+
+    node_type_network_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(network_path, Int)
+    end
+    @test node_type_network_error isa ArgumentError
+    @test occursin(
+        "package-owned node-type load surface",
+        sprint(showerror, node_type_network_error),
+    )
+    @test !occursin(
+        "load(src, Int64)",
+        sprint(showerror, node_type_network_error),
+    )
+
     basenode_error = capture_expected_load_error() do
         LineagesIO.read_lineages(
             network_path,

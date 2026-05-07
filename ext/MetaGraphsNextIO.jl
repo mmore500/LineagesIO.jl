@@ -110,7 +110,8 @@ data, and `Union{Nothing, Float64}` edge data. The weight function extracts
 the stored float, defaulting to `1.0` when no edge weight was present in the
 source.
 
-Used by the library-created load path (`load(src, MetaGraph)`).
+Used by the library-created `MetaGraph` construction path, including the
+first-class `read_lineages(source, MetaGraph)` surface.
 """
 function default_metagraph()::MetaGraph
     return MetaGraph(
@@ -279,9 +280,13 @@ function LineagesIO.validate_extension_load_target(
     throw(
         ArgumentError(
             "The MetaGraphsNext extension does not support the multi-parent " *
-            "construction tier for `load(src, MetaGraph)`. Construct an empty " *
-            "`MetaGraph` with `Symbol` labels and call `load(src, my_graph)` " *
-            "instead, which supports both single-parent and multi-parent sources.",
+            "construction tier for the first-class package-owned " *
+            "`read_lineages(source, MetaGraph)` library-created target " *
+            "surface. Construct an empty `MetaGraph` with `Symbol` labels " *
+            "and call `read_lineages(source, my_graph)` instead, which " *
+            "supports both single-parent and multi-parent sources. The " *
+            "retained compatibility wrappers `load(source, MetaGraph)` and " *
+            "`load(source, my_graph)` remain available.",
         ),
     )
 end

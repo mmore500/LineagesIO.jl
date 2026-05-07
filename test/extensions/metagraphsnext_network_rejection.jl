@@ -1,5 +1,17 @@
 using MetaGraphsNext
 
+@testset "MetaGraphsNext read_lineages multi-parent rejection wording" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
+
+    node_type_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(fixture_path, MetaGraph)
+    end
+    @test node_type_error isa ArgumentError
+    @test occursin("read_lineages(source, MetaGraph)", sprint(showerror, node_type_error))
+    @test occursin("read_lineages(source, my_graph)", sprint(showerror, node_type_error))
+    @test occursin("compatibility wrappers", sprint(showerror, node_type_error))
+end
+
 @testset "MetaGraphsNext multi-parent network loading" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"))
 
