@@ -7,9 +7,11 @@ using MetaGraphsNext
         LineagesIO.read_lineages(fixture_path, MetaGraph)
     end
     @test node_type_error isa ArgumentError
-    @test occursin("read_lineages(source, MetaGraph)", sprint(showerror, node_type_error))
-    @test occursin("read_lineages(source, my_graph)", sprint(showerror, node_type_error))
-    @test occursin("compatibility wrappers", sprint(showerror, node_type_error))
+    node_type_text = sprint(showerror, node_type_error)
+    @test occursin("library-created `MetaGraph` target path", node_type_text)
+    @test occursin("caller-supplied target path", node_type_text)
+    @test !occursin("read_lineages(source, MetaGraph)", node_type_text)
+    @test !occursin("load(source, MetaGraph)", node_type_text)
 end
 
 @testset "MetaGraphsNext multi-parent network loading" begin
@@ -18,8 +20,12 @@ end
     node_type_error = capture_expected_load_error() do
         load(fixture_path, MetaGraph)
     end
-    @test node_type_error isa ArgumentError
-    @test occursin("multi-parent", sprint(showerror, node_type_error))
+    @test node_type_error isa Exception
+    node_type_text = sprint(showerror, node_type_error)
+    @test occursin("library-created `MetaGraph` target path", node_type_text)
+    @test occursin("caller-supplied target path", node_type_text)
+    @test !occursin("read_lineages(source, MetaGraph)", node_type_text)
+    @test !occursin("load(source, MetaGraph)", node_type_text)
 
     graph = MetaGraphsNext.MetaGraph(
         MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),

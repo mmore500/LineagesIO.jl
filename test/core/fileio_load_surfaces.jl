@@ -1,6 +1,9 @@
 @testset "FileIO load surfaces" begin
     safe_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
     ambiguous_path = abspath(joinpath(@__DIR__, "..", "fixtures", "ambiguous_simple_rooted.txt"))
+    network_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
 
     safe_store = load(safe_path)
     safe_asset = first(safe_store.graphs)
@@ -25,6 +28,29 @@
         @test Tables.getcolumn(stream_asset.node_table, :label) == Tables.getcolumn(override_asset.node_table, :label)
         @test Tables.getcolumn(stream_asset.edge_table, :edgeweight) == Tables.getcolumn(override_asset.edge_table, :edgeweight)
     end
+
+    tree_target_error = capture_expected_load_error() do
+        load(safe_path, Int)
+    end
+    tree_target_text = sprint(showerror, tree_target_error)
+    @test tree_target_error isa Exception
+    @test (
+        occursin("BuilderDescriptor", tree_target_text) ||
+        occursin("node-type construction path", tree_target_text)
+    )
+    @test !occursin("package-owned", tree_target_text)
+    @test !occursin("read_lineages(", tree_target_text)
+    @test !occursin("load(...; builder = fn)", tree_target_text)
+
+    network_target_error = capture_expected_load_error() do
+        load(network_path, Int)
+    end
+    network_target_text = sprint(showerror, network_target_error)
+    @test network_target_error isa Exception
+    @test occursin("node-type construction path", network_target_text)
+    @test !occursin("package-owned", network_target_text)
+    @test !occursin("read_lineages(", network_target_text)
+    @test !occursin("load(src, Int64)", network_target_text)
 
     ambiguous_error = try
         load(ambiguous_path)

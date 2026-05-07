@@ -280,13 +280,10 @@ function LineagesIO.validate_extension_load_target(
     throw(
         ArgumentError(
             "The MetaGraphsNext extension does not support the multi-parent " *
-            "construction tier for the first-class package-owned " *
-            "`read_lineages(source, MetaGraph)` library-created target " *
-            "surface. Construct an empty `MetaGraph` with `Symbol` labels " *
-            "and call `read_lineages(source, my_graph)` instead, which " *
-            "supports both single-parent and multi-parent sources. The " *
-            "retained compatibility wrappers `load(source, MetaGraph)` and " *
-            "`load(source, my_graph)` remain available.",
+            "construction tier for the library-created `MetaGraph` target " *
+            "path. Construct an empty `MetaGraph` with `Symbol` labels " *
+            "and use the caller-supplied target path instead, which " *
+            "supports both single-parent and multi-parent sources.",
         ),
     )
 end

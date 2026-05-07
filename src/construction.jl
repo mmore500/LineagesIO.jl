@@ -31,7 +31,7 @@ function add_child(
     if parent === nothing
         throw(
             ArgumentError(
-                "No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)`, or use the first-class typed builder surface `read_lineages(source, BuilderDescriptor(...))`. The retained compatibility wrapper `load(...; builder = fn)` remains available for raw builder callbacks.",
+                "No `LineagesIO.add_child(::Nothing, ...)` basenode-construction method is defined for this load target. Implement `add_child(::Nothing, nodekey, label, nothing, nothing; edgedata = nothing, nodedata)` for this target, or use an explicit typed builder descriptor `BuilderDescriptor(builder, HandleT[, ParentCollectionT])` so the construction handle contract is supplied directly. The retained raw `builder = fn` compatibility wrapper remains available.",
             ),
         )
     end
@@ -97,7 +97,7 @@ end
 function node_type_surface_label(
         request::NodeTypeLoadRequest,
     )::String
-    return "package-owned node-type load surface for `$(request.node_type)`"
+    return "node-type construction path for `$(request.node_type)`"
 end
 
 function build_parent_collection_sample(
