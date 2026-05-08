@@ -194,6 +194,19 @@ function add_node_to_metagraph!(
     return nothing
 end
 
+function add_node_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, NodeDataT},
+    nodekey::StructureKeyType,
+    nodedata::NodeRowRef,
+)::Nothing where {NodeDataT}
+    add_vertex!(graph, node_label(nodekey), NodeDataT(nodedata)) || throw(
+        ArgumentError(
+            "Failed to add node with nodekey $(nodekey) to the MetaGraph.",
+        ),
+    )
+    return nothing
+end
+
 # ---------------------------------------------------------------------------
 # Edge addition — dispatch on EdgeData type parameter.
 #
@@ -261,6 +274,26 @@ function add_edge_to_metagraph!(
                 "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
             ),
         )
+    return nothing
+end
+
+function add_edge_to_metagraph!(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, EdgeDataT},
+    src_nodekey::StructureKeyType,
+    dst_nodekey::StructureKeyType,
+    edgeweight::EdgeWeightType,
+    edgedata::EdgeRowRef,
+)::Nothing where {EdgeDataT}
+    add_edge!(
+        graph,
+        node_label(src_nodekey),
+        node_label(dst_nodekey),
+        EdgeDataT(edgeweight, edgedata),
+    ) || throw(
+        ArgumentError(
+            "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
+        ),
+    )
     return nothing
 end
 

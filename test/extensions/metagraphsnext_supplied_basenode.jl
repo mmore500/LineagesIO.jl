@@ -1,5 +1,70 @@
 using MetaGraphsNext
 
+struct SuppliedBranchAVertexData
+    label::String
+    posterior::Union{Nothing, String}
+end
+
+function SuppliedBranchAVertexData(nodedata::LineagesIO.NodeRowRef)
+    posterior = :posterior in Tables.columnnames(nodedata) ?
+        LineagesIO.node_property(nodedata, :posterior) : nothing
+    return SuppliedBranchAVertexData(
+        String(LineagesIO.node_property(nodedata, :label)),
+        posterior === nothing ? nothing : string(posterior),
+    )
+end
+
+Base.:(==)(lhs::SuppliedBranchAVertexData, rhs::SuppliedBranchAVertexData) =
+    lhs.label == rhs.label && lhs.posterior == rhs.posterior
+
+struct MissingSuppliedBranchAVertexData end
+
+struct SuppliedBranchAEdgeData
+    edgeweight::LineagesIO.EdgeWeightType
+    support::Union{Nothing, String}
+end
+
+function SuppliedBranchAEdgeData(
+    edgeweight::LineagesIO.EdgeWeightType,
+    edgedata::LineagesIO.EdgeRowRef,
+)
+    support = :support in Tables.columnnames(edgedata) ?
+        LineagesIO.edge_property(edgedata, :support) : nothing
+    return SuppliedBranchAEdgeData(
+        edgeweight,
+        support === nothing ? nothing : string(support),
+    )
+end
+
+Base.:(==)(lhs::SuppliedBranchAEdgeData, rhs::SuppliedBranchAEdgeData) =
+    lhs.edgeweight == rhs.edgeweight && lhs.support == rhs.support
+
+struct MissingSuppliedBranchAEdgeData end
+
+function supplied_branch_a_vertex_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        SuppliedBranchAVertexData,
+        Float64,
+        nothing,
+        identity,
+        0.0,
+    )
+end
+
+function supplied_branch_a_network_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        SuppliedBranchAVertexData,
+        SuppliedBranchAEdgeData,
+        nothing,
+        edge -> edge.edgeweight === nothing ? 1.0 : edge.edgeweight,
+        1.0,
+    )
+end
+
 @testset "MetaGraphsNext supplied-basenode binding" begin
     extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
@@ -91,4 +156,76 @@ end
     @test MetaGraphsNext.Graphs.nv(rowref_graph_out) == 5
     @test LineagesIO.node_property(rowref_graph_out[Symbol(1)], :label) == "Root"
     @test LineagesIO.edge_property(rowref_graph_out[Symbol(1), Symbol(2)], :edgeweight) ≈ 2.0
+end
+
+@testset "MetaGraphsNext supplied-instance custom metadata — Branch A" begin
+    tree_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    network_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
+
+    vertex_graph = supplied_branch_a_vertex_graph()
+    vertex_store = load(tree_path, vertex_graph)
+    vertex_asset = first(vertex_store.graphs)
+
+    @test vertex_asset.graph === vertex_graph
+    @test vertex_asset.basenode === Symbol(1)
+    @test MetaGraphsNext.Graphs.nv(vertex_graph) == 5
+    @test MetaGraphsNext.Graphs.ne(vertex_graph) == 4
+    @test vertex_graph[Symbol(1)] == SuppliedBranchAVertexData("Root", nothing)
+    @test vertex_graph[Symbol(3)] == SuppliedBranchAVertexData("A", nothing)
+    @test vertex_graph[Symbol(2), Symbol(3)] ≈ 1.5
+    @test LineagesIO.node_property(vertex_asset.node_table, 1, :label) == "Root"
+
+    network_graph = supplied_branch_a_network_graph()
+    network_store = load(network_path, network_graph)
+    network_asset = first(network_store.graphs)
+
+    @test network_asset.graph === network_graph
+    @test network_asset.basenode === Symbol(1)
+    @test MetaGraphsNext.Graphs.nv(network_graph) == 7
+    @test MetaGraphsNext.Graphs.ne(network_graph) == 7
+    @test network_graph[Symbol(1)] == SuppliedBranchAVertexData("Root", "0.99")
+    @test network_graph[Symbol(6), Symbol(4)] == SuppliedBranchAEdgeData(0.0, "55")
+    @test MetaGraphsNext.Graphs.weights(network_graph)[
+        MetaGraphsNext.code_for(network_graph, Symbol(6)),
+        MetaGraphsNext.code_for(network_graph, Symbol(4)),
+    ] == 0.0
+    @test LineagesIO.edge_property(network_asset.edge_table, 6, :support) == "55"
+
+    missing_vertex_graph = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        MissingSuppliedBranchAVertexData,
+        Float64,
+        nothing,
+        identity,
+        0.0,
+    )
+    missing_vertex_error = capture_expected_load_error() do
+        load(tree_path, missing_vertex_graph)
+    end
+    @test missing_vertex_error isa MethodError
+    missing_vertex_text = sprint(showerror, missing_vertex_error)
+    @test occursin("MissingSuppliedBranchAVertexData", missing_vertex_text)
+    @test occursin("NodeRowRef", missing_vertex_text)
+    @test !occursin("add_node_to_metagraph!", missing_vertex_text)
+
+    missing_edge_graph = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        Nothing,
+        MissingSuppliedBranchAEdgeData,
+        nothing,
+        edge -> 1.0,
+        1.0,
+    )
+    missing_edge_error = capture_expected_load_error() do
+        load(network_path, missing_edge_graph)
+    end
+    @test missing_edge_error isa MethodError
+    missing_edge_text = sprint(showerror, missing_edge_error)
+    @test occursin("MissingSuppliedBranchAEdgeData", missing_edge_text)
+    @test occursin("EdgeRowRef", missing_edge_text)
+    @test !occursin("add_edge_to_metagraph!", missing_edge_text)
 end

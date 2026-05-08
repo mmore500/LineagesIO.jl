@@ -34,6 +34,16 @@ function metagraphsnext_edge_data_snapshot(graph)
     return edge_data
 end
 
+function metagraphsnext_vertex_data_snapshot(graph)
+    vertex_data = Tuple{Symbol, Any}[]
+    for code in MetaGraphsNext.Graphs.vertices(graph)
+        label = MetaGraphsNext.label_for(graph, code)
+        push!(vertex_data, (label, graph[label]))
+    end
+    sort!(vertex_data; by = entry -> String(entry[1]))
+    return vertex_data
+end
+
 function metagraphsnext_weight_snapshot(graph)
     weight_entries = Tuple{Int, Int, Float64}[]
     weights = MetaGraphsNext.Graphs.weights(graph)
@@ -76,6 +86,59 @@ function weighted_metagraph_target()
         nothing,
         identity,
         0.0,
+    )
+end
+
+struct CanonicalBranchAVertexData
+    label::String
+    posterior::Union{Nothing, String}
+end
+
+function CanonicalBranchAVertexData(nodedata::LineagesIO.NodeRowRef)
+    posterior = :posterior in Tables.columnnames(nodedata) ?
+        LineagesIO.node_property(nodedata, :posterior) : nothing
+    return CanonicalBranchAVertexData(
+        String(LineagesIO.node_property(nodedata, :label)),
+        posterior === nothing ? nothing : string(posterior),
+    )
+end
+
+Base.:(==)(lhs::CanonicalBranchAVertexData, rhs::CanonicalBranchAVertexData) =
+    lhs.label == rhs.label && lhs.posterior == rhs.posterior
+
+struct MissingCanonicalBranchAVertexData end
+
+struct CanonicalBranchAEdgeData
+    edgeweight::LineagesIO.EdgeWeightType
+    support::Union{Nothing, String}
+end
+
+function CanonicalBranchAEdgeData(
+    edgeweight::LineagesIO.EdgeWeightType,
+    edgedata::LineagesIO.EdgeRowRef,
+)
+    support = :support in Tables.columnnames(edgedata) ?
+        LineagesIO.edge_property(edgedata, :support) : nothing
+    return CanonicalBranchAEdgeData(
+        edgeweight,
+        support === nothing ? nothing : string(support),
+    )
+end
+
+Base.:(==)(lhs::CanonicalBranchAEdgeData, rhs::CanonicalBranchAEdgeData) =
+    lhs.edgeweight == rhs.edgeweight && lhs.support == rhs.support
+
+struct MissingCanonicalBranchAEdgeData end
+
+function canonical_branch_a_metagraph_target()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        CanonicalBranchAVertexData,
+        CanonicalBranchAEdgeData,
+        nothing,
+        edge -> edge.edgeweight === nothing ? 1.0 : edge.edgeweight,
+        1.0,
     )
 end
 
@@ -183,4 +246,93 @@ end
     @test direct_asset.basenode == Symbol(1)
     @test metagraphsnext_graph_contract(direct_asset.graph) ==
         metagraphsnext_graph_contract(wrapper_asset.graph)
+end
+
+@testset "MetaGraphsNext canonical owner parity — supplied-instance custom metadata" begin
+    fixture_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
+    direct_target = canonical_branch_a_metagraph_target()
+    direct_store = LineagesIO.canonical_load(
+        LineagesIO.NewickFilePathSourceDescriptor(fixture_path),
+        LineagesIO.BasenodeLoadRequest(
+            direct_target,
+            LineagesIO.construction_handle_type(direct_target),
+        ),
+    )
+    wrapper_target = canonical_branch_a_metagraph_target()
+    wrapper_store = load(fixture_path, wrapper_target)
+
+    direct_asset = first(direct_store.graphs)
+    wrapper_asset = first(wrapper_store.graphs)
+
+    @test direct_asset.graph === direct_target
+    @test wrapper_asset.graph === wrapper_target
+    @test metagraphsnext_table_snapshot(direct_asset.node_table) ==
+        metagraphsnext_table_snapshot(wrapper_asset.node_table)
+    @test metagraphsnext_table_snapshot(direct_asset.edge_table) ==
+        metagraphsnext_table_snapshot(wrapper_asset.edge_table)
+    @test direct_asset.basenode == wrapper_asset.basenode
+    @test direct_asset.basenode == Symbol(1)
+    @test metagraphsnext_vertex_data_snapshot(direct_asset.graph) ==
+        metagraphsnext_vertex_data_snapshot(wrapper_asset.graph)
+    @test metagraphsnext_graph_contract(direct_asset.graph) ==
+        metagraphsnext_graph_contract(wrapper_asset.graph)
+    @test direct_target[Symbol(1)] == CanonicalBranchAVertexData("Root", "0.99")
+    @test direct_target[Symbol(6), Symbol(4)] == CanonicalBranchAEdgeData(0.0, "55")
+end
+
+@testset "MetaGraphsNext canonical owner — missing Branch A constructors" begin
+    tree_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    network_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
+
+    missing_vertex_target = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        MissingCanonicalBranchAVertexData,
+        Float64,
+        nothing,
+        identity,
+        0.0,
+    )
+    missing_vertex_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(tree_path),
+            LineagesIO.BasenodeLoadRequest(
+                missing_vertex_target,
+                LineagesIO.construction_handle_type(missing_vertex_target),
+            ),
+        )
+    end
+    @test missing_vertex_error isa MethodError
+    missing_vertex_text = sprint(showerror, missing_vertex_error)
+    @test occursin("MissingCanonicalBranchAVertexData", missing_vertex_text)
+    @test occursin("NodeRowRef", missing_vertex_text)
+    @test !occursin("add_node_to_metagraph!", missing_vertex_text)
+
+    missing_edge_target = MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        Nothing,
+        MissingCanonicalBranchAEdgeData,
+        nothing,
+        edge -> 1.0,
+        1.0,
+    )
+    missing_edge_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(network_path),
+            LineagesIO.BasenodeLoadRequest(
+                missing_edge_target,
+                LineagesIO.construction_handle_type(missing_edge_target),
+            ),
+        )
+    end
+    @test missing_edge_error isa MethodError
+    missing_edge_text = sprint(showerror, missing_edge_error)
+    @test occursin("MissingCanonicalBranchAEdgeData", missing_edge_text)
+    @test occursin("EdgeRowRef", missing_edge_text)
+    @test !occursin("add_edge_to_metagraph!", missing_edge_text)
 end
