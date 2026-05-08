@@ -24,6 +24,17 @@ struct BuilderDescriptor{
     builder::BuilderT
 end
 
+function assert_concrete_builder_handle_type(
+        ::Type{HandleT},
+    )::Nothing where {HandleT}
+    isconcretetype(HandleT) || throw(
+        ArgumentError(
+            "The package-owned `BuilderDescriptor` surface requires a concrete `HandleT`, but received `$(HandleT)`.",
+        ),
+    )
+    return nothing
+end
+
 function BuilderDescriptor(
         builder::BuilderT,
         ::Type{HandleT},
@@ -31,6 +42,7 @@ function BuilderDescriptor(
         BuilderT,
         HandleT,
     }
+    assert_concrete_builder_handle_type(HandleT)
     return BuilderDescriptor{BuilderT, HandleT, Vector{HandleT}}(builder)
 end
 
@@ -43,6 +55,7 @@ function BuilderDescriptor(
         HandleT,
         ParentCollectionT <: AbstractVector{HandleT},
     }
+    assert_concrete_builder_handle_type(HandleT)
     isconcretetype(ParentCollectionT) || throw(
         ArgumentError(
             "The package-owned `BuilderDescriptor` surface requires a concrete `ParentCollectionT`, but received `$(ParentCollectionT)`.",

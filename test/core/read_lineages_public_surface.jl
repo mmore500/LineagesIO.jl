@@ -132,6 +132,44 @@ end
         CANONICAL_OWNER_TYPED_BUILDER_EVENTS
 end
 
+@testset "read_lineages public surface — BuilderDescriptor constructor boundaries" begin
+    concrete_descriptor = LineagesIO.BuilderDescriptor(identity, Int)
+    @test concrete_descriptor isa
+        LineagesIO.BuilderDescriptor{typeof(identity), Int, Vector{Int}}
+
+    abstract_handle_error = capture_expected_load_error() do
+        LineagesIO.BuilderDescriptor(identity, Any)
+    end
+    @test abstract_handle_error isa ArgumentError
+    @test occursin("concrete `HandleT`", sprint(showerror, abstract_handle_error))
+    @test occursin("Any", sprint(showerror, abstract_handle_error))
+
+    abstract_integer_error = capture_expected_load_error() do
+        LineagesIO.BuilderDescriptor(identity, Integer)
+    end
+    @test abstract_integer_error isa ArgumentError
+    @test occursin("concrete `HandleT`", sprint(showerror, abstract_integer_error))
+    @test occursin("Integer", sprint(showerror, abstract_integer_error))
+
+    equivalent_erased_handle_error = capture_expected_load_error() do
+        LineagesIO.BuilderDescriptor(identity, Any, Vector{Any})
+    end
+    @test equivalent_erased_handle_error isa ArgumentError
+    @test occursin(
+        "concrete `HandleT`",
+        sprint(showerror, equivalent_erased_handle_error),
+    )
+
+    abstract_parent_collection_error = capture_expected_load_error() do
+        LineagesIO.BuilderDescriptor(identity, Int, AbstractVector{Int})
+    end
+    @test abstract_parent_collection_error isa ArgumentError
+    @test occursin(
+        "concrete `ParentCollectionT`",
+        sprint(showerror, abstract_parent_collection_error),
+    )
+end
+
 @testset "read_lineages public surface — failure boundaries" begin
     ambiguous_tree_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "ambiguous_simple_rooted.txt"),
