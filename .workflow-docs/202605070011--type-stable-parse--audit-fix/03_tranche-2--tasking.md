@@ -18,6 +18,7 @@ Parent PRD: `01_prd.md`
 - `FileIO.load(...)` remains a `compatibility wrapper`.
 - `load_alife_table(...)` remains the in-memory Tables.jl `convenience wrapper`.
 - No rename, export change, deprecation, migration-policy change, or broader public-contract rewrite is authorized in this tranche.
+- The HITL reviewer for this tranche is the human project owner. No downstream agent may ratify branch A or branch B on its own. If the draft artifact is ready and the human project owner has not yet answered, execution must stop and wait.
 - The only open contract branch for this tranche is the supplied-instance MetaGraphsNext custom-data story. Already-settled supplied-instance prerequisites must remain fixed input: the caller-supplied `MetaGraph` must be directed, empty, and use `Symbol` labels.
 - The supplied-instance path already supports both single-parent and multi-parent sources when the caller supplies an empty `MetaGraph` instance with supported type parameters. This tranche does not reopen that settled runtime shape.
 - Later Tranche 4 work depends on this tranche because any library-created MetaGraphsNext rejection that redirects callers to the supplied-instance path is honest only after the supplied-instance custom-data contract branch is explicitly reviewed here.
@@ -81,12 +82,12 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 
 ## Primary-goal lock
 
-### Lock 3a: the tranche must produce a reviewed branch decision or an explicit deferral
+### Lock 3a: the tranche must produce a human-reviewed branch decision or an explicit human-reviewed deferral
 
-- The work is not complete if `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md` is still missing, or if it exists but does not record either a ratified branch or an explicit deferral that keeps later tranches blocked.
+- The work is not complete if `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md` is still missing, or if it exists but does not record either a branch ratified by the human project owner or an explicit human-project-owner deferral that keeps later tranches blocked.
 - Direct red-state repro: the required decision artifact does not exist in the current repository, and the parent PRD still leaves the supplied-instance branch explicitly open.
 - Closing tasks: 1, 2, and 3.
-- Verification artifact that must fail the old implementation or fake-fix shape: the final decision artifact itself, containing an explicit reviewed branch or explicit reviewed deferral plus plain blocked or unblocked status for Tranche 3. The current repository fails because the file is absent.
+- Verification artifact that must fail the old implementation or fake-fix shape: the final decision artifact itself, containing an explicit human-project-owner-reviewed branch or explicit human-project-owner-reviewed deferral plus plain blocked or unblocked status for Tranche 3 tasking. The current repository fails because the file is absent.
 
 ### Lock 3b: the current supplied-instance runtime contract must be recorded honestly
 
@@ -151,9 +152,11 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
   - `FileIO.load(...)` remains compatibility-only.
   - `load_alife_table(...)` remains the in-memory Tables.jl convenience wrapper.
   - The supplied-instance path must remain directed-only, empty-instance-only, and `Symbol`-label-only.
+  - The HITL reviewer is the human project owner. A downstream agent may draft the decision artifact, but it must stop and wait for explicit human ratification or explicit human deferral before claiming Task 2 is complete.
   - This tranche decides only the custom `VertexData` / `EdgeData` branch. It does not reopen public naming, wrapper classification, or broader migration policy.
 - Authorization boundary:
   - Only the reviewed decision artifact and the workflow reasoning needed to produce it are in scope.
+  - Task 2 is not complete until the human project owner has supplied an explicit ratification or explicit deferral that is recorded in the artifact.
   - Runtime implementation, test updates, docs synchronization, and later-tranche tasking are out of scope.
 - Current-state diagnosis:
   - the current extension supports only a narrow hard-coded set of `VertexData` and `EdgeData` shapes
@@ -192,11 +195,20 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
   - the installed `MetaGraphsNext` and `Tables` sources named in the Governance section above
 - Green-state gates:
   - the decision artifact exists
-  - it records either a reviewed branch or an explicit deferral
+  - it records either a human-project-owner-reviewed branch or an explicit human-project-owner deferral
+  - it records the exact current supported-shape matrix:
+    - `VertexData = Nothing`
+    - `VertexData <: NodeRowRef`
+    - `EdgeData = Nothing`
+    - `EdgeData = Union{Nothing, Float64}`
+    - `EdgeData <: Real`
+    - `EdgeData <: EdgeRowRef`
+  - it records the direct unsupported-shape repros for a user-defined `MyVertex` and a user-defined `MyEdge` and says that the current failure mode is a raw internal `MethodError`
   - it enumerates every affected public surface and the later tranche that must move it
   - it labels `00-02_audit-fix-decisions.md` as supporting input only
   - if this tranche remains workflow-only, it may inherit the current code green state without rerunning the suite
 - Stop conditions:
+  - stop and wait for the human project owner's explicit branch ratification or explicit deferral once the draft artifact is ready
   - stop and escalate if review cannot honestly choose between the two parent-PRD branches
   - stop and escalate if the branch choice appears to require reopening the ratified public naming boundary or wrapper classification
   - stop and escalate if the current code or docs no longer match the live red-state repros named above
@@ -221,13 +233,15 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 
 This tranche is a pure HITL decision tranche. It may create and finalize the reviewed decision artifact only. It must not perform runtime implementation, docs synchronization, example updates, test updates, or later-tranche tasking.
 
+The HITL decision gate belongs to the human project owner. After Task 1 drafts the artifact, execution must pause and wait for the human project owner's explicit ratification or explicit deferral. No downstream agent may choose branch A or branch B on its own and count the gate as satisfied.
+
 When this tranche is complete:
 
 - `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md` must exist.
 - That file must record either a reviewed branch or an explicit reviewed deferral.
 - That file must name the exact current supported-shape matrix and the exact unsupported-shape repros.
 - That file must enumerate every affected public surface and say which later tranche owns its migration.
-- That file must state plainly whether Tranche 3 is unblocked or whether later tranches remain blocked.
+- That file must state plainly whether Tranche 3 is unblocked for a separate tranche-to-tasking pass or whether later tranches remain blocked.
 
 Because this tranche is workflow-only, it may inherit the current repository green state if it changes only workflow artifacts. If execution drifts into code, docs, tests, or examples, stop for scope drift instead of claiming success.
 
@@ -237,6 +251,7 @@ Because this tranche is workflow-only, it may inherit the current repository gre
 - Do not edit `ext/MetaGraphsNextIO.jl`, `README.md`, `docs/src/index.md`, or `test/*` in this tranche.
 - Do not reopen `read_lineages`, `BuilderDescriptor`, `FileIO.load(...)`, or `load_alife_table(...)` naming or classification.
 - Do not treat the candidate direction in `00-02_audit-fix-decisions.md` as ratified merely because it exists.
+- Do not let any downstream agent self-ratify branch A or branch B. Only the human project owner may close the HITL review gate.
 - Do not leave the supported-shape matrix implicit.
 - Do not leave one affected public surface implicit while naming only another.
 - Do not let a green suite stand in for the required reviewed contract decision.
@@ -254,7 +269,7 @@ Because this tranche is workflow-only, it may inherit the current repository gre
 ## Failure-oriented verification
 
 - The final decision artifact must exist at `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`. Current repository state fails because the file is absent.
-- The final artifact must record either a reviewed branch or an explicit reviewed deferral. A candidate or preference alone fails.
+- The final artifact must record either a branch ratified by the human project owner or an explicit human-project-owner deferral. A candidate, leaning, or agent-selected branch alone fails.
 - The final artifact must contain the exact current supported-shape matrix:
   - `VertexData = Nothing`
   - `VertexData <: NodeRowRef`
@@ -297,21 +312,21 @@ The draft must also record the later-tranche ownership boundary:
 ### 2. Run the supplied-instance contract review gate
 
 **Type**: REVIEW  
-**Output**: The decision artifact records an explicit reviewed answer selecting one branch, or an explicit reviewed deferral that keeps Tranches 3 through 5 blocked.  
+**Output**: The decision artifact records an explicit human-project-owner-reviewed answer selecting one branch, or an explicit human-project-owner-reviewed deferral that keeps Tranches 3 through 5 blocked.  
 **Depends on**: 1  
-**Positive contract**: The review must resolve or explicitly defer the single open contract branch reserved by the parent PRD. If branch A is ratified, the artifact must say that later implementation may rely on user-owned `VertexData(::NodeRowRef)` and `EdgeData(::EdgeWeightType, ::EdgeRowRef)` constructors as the extension point. If branch B is ratified, the artifact must say that later implementation must keep only the currently supported built-in shapes and reject everything else early with precise `ArgumentError`. In either case, the reviewed outcome must say how the branch applies across both supported runtime entry surfaces and across the two later docs surfaces.  
-**Negative contract**: Do not turn a preferred direction into ratification. Do not allow an unstated middle ground. Do not authorize runtime implementation, docs updates, or tests from this task alone. Do not let current docs wording or the design note answer the review by inertia.  
+**Positive contract**: The review must pause and wait for an explicit answer from the human project owner. No agent-side inference or preference is allowed to close this gate. The human project owner must resolve or explicitly defer the single open contract branch reserved by the parent PRD. If branch A is ratified, the artifact must say that later implementation may rely on user-owned `VertexData(::NodeRowRef)` and `EdgeData(::EdgeWeightType, ::EdgeRowRef)` constructors as the extension point. If branch B is ratified, the artifact must say that later implementation must keep only the currently supported built-in shapes and reject everything else early with precise `ArgumentError`. In either case, the reviewed outcome must say how the branch applies across both supported runtime entry surfaces and across the two later docs surfaces.  
+**Negative contract**: Do not turn a preferred direction into ratification. Do not allow an unstated middle ground. Do not authorize runtime implementation, docs updates, or tests from this task alone. Do not let current docs wording or the design note answer the review by inertia. Do not let any downstream agent self-select branch A or branch B and mark the task complete.  
 **Files**: `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`  
 **Out of scope**: `ext/MetaGraphsNextIO.jl`, docs files, tests, exports, migration work, and Tranche 3 implementation planning  
-**Verification**: The reviewed artifact must plainly say branch A, branch B, or explicit deferral. A fake fix fails if the file records only a leaning, only a candidate, or only a restatement of current runtime facts.
+**Verification**: The reviewed artifact must plainly say branch A, branch B, or explicit deferral, and it must attribute that answer to the human project owner. A fake fix fails if the file records only a leaning, only a candidate, only a restatement of current runtime facts, or only an agent-authored choice with no human-project-owner response.
 
 ### 3. Finalize the decision artifact and the Tranche 3 handoff boundary
 
 **Type**: WRITE  
-**Output**: `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md` is complete, internally consistent, and strong enough for a fresh implementing agent to start Tranche 3 honestly, or to stop honestly because the branch remains deferred.  
+**Output**: `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md` is complete, internally consistent, and strong enough for a fresh downstream agent to prepare or consume a separate Tranche 3 tasking pass honestly, or to stop honestly because the branch remains deferred.  
 **Depends on**: 2  
-**Positive contract**: The final artifact must include active authorities, parent documents, settled decisions and non-negotiables, authorization boundary, current-state diagnosis, separate lock coverage, direct red-state repros, the owner and invariant under repair, every affected public surface, required upstream primary sources, green-state gates, and stop conditions. It must state exactly whether Tranche 3 is unblocked, and if so, what it must implement in the runtime owner and what Tranche 5 must later synchronize in the public docs and final verification. If the review defers the branch, the final artifact must keep Tranches 3 through 5 blocked and must name the exact remaining stop condition.  
-**Negative contract**: Do not write Tranche 3 runtime tasking here. Do not leave any affected public surface implicit. Do not unblock Tranche 3 without a branch-specific handoff packet. Do not let a fresh agent infer scope from parent links alone.  
+**Positive contract**: The final artifact must include active authorities, parent documents, settled decisions and non-negotiables, authorization boundary, current-state diagnosis, separate lock coverage, direct red-state repros, the owner and invariant under repair, every affected public surface, required upstream primary sources, green-state gates, and stop conditions. It must state exactly whether Tranche 3 is unblocked for a separate tranche-to-tasking pass, and if so, what that later tasking must cover in the runtime owner and what Tranche 5 must later synchronize in the public docs and final verification. If the review defers the branch, the final artifact must keep Tranches 3 through 5 blocked and must name the exact remaining stop condition.  
+**Negative contract**: Do not write Tranche 3 runtime tasking here. Do not leave any affected public surface implicit. Do not present the decision artifact as sufficient for direct runtime implementation without the dedicated Tranche 3 tasking pass. Do not unblock Tranche 3 tasking without a branch-specific handoff packet. Do not let a fresh agent infer scope from parent links alone.  
 **Files**: `.workflow-docs/202605070011--type-stable-parse--audit-fix/00-03_supplied-instance-contract-decision.md`  
 **Out of scope**: `ext/MetaGraphsNextIO.jl`, `README.md`, `docs/src/index.md`, `test/*`, `03_tranche-3--tasking.md`, and any runtime or docs changes  
-**Verification**: Confirm that a fresh implementing agent could use only the final decision artifact, the remedial PRD, the tranche file, and the codebase to execute Tranche 3 without reopening derivable decisions. The old state fails because no decision artifact exists and `00-02_audit-fix-decisions.md` is not a sufficient handoff.
+**Verification**: Confirm that a fresh downstream agent could use only the final decision artifact, the remedial PRD, the tranche file, and the codebase to prepare or consume a separate Tranche 3 tasking artifact without reopening derivable decisions. Confirm that the decision artifact still does not authorize direct runtime implementation without that Tranche 3 tasking pass. The old state fails because no decision artifact exists and `00-02_audit-fix-decisions.md` is not a sufficient handoff.
