@@ -136,6 +136,23 @@ function default_metagraph()::MetaGraph
     )
 end
 
+function supported_library_created_metagraph_type()::Type
+    return typeof(default_metagraph())
+end
+
+function validate_supported_library_created_metagraph_target(
+    target_type::Type{GraphT},
+)::Nothing where {GraphT <: MetaGraph}
+    target_type === MetaGraph && return nothing
+    owner_type = supported_library_created_metagraph_type()
+    target_type === owner_type && return nothing
+    throw(
+        ArgumentError(
+            "The MetaGraphsNext extension supports library-created `MetaGraph` materialization only for the `MetaGraph` token and the exact owner-derived concrete type `$(owner_type)`, but received `$(target_type)`. Construct an empty `MetaGraph` with `Symbol` labels and use the caller-supplied `MetaGraph` path instead.",
+        ),
+    )
+end
+
 # ---------------------------------------------------------------------------
 # Validation.
 # ---------------------------------------------------------------------------
@@ -306,14 +323,18 @@ end
 # Protocol: validate_extension_load_target
 # ---------------------------------------------------------------------------
 
-function LineagesIO.validate_extension_load_target(::Type{<:MetaGraph})::Nothing
+function LineagesIO.validate_extension_load_target(
+    target_type::Type{GraphT},
+)::Nothing where {GraphT <: MetaGraph}
+    validate_supported_library_created_metagraph_target(target_type)
     return nothing
 end
 
 function LineagesIO.validate_extension_load_target(
-    ::Type{<:MetaGraph},
+    target_type::Type{GraphT},
     graph_asset::LineageGraphAsset,
-)::Nothing
+)::Nothing where {GraphT <: MetaGraph}
+    validate_supported_library_created_metagraph_target(target_type)
     graph_requires_multi_parent(graph_asset) || return nothing
     throw(
         ArgumentError(

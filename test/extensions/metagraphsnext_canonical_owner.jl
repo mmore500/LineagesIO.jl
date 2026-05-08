@@ -89,6 +89,11 @@ function weighted_metagraph_target()
     )
 end
 
+function owner_derived_library_created_metagraph_type()::Type
+    extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
+    return typeof(extension.default_metagraph())
+end
+
 struct CanonicalBranchAVertexData
     label::String
     posterior::Union{Nothing, String}
@@ -249,6 +254,7 @@ end
 
     direct_asset = first(direct_store.graphs)
     wrapper_asset = first(wrapper_store.graphs)
+    owner_type = owner_derived_library_created_metagraph_type()
 
     @test metagraphsnext_table_snapshot(direct_asset.node_table) ==
         metagraphsnext_table_snapshot(wrapper_asset.node_table)
@@ -256,10 +262,68 @@ end
         metagraphsnext_table_snapshot(wrapper_asset.edge_table)
     @test direct_asset.basenode == wrapper_asset.basenode
     @test direct_asset.basenode == Symbol(1)
+    @test typeof(direct_asset.graph) === owner_type
+    @test typeof(wrapper_asset.graph) === owner_type
     @test metagraphsnext_graph_contract(direct_asset.graph) ==
         metagraphsnext_graph_contract(wrapper_asset.graph)
     @test [node.nodekey for node in AbstractTrees.PreOrderDFS(LineagesIO.MetaGraphsNextTreeView(direct_asset))] ==
         [node.nodekey for node in AbstractTrees.PreOrderDFS(LineagesIO.MetaGraphsNextTreeView(wrapper_asset))]
+end
+
+@testset "MetaGraphsNext canonical owner — exact library-created concrete request" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    requested_type = owner_derived_library_created_metagraph_type()
+
+    direct_store = LineagesIO.canonical_load(
+        LineagesIO.NewickFilePathSourceDescriptor(fixture_path),
+        LineagesIO.NodeTypeLoadRequest(requested_type),
+    )
+    direct_asset = first(direct_store.graphs)
+
+    @test typeof(direct_asset.graph) === requested_type
+    @test direct_asset.basenode == Symbol(1)
+    @test metagraphsnext_graph_contract(direct_asset.graph) == (
+        nv = 5,
+        ne = 4,
+        labels = [Symbol(1), Symbol(2), Symbol(3), Symbol(4), Symbol(5)],
+        child_map = [
+            1 => [2, 5],
+            2 => [3, 4],
+            3 => Int[],
+            4 => Int[],
+            5 => Int[],
+        ],
+        edge_data = [
+            (Symbol(1), Symbol(2), 2.0),
+            (Symbol(1), Symbol(5), nothing),
+            (Symbol(2), Symbol(3), 1.5),
+            (Symbol(2), Symbol(4), 0.25),
+        ],
+        weights = [
+            (1, 2, 2.0),
+            (1, 5, 1.0),
+            (2, 3, 1.5),
+            (2, 4, 0.25),
+        ],
+    )
+end
+
+@testset "MetaGraphsNext canonical owner — unsupported library-created concrete request rejection" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    requested_type = typeof(weighted_metagraph_target())
+
+    direct_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(fixture_path),
+            LineagesIO.NodeTypeLoadRequest(requested_type),
+        )
+    end
+
+    @test direct_error isa ArgumentError
+    direct_text = sprint(showerror, direct_error)
+    @test occursin(string(requested_type), direct_text)
+    @test occursin("caller-supplied `MetaGraph` path", direct_text)
+    @test occursin("owner-derived concrete type", direct_text)
 end
 
 @testset "MetaGraphsNext canonical owner parity — supplied-instance network" begin

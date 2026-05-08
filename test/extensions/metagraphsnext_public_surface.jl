@@ -65,6 +65,11 @@ function missing_public_surface_branch_a_edge_graph()
     )
 end
 
+function owner_derived_library_created_metagraph_type()::Type
+    extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
+    return typeof(extension.default_metagraph())
+end
+
 @testset "MetaGraphsNext read_lineages public surface parity — tree node-type" begin
     fixture_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
@@ -74,7 +79,34 @@ end
 
     direct_asset = first(direct_store.graphs)
     wrapper_asset = first(wrapper_store.graphs)
+    owner_type = owner_derived_library_created_metagraph_type()
 
+    @test metagraphsnext_table_snapshot(direct_asset.node_table) ==
+        metagraphsnext_table_snapshot(wrapper_asset.node_table)
+    @test metagraphsnext_table_snapshot(direct_asset.edge_table) ==
+        metagraphsnext_table_snapshot(wrapper_asset.edge_table)
+    @test direct_asset.basenode == wrapper_asset.basenode
+    @test direct_asset.basenode == Symbol(1)
+    @test typeof(direct_asset.graph) === owner_type
+    @test typeof(wrapper_asset.graph) === owner_type
+    @test metagraphsnext_graph_contract(direct_asset.graph) ==
+        metagraphsnext_graph_contract(wrapper_asset.graph)
+end
+
+@testset "MetaGraphsNext read_lineages public surface parity — exact library-created concrete request" begin
+    fixture_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
+    )
+    requested_type = owner_derived_library_created_metagraph_type()
+
+    direct_store = LineagesIO.read_lineages(fixture_path, requested_type)
+    wrapper_store = load(fixture_path, requested_type)
+
+    direct_asset = first(direct_store.graphs)
+    wrapper_asset = first(wrapper_store.graphs)
+
+    @test typeof(direct_asset.graph) === requested_type
+    @test typeof(wrapper_asset.graph) === requested_type
     @test metagraphsnext_table_snapshot(direct_asset.node_table) ==
         metagraphsnext_table_snapshot(wrapper_asset.node_table)
     @test metagraphsnext_table_snapshot(direct_asset.edge_table) ==
@@ -83,6 +115,31 @@ end
     @test direct_asset.basenode == Symbol(1)
     @test metagraphsnext_graph_contract(direct_asset.graph) ==
         metagraphsnext_graph_contract(wrapper_asset.graph)
+end
+
+@testset "MetaGraphsNext read_lineages public surface parity — unsupported library-created concrete request rejection" begin
+    fixture_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
+    )
+    requested_type = typeof(weighted_metagraph_target())
+
+    direct_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(fixture_path, requested_type)
+    end
+    wrapper_error = capture_expected_load_error() do
+        load(fixture_path, requested_type)
+    end
+
+    @test direct_error isa ArgumentError
+    @test wrapper_error isa ArgumentError
+    direct_text = sprint(showerror, direct_error)
+    wrapper_text = sprint(showerror, wrapper_error)
+    @test occursin(string(requested_type), direct_text)
+    @test occursin(string(requested_type), wrapper_text)
+    @test occursin("caller-supplied `MetaGraph` path", direct_text)
+    @test occursin("caller-supplied `MetaGraph` path", wrapper_text)
+    @test occursin("owner-derived concrete type", direct_text)
+    @test occursin("owner-derived concrete type", wrapper_text)
 end
 
 @testset "MetaGraphsNext read_lineages public surface parity — custom metadata" begin
