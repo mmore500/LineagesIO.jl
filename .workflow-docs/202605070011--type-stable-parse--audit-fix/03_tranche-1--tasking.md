@@ -1,6 +1,6 @@
 ---
 date-created: 2026-05-07T16:50:04-07:00
-date-revised: 2026-05-07T16:50:04-07:00
+date-revised: 2026-05-07T17:30:23-07:00
 status: proposed
 ---
 
@@ -21,8 +21,8 @@ Parent PRD: `01_prd.md`
 - No rename, export change, deprecation, migration-policy change, or broader public-contract rewrite is authorized in this tranche.
 - The owner that must remain is the public `BuilderDescriptor(...)` constructor in `src/read_lineages.jl`.
 - The retained raw `load(...; builder = fn)` story remains untouched in this tranche and must not be relabeled as first-class typed behavior.
-- The live red state was revalidated in the current repository: `LineagesIO.BuilderDescriptor(builder, Any)` still succeeds and constructs `BuilderDescriptor{..., Any, Vector{Any}}`, while `LineagesIO.BuilderDescriptor(builder, Int, AbstractVector{Int})` already fails with the current `ParentCollectionT` `ArgumentError`.
-- There is not yet a direct public-surface regression in `test/core/read_lineages_public_surface.jl` that fails the `BuilderDescriptor(builder, Any)` shape.
+- The live red state was revalidated in the current repository with an executable placeholder builder: `LineagesIO.BuilderDescriptor(identity, Any)` still succeeds and constructs `BuilderDescriptor{typeof(identity), Any, Vector{Any}}`, while `LineagesIO.BuilderDescriptor(identity, Int, AbstractVector{Int})` already fails with the current `ParentCollectionT` `ArgumentError`.
+- There is not yet a direct public-surface regression in `test/core/read_lineages_public_surface.jl` that fails the `BuilderDescriptor(identity, Any)` shape.
 - Use the existing root environment and the existing `test/Project.toml` and `docs/Project.toml` environments. Do not add dependencies or edit dependency declarations directly.
 
 ## Governance
@@ -64,10 +64,10 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 
 ### Lock 4a: first-class erased-handle rejection at the public boundary
 
-- The work is not complete if `BuilderDescriptor(builder, Any)` or any equivalent abstract or erased `HandleT` shape still constructs a first-class typed descriptor.
-- Direct red-state repro: in the current repository, `LineagesIO.BuilderDescriptor(builder, Any)` succeeds and produces `BuilderDescriptor{..., Any, Vector{Any}}`.
+- The work is not complete if `BuilderDescriptor(identity, Any)` or any equivalent abstract or erased `HandleT` shape still constructs a first-class typed descriptor.
+- Direct red-state repro: in the current repository, `LineagesIO.BuilderDescriptor(identity, Any)` succeeds and produces `BuilderDescriptor{typeof(identity), Any, Vector{Any}}`.
 - Closing tasks: 1 and 2.
-- Verification artifact that must fail the old implementation or fake-fix shape: a direct public-surface regression that expects `ArgumentError` from `BuilderDescriptor(builder, Any)` and at least one additional abstract-handle request. The current implementation fails this artifact because the constructor currently succeeds.
+- Verification artifact that must fail the old implementation or fake-fix shape: a direct public-surface regression that expects `ArgumentError` from `BuilderDescriptor(identity, Any)` and from `BuilderDescriptor(identity, Integer)`. The current implementation fails this artifact because both constructor calls currently succeed.
 
 ### Lock 4b: concrete typed-builder public behavior must remain intact
 
@@ -88,7 +88,7 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 - The work is not complete if this tranche changes `FileIO.load(...)`, `load_alife_table(...)`, public naming, export policy, or docs classification to make the builder-boundary fix easier.
 - Direct bad shape to guard against: preserving the old first-class red state by broadening or relabeling compatibility-wrapper behavior.
 - Closing tasks: 1 and 2.
-- Verification artifact that must fail the bad implementation or fake-fix shape: touched-file scope remains limited to `src/read_lineages.jl` and direct public-surface tests, and no compatibility-wrapper code or docs surfaces are modified.
+- Verification artifact that must fail the bad implementation or fake-fix shape: touched-file scope remains limited to `src/read_lineages.jl`, `test/core/read_lineages_public_surface.jl`, and only if directly required to preserve existing concrete typed-builder proof, a minimal scoped adjustment in `test/core/canonical_load_owner.jl`; no compatibility-wrapper code or docs surfaces are modified.
 
 ## Handoff packet
 
@@ -124,14 +124,15 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
   - No broader public migration policy or naming decision is being reopened.
   - The owner that must remain is the public `BuilderDescriptor(...)` constructor.
 - Authorization boundary:
-  - Only the first-class builder boundary, directly affected public-surface tests, and any directly required error wording are in scope.
+  - Only the first-class builder boundary, directly affected public-surface tests, any directly required error wording, and only if strictly necessary to preserve existing concrete typed-builder proof, a minimal scoped adjustment in `test/core/canonical_load_owner.jl` are in scope.
 - Current-state diagnosis:
   - `src/read_lineages.jl` guards only `ParentCollectionT`, leaving `HandleT = Any` free to reintroduce erased handle storage through the first-class typed path.
 - Primary-goal lock:
   - Locks 4a through 4d above are mandatory and separate.
 - Direct red-state repros:
-  - `LineagesIO.BuilderDescriptor(builder, Any)` currently succeeds and constructs `BuilderDescriptor{..., Any, Vector{Any}}`.
-  - There is no direct public-surface regression yet that fails this bad shape.
+  - `LineagesIO.BuilderDescriptor(identity, Any)` currently succeeds and constructs `BuilderDescriptor{typeof(identity), Any, Vector{Any}}`.
+  - `LineagesIO.BuilderDescriptor(identity, Integer)` currently succeeds even though the first-class typed boundary should reject abstract handles.
+  - There is no direct public-surface regression yet that fails either bad shape.
 - Owner and invariant being repaired or relied on:
   - owner: the public `BuilderDescriptor(...)` constructor
   - invariant: first-class typed builder requests must own a concrete handle contract at the public boundary before request normalization reaches the canonical owner
@@ -152,8 +153,11 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
   - none beyond the repo-owned authorities already named for this narrow repair
   - if scope expands into wrapper, table, or extension behavior, the installed `FileIO`, `Tables`, and `MetaGraphsNext` sources named in the parent PRD become mandatory
 - Green-state gates:
-  - direct regression for `BuilderDescriptor(builder, Any)`
-  - continued success for concrete `HandleT` requests
+  - direct regression for `BuilderDescriptor(identity, Any)`
+  - direct regression for `BuilderDescriptor(identity, Integer)`
+  - continued success for `BuilderDescriptor(identity, Int)` and for existing concrete typed-builder multi-parent coverage
+  - continued failure for `BuilderDescriptor(identity, Int, AbstractVector{Int})` with the current `ParentCollectionT` contract
+  - explicit owner-level proof that rejection occurs in `src/read_lineages.jl` before a `TypedBuilderLoadRequest` exists
   - `julia --project=test test/runtests.jl`
   - `julia --project=docs docs/make.jl`
 - Stop conditions:
@@ -168,10 +172,11 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 - Read `src/read_lineages.jl` in full.
 - Read `test/core/read_lineages_public_surface.jl` in full.
 - Read the directly relevant typed-builder coverage in `test/core/canonical_load_owner.jl` in full.
-- Re-check the live runtime red state that `LineagesIO.BuilderDescriptor(builder, Any)` still succeeds and produces `BuilderDescriptor{..., Any, Vector{Any}}`.
-- Re-check the current positive boundary that `LineagesIO.BuilderDescriptor(builder, Int)` still succeeds.
-- Re-check the existing negative boundary that `LineagesIO.BuilderDescriptor(builder, Int, AbstractVector{Int})` still fails with the `ParentCollectionT` `ArgumentError`.
-- Re-check that no direct public-surface regression yet fails `BuilderDescriptor(builder, Any)`.
+- Re-check the live runtime red state that `LineagesIO.BuilderDescriptor(identity, Any)` still succeeds and produces `BuilderDescriptor{typeof(identity), Any, Vector{Any}}`.
+- Re-check the live runtime red state that `LineagesIO.BuilderDescriptor(identity, Integer)` still succeeds as an abstract-handle shape that should be rejected.
+- Re-check the current positive boundary that `LineagesIO.BuilderDescriptor(identity, Int)` still succeeds.
+- Re-check the existing negative boundary that `LineagesIO.BuilderDescriptor(identity, Int, AbstractVector{Int})` still fails with the `ParentCollectionT` `ArgumentError`.
+- Re-check that no direct public-surface regression yet fails `BuilderDescriptor(identity, Any)` or `BuilderDescriptor(identity, Integer)`.
 - Re-check the user-authorized disruption boundary before making code changes.
 - If any of those revalidation points no longer hold, stop and revise this tasking before changing code.
 
@@ -204,8 +209,8 @@ Task 1 may land the owner-level code repair and prove it manually plus with stan
 
 ## Failure-oriented verification
 
-- The direct constructor-level red-state repro must fail after the fix: `LineagesIO.BuilderDescriptor(builder, Any)` must throw `ArgumentError`. The current implementation fails this verification because it currently succeeds.
-- At least one additional abstract-handle request beyond `Any` must be covered by a direct public-surface negative regression so the fix cannot overfit to a single literal shape.
+- The direct constructor-level red-state repro must fail after the fix: `LineagesIO.BuilderDescriptor(identity, Any)` must throw `ArgumentError`. The current implementation fails this verification because it currently succeeds.
+- The anti-overfitting regression must also fail the old implementation directly: `LineagesIO.BuilderDescriptor(identity, Integer)` must throw `ArgumentError` after the fix, and it currently succeeds.
 - Existing concrete typed-builder success must remain verified through the public surface, including the current multi-parent typed-builder event coverage.
 - Manual inspection must confirm the rejection occurs in `src/read_lineages.jl` before a `TypedBuilderLoadRequest` is created.
 - Run `julia --project=test test/runtests.jl`.
@@ -223,15 +228,15 @@ Task 1 may land the owner-level code repair and prove it manually plus with stan
 **Negative contract**: Do not place the real rejection in `typed_builder_request`, `TypedBuilderLoadRequest`, `src/load_owner.jl`, or `src/construction.jl`. Do not silently convert an erased handle request into a different concrete wrapper. Do not touch compatibility-wrapper behavior or public-surface naming.  
 **Files**: `src/read_lineages.jl`  
 **Out of scope**: `src/load_owner.jl`, `src/construction.jl`, `src/load_compat.jl`, `ext/*`, docs, README, compatibility-wrapper semantics, naming policy, and migration policy  
-**Verification**: Manually prove that `LineagesIO.BuilderDescriptor(builder, Any)` now throws `ArgumentError`, `LineagesIO.BuilderDescriptor(builder, Int)` still succeeds, and `LineagesIO.BuilderDescriptor(builder, Int, AbstractVector{Int})` still throws the existing `ParentCollectionT` error. Then run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`. This verification must fail the old implementation because the old constructor currently accepts `Any`.
+**Verification**: Manually prove that `LineagesIO.BuilderDescriptor(identity, Any)` now throws `ArgumentError`, `LineagesIO.BuilderDescriptor(identity, Integer)` now throws `ArgumentError`, `LineagesIO.BuilderDescriptor(identity, Int)` still succeeds, and `LineagesIO.BuilderDescriptor(identity, Int, AbstractVector{Int})` still throws the existing `ParentCollectionT` error. Also inspect the public constructor path and confirm the rejection occurs before any `TypedBuilderLoadRequest` is created. Then run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`. This verification must fail the old implementation because the old constructor currently accepts both abstract-handle shapes.
 
 ### 2. Add direct public-surface regressions for erased-handle rejection and concrete-handle preservation
 
 **Type**: TEST  
 **Output**: `test/core/read_lineages_public_surface.jl` directly proves the bad first-class public shape is gone and the valid typed-builder path still works.  
 **Depends on**: 1  
-**Positive contract**: Add direct public-surface negative regressions that fail `BuilderDescriptor(builder, Any)` and at least one additional abstract-handle request, and preserve the current concrete typed-builder success story, including existing multi-parent typed-builder coverage. If a directly affected concrete success assertion must be mirrored or adjusted for clarity, keep that work tightly scoped and preserve the same owner boundary.  
+**Positive contract**: Add direct public-surface negative regressions that fail `BuilderDescriptor(identity, Any)` and `BuilderDescriptor(identity, Integer)`, and preserve the current concrete typed-builder success story, including existing multi-parent typed-builder coverage. If a directly affected concrete success assertion must be mirrored or adjusted for clarity, keep that work tightly scoped and preserve the same owner boundary.  
 **Negative contract**: Do not replace the direct constructor-level regression with a later `read_lineages(...)` failure. Do not use source-text assertions, helper-only tests, or a proxy that would still pass if the constructor remained permissive. Do not weaken or remove existing concrete typed-builder coverage to make the new negative cases pass.  
 **Files**: `test/core/read_lineages_public_surface.jl`; `test/core/canonical_load_owner.jl` only if a directly affected concrete typed-builder success assertion needs a minimal scoped adjustment  
 **Out of scope**: extension tests, docs, README, compatibility-wrapper tests, workflow docs, and any owner change outside the first-class `BuilderDescriptor` boundary  
-**Verification**: Run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`. Confirm the new regression would have failed the old implementation because `BuilderDescriptor(builder, Any)` previously constructed `BuilderDescriptor{..., Any, Vector{Any}}` instead of throwing.
+**Verification**: Run `julia --project=test test/runtests.jl` and `julia --project=docs docs/make.jl`. Confirm the new regressions would have failed the old implementation because `BuilderDescriptor(identity, Any)` previously constructed `BuilderDescriptor{typeof(identity), Any, Vector{Any}}` and `BuilderDescriptor(identity, Integer)` also previously succeeded instead of throwing.
