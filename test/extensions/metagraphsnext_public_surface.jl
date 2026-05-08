@@ -53,6 +53,18 @@ function public_surface_branch_a_metagraph_target()
     )
 end
 
+function missing_public_surface_branch_a_edge_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        Nothing,
+        MissingPublicSurfaceBranchAEdgeData,
+        nothing,
+        edge -> 1.0,
+        1.0,
+    )
+end
+
 @testset "MetaGraphsNext read_lineages public surface parity — tree node-type" begin
     fixture_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
@@ -146,27 +158,11 @@ end
     fixture_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
     )
-    direct_target = MetaGraphsNext.MetaGraph(
-        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
-        Symbol,
-        Nothing,
-        MissingPublicSurfaceBranchAEdgeData,
-        nothing,
-        edge -> 1.0,
-        1.0,
-    )
+    direct_target = missing_public_surface_branch_a_edge_graph()
     direct_error = capture_expected_load_error() do
         LineagesIO.read_lineages(fixture_path, direct_target)
     end
-    wrapper_target = MetaGraphsNext.MetaGraph(
-        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
-        Symbol,
-        Nothing,
-        MissingPublicSurfaceBranchAEdgeData,
-        nothing,
-        edge -> 1.0,
-        1.0,
-    )
+    wrapper_target = missing_public_surface_branch_a_edge_graph()
     wrapper_error = capture_expected_load_error() do
         load(fixture_path, wrapper_target)
     end
@@ -181,6 +177,28 @@ end
     @test occursin("EdgeRowRef", wrapper_text)
     @test !occursin("add_edge_to_metagraph!", direct_text)
     @test !occursin("add_edge_to_metagraph!", wrapper_text)
+    @test MetaGraphsNext.Graphs.nv(direct_target) == 0
+    @test MetaGraphsNext.Graphs.ne(direct_target) == 0
+    @test MetaGraphsNext.Graphs.nv(wrapper_target) == 0
+    @test MetaGraphsNext.Graphs.ne(wrapper_target) == 0
+
+    direct_retry_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(fixture_path, direct_target)
+    end
+    wrapper_retry_error = capture_expected_load_error() do
+        load(fixture_path, wrapper_target)
+    end
+
+    @test direct_retry_error isa MethodError
+    @test wrapper_retry_error isa MethodError
+    @test sprint(showerror, direct_retry_error) == direct_text
+    @test sprint(showerror, wrapper_retry_error) == wrapper_text
+    @test !occursin("must be empty", sprint(showerror, direct_retry_error))
+    @test !occursin("must be empty", sprint(showerror, wrapper_retry_error))
+    @test MetaGraphsNext.Graphs.nv(direct_target) == 0
+    @test MetaGraphsNext.Graphs.ne(direct_target) == 0
+    @test MetaGraphsNext.Graphs.nv(wrapper_target) == 0
+    @test MetaGraphsNext.Graphs.ne(wrapper_target) == 0
 end
 
 @testset "MetaGraphsNext read_lineages public surface parity — supplied instance" begin

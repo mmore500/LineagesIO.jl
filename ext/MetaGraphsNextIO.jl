@@ -18,7 +18,9 @@ using MetaGraphsNext.Graphs: SimpleDiGraph, add_edge!, add_vertex!, is_directed,
 #
 # Carries the MetaGraph being built and the current node's StructureKeyType so
 # that add_child can connect parent → child without receiving the parent
-# nodekey again. Both fields are concrete at every instantiation.
+# nodekey again. Supplied-instance basenode binding keeps the initial node data
+# pending until the first successful child-edge payload materializes, which lets
+# constructor failures leave the caller-owned graph empty.
 # ---------------------------------------------------------------------------
 
 """
@@ -32,9 +34,18 @@ parent → child edge correctly.
 Not part of the public API. Users receive the completed `MetaGraph` from
 `load`, never this type.
 """
-struct MetaGraphsNextBuildCursor{GraphT <: MetaGraph}
+mutable struct MetaGraphsNextBuildCursor{GraphT <: MetaGraph}
     graph::GraphT
     nodekey::StructureKeyType
+    pending_nodedata::Union{Nothing, NodeRowRef}
+end
+
+function materialize_pending_cursor_node!(cursor::MetaGraphsNextBuildCursor)::Nothing
+    pending_nodedata = cursor.pending_nodedata
+    pending_nodedata === nothing && return nothing
+    add_node_to_metagraph!(cursor.graph, cursor.nodekey, pending_nodedata)
+    cursor.pending_nodedata = nothing
+    return nothing
 end
 
 # ---------------------------------------------------------------------------
@@ -208,87 +219,81 @@ function add_node_to_metagraph!(
 end
 
 # ---------------------------------------------------------------------------
-# Edge addition — dispatch on EdgeData type parameter.
+# Edge payload materialization — dispatch on EdgeData type parameter.
 #
 # Verified against graphs.jl:215-219 (Nothing path) and graphs.jl:195-213
-# (data paths).
+# (data paths). These helpers deliberately construct edge payloads before the
+# supplied-instance path mutates caller-owned graph state.
+# ---------------------------------------------------------------------------
+
+function materialize_metagraph_edge_payload(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, Nothing},
+    ::EdgeWeightType,
+    ::EdgeRowRef,
+)::Nothing
+    return nothing
+end
+
+function materialize_metagraph_edge_payload(
+    ::MetaGraph{<:Any, <:Any, Symbol, <:Any, Union{Nothing, Float64}},
+    edgeweight::EdgeWeightType,
+    ::EdgeRowRef,
+)::EdgeWeightType
+    return edgeweight
+end
+
+function materialize_metagraph_edge_payload(
+    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, EdgeDataT},
+    edgeweight::EdgeWeightType,
+    ::EdgeRowRef,
+)::EdgeDataT where {EdgeDataT <: Real}
+    return edgeweight === nothing ? MetaGraphsNext.default_weight(graph) : edgeweight
+end
+
+function materialize_metagraph_edge_payload(
+    ::MetaGraph{<:Any, <:Any, Symbol, <:Any, EdgeDataT},
+    ::EdgeWeightType,
+    edgedata::EdgeRowRef,
+)::EdgeDataT where {EdgeDataT <: EdgeRowRef}
+    return edgedata
+end
+
+function materialize_metagraph_edge_payload(
+    ::MetaGraph{<:Any, <:Any, Symbol, <:Any, EdgeDataT},
+    edgeweight::EdgeWeightType,
+    edgedata::EdgeRowRef,
+)::EdgeDataT where {EdgeDataT}
+    return EdgeDataT(edgeweight, edgedata)
+end
+
+function materialize_metagraph_edge_payloads(
+    graph::GraphT,
+    edgeweights::AbstractVector{EdgeWeightType},
+    edgedata::AbstractVector{<:EdgeRowRef},
+) where {GraphT <: MetaGraph}
+    return map(
+        (edgeweight, edgeref) ->
+            materialize_metagraph_edge_payload(graph, edgeweight, edgeref),
+        edgeweights,
+        edgedata,
+    )
+end
+
+# ---------------------------------------------------------------------------
+# Edge addition — payload already materialized.
 # ---------------------------------------------------------------------------
 
 function add_edge_to_metagraph!(
-    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, Nothing},
+    graph::MetaGraph,
     src_nodekey::StructureKeyType,
     dst_nodekey::StructureKeyType,
-    ::EdgeWeightType,
-    ::EdgeRowRef,
+    edgepayload,
 )::Nothing
-    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey)) || throw(
-        ArgumentError(
-            "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
-        ),
-    )
-    return nothing
-end
-
-function add_edge_to_metagraph!(
-    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, Union{Nothing, Float64}},
-    src_nodekey::StructureKeyType,
-    dst_nodekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    ::EdgeRowRef,
-)::Nothing
-    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), edgeweight) ||
-        throw(
-            ArgumentError(
-                "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
-            ),
-        )
-    return nothing
-end
-
-function add_edge_to_metagraph!(
-    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, <:Real},
-    src_nodekey::StructureKeyType,
-    dst_nodekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    ::EdgeRowRef,
-)::Nothing
-    w = edgeweight === nothing ? MetaGraphsNext.default_weight(graph) : edgeweight
-    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), w) || throw(
-        ArgumentError(
-            "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
-        ),
-    )
-    return nothing
-end
-
-function add_edge_to_metagraph!(
-    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, <:EdgeRowRef},
-    src_nodekey::StructureKeyType,
-    dst_nodekey::StructureKeyType,
-    ::EdgeWeightType,
-    edgedata::EdgeRowRef,
-)::Nothing
-    add_edge!(graph, node_label(src_nodekey), node_label(dst_nodekey), edgedata) ||
-        throw(
-            ArgumentError(
-                "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
-            ),
-        )
-    return nothing
-end
-
-function add_edge_to_metagraph!(
-    graph::MetaGraph{<:Any, <:Any, Symbol, <:Any, EdgeDataT},
-    src_nodekey::StructureKeyType,
-    dst_nodekey::StructureKeyType,
-    edgeweight::EdgeWeightType,
-    edgedata::EdgeRowRef,
-)::Nothing where {EdgeDataT}
     add_edge!(
         graph,
         node_label(src_nodekey),
         node_label(dst_nodekey),
-        EdgeDataT(edgeweight, edgedata),
+        edgepayload,
     ) || throw(
         ArgumentError(
             "Failed to add edge $(src_nodekey) -> $(dst_nodekey) to the MetaGraph.",
@@ -359,7 +364,11 @@ function LineagesIO.emit_basenode(
 )
     graph = default_metagraph()
     add_node_to_metagraph!(graph, nodekey, nodedata)
-    return MetaGraphsNextBuildCursor{typeof(graph)}(graph, nodekey)
+    return MetaGraphsNextBuildCursor{typeof(graph)}(
+        graph,
+        nodekey,
+        nothing,
+    )
 end
 
 # ---------------------------------------------------------------------------
@@ -373,8 +382,11 @@ function LineagesIO.bind_basenode!(
     nodedata::NodeRowRef,
 ) where {GraphT <: MetaGraph}
     validate_empty_metagraph(graph)
-    add_node_to_metagraph!(graph, nodekey, nodedata)
-    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
+    return MetaGraphsNextBuildCursor{GraphT}(
+        graph,
+        nodekey,
+        nodedata,
+    )
 end
 
 # ---------------------------------------------------------------------------
@@ -391,9 +403,11 @@ function LineagesIO.add_child(
     nodedata::NodeRowRef,
 ) where {GraphT <: MetaGraph}
     graph = parent.graph
+    edgepayload = materialize_metagraph_edge_payload(graph, edgeweight, edgedata)
+    materialize_pending_cursor_node!(parent)
     add_node_to_metagraph!(graph, nodekey, nodedata)
-    add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgeweight, edgedata)
-    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
+    add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgepayload)
+    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey, nothing)
 end
 
 # ---------------------------------------------------------------------------
@@ -416,11 +430,15 @@ function LineagesIO.add_child(
         ),
     )
     graph = first(parents).graph
-    add_node_to_metagraph!(graph, nodekey, nodedata)
-    for (parent, edgeweight, edgeref) in zip(parents, edgeweights, edgedata)
-        add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgeweight, edgeref)
+    edgepayloads = materialize_metagraph_edge_payloads(graph, edgeweights, edgedata)
+    for parent in parents
+        materialize_pending_cursor_node!(parent)
     end
-    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey)
+    add_node_to_metagraph!(graph, nodekey, nodedata)
+    for (parent, edgepayload) in zip(parents, edgepayloads)
+        add_edge_to_metagraph!(graph, parent.nodekey, nodekey, edgepayload)
+    end
+    return MetaGraphsNextBuildCursor{GraphT}(graph, nodekey, nothing)
 end
 
 # ---------------------------------------------------------------------------
@@ -428,6 +446,7 @@ end
 # ---------------------------------------------------------------------------
 
 function LineagesIO.finalize_graph!(cursor::MetaGraphsNextBuildCursor)
+    materialize_pending_cursor_node!(cursor)
     return cursor.graph
 end
 

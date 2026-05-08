@@ -65,6 +65,18 @@ function supplied_branch_a_network_graph()
     )
 end
 
+function missing_supplied_branch_a_edge_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
+        Symbol,
+        Nothing,
+        MissingSuppliedBranchAEdgeData,
+        nothing,
+        edge -> 1.0,
+        1.0,
+    )
+end
+
 @testset "MetaGraphsNext supplied-basenode binding" begin
     extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "annotated_simple_rooted.nwk"))
@@ -211,15 +223,7 @@ end
     @test occursin("NodeRowRef", missing_vertex_text)
     @test !occursin("add_node_to_metagraph!", missing_vertex_text)
 
-    missing_edge_graph = MetaGraphsNext.MetaGraph(
-        MetaGraphsNext.Graphs.SimpleDiGraph{Int}(),
-        Symbol,
-        Nothing,
-        MissingSuppliedBranchAEdgeData,
-        nothing,
-        edge -> 1.0,
-        1.0,
-    )
+    missing_edge_graph = missing_supplied_branch_a_edge_graph()
     missing_edge_error = capture_expected_load_error() do
         load(network_path, missing_edge_graph)
     end
@@ -228,4 +232,16 @@ end
     @test occursin("MissingSuppliedBranchAEdgeData", missing_edge_text)
     @test occursin("EdgeRowRef", missing_edge_text)
     @test !occursin("add_edge_to_metagraph!", missing_edge_text)
+    @test MetaGraphsNext.Graphs.nv(missing_edge_graph) == 0
+    @test MetaGraphsNext.Graphs.ne(missing_edge_graph) == 0
+
+    missing_edge_retry_error = capture_expected_load_error() do
+        load(network_path, missing_edge_graph)
+    end
+    @test missing_edge_retry_error isa MethodError
+    missing_edge_retry_text = sprint(showerror, missing_edge_retry_error)
+    @test missing_edge_retry_text == missing_edge_text
+    @test !occursin("must be empty", missing_edge_retry_text)
+    @test MetaGraphsNext.Graphs.nv(missing_edge_graph) == 0
+    @test MetaGraphsNext.Graphs.ne(missing_edge_graph) == 0
 end

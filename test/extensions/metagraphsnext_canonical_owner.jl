@@ -130,12 +130,54 @@ Base.:(==)(lhs::CanonicalBranchAEdgeData, rhs::CanonicalBranchAEdgeData) =
 
 struct MissingCanonicalBranchAEdgeData end
 
+struct ThrowingCanonicalBranchAEdgeData
+    edgeweight::LineagesIO.EdgeWeightType
+    support::Union{Nothing, String}
+end
+
+function ThrowingCanonicalBranchAEdgeData(
+    edgeweight::LineagesIO.EdgeWeightType,
+    edgedata::LineagesIO.EdgeRowRef,
+)
+    support = :support in Tables.columnnames(edgedata) ?
+        LineagesIO.edge_property(edgedata, :support) : nothing
+    support == "55" && error("boom55")
+    return ThrowingCanonicalBranchAEdgeData(
+        edgeweight,
+        support === nothing ? nothing : string(support),
+    )
+end
+
 function canonical_branch_a_metagraph_target()
     return MetaGraphsNext.MetaGraph(
         MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
         Symbol,
         CanonicalBranchAVertexData,
         CanonicalBranchAEdgeData,
+        nothing,
+        edge -> edge.edgeweight === nothing ? 1.0 : edge.edgeweight,
+        1.0,
+    )
+end
+
+function missing_canonical_branch_a_edge_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        Nothing,
+        MissingCanonicalBranchAEdgeData,
+        nothing,
+        edge -> 1.0,
+        1.0,
+    )
+end
+
+function throwing_canonical_branch_a_edge_graph()
+    return MetaGraphsNext.MetaGraph(
+        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
+        Symbol,
+        Nothing,
+        ThrowingCanonicalBranchAEdgeData,
         nothing,
         edge -> edge.edgeweight === nothing ? 1.0 : edge.edgeweight,
         1.0,
@@ -312,15 +354,7 @@ end
     @test occursin("NodeRowRef", missing_vertex_text)
     @test !occursin("add_node_to_metagraph!", missing_vertex_text)
 
-    missing_edge_target = MetaGraphsNext.MetaGraph(
-        MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
-        Symbol,
-        Nothing,
-        MissingCanonicalBranchAEdgeData,
-        nothing,
-        edge -> 1.0,
-        1.0,
-    )
+    missing_edge_target = missing_canonical_branch_a_edge_graph()
     missing_edge_error = capture_expected_load_error() do
         LineagesIO.canonical_load(
             LineagesIO.NewickFilePathSourceDescriptor(network_path),
@@ -335,4 +369,55 @@ end
     @test occursin("MissingCanonicalBranchAEdgeData", missing_edge_text)
     @test occursin("EdgeRowRef", missing_edge_text)
     @test !occursin("add_edge_to_metagraph!", missing_edge_text)
+    @test MetaGraphsNext.Graphs.nv(missing_edge_target) == 0
+    @test MetaGraphsNext.Graphs.ne(missing_edge_target) == 0
+
+    missing_edge_retry_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(network_path),
+            LineagesIO.BasenodeLoadRequest(
+                missing_edge_target,
+                LineagesIO.construction_handle_type(missing_edge_target),
+            ),
+        )
+    end
+    @test missing_edge_retry_error isa MethodError
+    missing_edge_retry_text = sprint(showerror, missing_edge_retry_error)
+    @test missing_edge_retry_text == missing_edge_text
+    @test !occursin("must be empty", missing_edge_retry_text)
+    @test MetaGraphsNext.Graphs.nv(missing_edge_target) == 0
+    @test MetaGraphsNext.Graphs.ne(missing_edge_target) == 0
+end
+
+@testset "MetaGraphsNext canonical owner — multi-parent edge constructor failure" begin
+    network_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
+    throwing_target = throwing_canonical_branch_a_edge_graph()
+
+    thrown_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(network_path),
+            LineagesIO.BasenodeLoadRequest(
+                throwing_target,
+                LineagesIO.construction_handle_type(throwing_target),
+            ),
+        )
+    end
+
+    @test thrown_error isa ErrorException
+    @test sprint(showerror, thrown_error) == "boom55"
+    @test MetaGraphsNext.Graphs.nv(throwing_target) == 4
+    @test MetaGraphsNext.Graphs.ne(throwing_target) == 3
+    @test [label for (label, _data) in metagraphsnext_vertex_data_snapshot(throwing_target)] ==
+        [Symbol(1), Symbol(2), Symbol(3), Symbol(6)]
+    @test [
+        (src_label, dst_label) for
+        (src_label, dst_label, _data) in metagraphsnext_edge_data_snapshot(throwing_target)
+    ] == [
+        (Symbol(1), Symbol(2)),
+        (Symbol(1), Symbol(6)),
+        (Symbol(2), Symbol(3)),
+    ]
+    @test !haskey(throwing_target, Symbol(4))
 end
