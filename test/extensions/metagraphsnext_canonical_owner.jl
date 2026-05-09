@@ -317,6 +317,24 @@ end
     )
 end
 
+@testset "MetaGraphsNext canonical owner — weighted-concrete library-created request rejection" begin
+    fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    requested_type = typeof(weighted_metagraph_target())
+
+    direct_error = capture_expected_load_error() do
+        LineagesIO.canonical_load(
+            LineagesIO.NewickFilePathSourceDescriptor(fixture_path),
+            LineagesIO.NodeTypeLoadRequest(requested_type),
+        )
+    end
+
+    @test direct_error isa ArgumentError
+    direct_text = sprint(showerror, direct_error)
+    @test occursin(string(requested_type), direct_text)
+    @test occursin("caller-supplied `MetaGraph` path", direct_text)
+    @test occursin("owner-derived concrete type", direct_text)
+end
+
 @testset "MetaGraphsNext canonical owner — hand-written partial library-created request rejection" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
     requested_type = handwritten_partial_metagraph_request()

@@ -117,6 +117,31 @@ end
         metagraphsnext_graph_contract(wrapper_asset.graph)
 end
 
+@testset "MetaGraphsNext read_lineages public surface parity — weighted-concrete library-created request rejection" begin
+    fixture_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
+    )
+    requested_type = typeof(weighted_metagraph_target())
+
+    direct_error = capture_expected_load_error() do
+        LineagesIO.read_lineages(fixture_path, requested_type)
+    end
+    wrapper_error = capture_expected_load_error() do
+        load(fixture_path, requested_type)
+    end
+
+    @test direct_error isa ArgumentError
+    @test wrapper_error isa ArgumentError
+    direct_text = sprint(showerror, direct_error)
+    wrapper_text = sprint(showerror, wrapper_error)
+    @test occursin(string(requested_type), direct_text)
+    @test occursin(string(requested_type), wrapper_text)
+    @test occursin("caller-supplied `MetaGraph` path", direct_text)
+    @test occursin("caller-supplied `MetaGraph` path", wrapper_text)
+    @test occursin("owner-derived concrete type", direct_text)
+    @test occursin("owner-derived concrete type", wrapper_text)
+end
+
 @testset "MetaGraphsNext read_lineages public surface parity — hand-written partial library-created request rejection" begin
     fixture_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
