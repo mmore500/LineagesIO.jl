@@ -172,11 +172,22 @@ compatibility and round-trip writing.
 ## MetaGraphsNext extension
 
 Loading `MetaGraphsNext` activates the package extension that materializes a
-native `MetaGraphsNext.MetaGraph` type directly from the source. Nodes carry
-`Symbol` labels (`graph[Symbol(3)]`), and source edge weights are stored as
-`Union{Nothing, Float64}` edge data accessible via `graph[Symbol(i), Symbol(j)]`.
-Pass an empty MetaGraph instance to `read_lineages` when custom
-`VertexData`/`EdgeData` types or multi-parent network sources are needed.
+native `MetaGraphsNext.MetaGraph` type directly from the source. The
+tree-only library-created path is `read_lineages(src, MetaGraph)`: it
+constructs a directed `MetaGraph` with `Nothing` vertex data and
+`Union{Nothing, Float64}` edge data, and it does not treat arbitrary concrete
+`Type{<:MetaGraph}` requests or hand-written partial `MetaGraph{...}` type
+literals as a customization path. Nodes carry `Symbol` labels
+(`graph[Symbol(3)]`), and source edge weights are stored as
+`Union{Nothing, Float64}` edge data accessible via
+`graph[Symbol(i), Symbol(j)]`.
+
+For multi-parent sources or alternate metadata parameterizations, construct
+and pass an empty caller-supplied `MetaGraph` with `Symbol` labels. Supported
+user-owned custom data is constructor-based: implement
+`VertexData(::LineagesIO.NodeRowRef)` and
+`EdgeData(::LineagesIO.EdgeWeightType, ::LineagesIO.EdgeRowRef)` on the types
+you want stored in the graph.
 
 ```julia
 using LineagesIO

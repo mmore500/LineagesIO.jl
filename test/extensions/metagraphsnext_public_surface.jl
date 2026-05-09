@@ -117,11 +117,11 @@ end
         metagraphsnext_graph_contract(wrapper_asset.graph)
 end
 
-@testset "MetaGraphsNext read_lineages public surface parity — unsupported library-created concrete request rejection" begin
+@testset "MetaGraphsNext read_lineages public surface parity — hand-written partial library-created request rejection" begin
     fixture_path = abspath(
         joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"),
     )
-    requested_type = typeof(weighted_metagraph_target())
+    requested_type = handwritten_partial_metagraph_request()
 
     direct_error = capture_expected_load_error() do
         LineagesIO.read_lineages(fixture_path, requested_type)

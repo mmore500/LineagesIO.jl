@@ -89,6 +89,15 @@ function weighted_metagraph_target()
     )
 end
 
+function handwritten_partial_metagraph_request()
+    return MetaGraphsNext.MetaGraph{
+        Int,
+        MetaGraphsNext.Graphs.SimpleDiGraph{Int},
+        Symbol,
+        Nothing,
+    }
+end
+
 function owner_derived_library_created_metagraph_type()::Type
     extension = something(Base.get_extension(LineagesIO, :MetaGraphsNextIO))
     return typeof(extension.default_metagraph())
@@ -308,9 +317,9 @@ end
     )
 end
 
-@testset "MetaGraphsNext canonical owner — unsupported library-created concrete request rejection" begin
+@testset "MetaGraphsNext canonical owner — hand-written partial library-created request rejection" begin
     fixture_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
-    requested_type = typeof(weighted_metagraph_target())
+    requested_type = handwritten_partial_metagraph_request()
 
     direct_error = capture_expected_load_error() do
         LineagesIO.canonical_load(

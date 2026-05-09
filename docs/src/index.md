@@ -190,11 +190,15 @@ MetaGraph materialization. Nodes are labelled with `Symbol` keys so that
 standard MetaGraph access works without wrapper types: `graph[Symbol(3)]` for
 vertex data, `graph[Symbol(1), Symbol(2)]` for edge data. (Symbol literals
 like `:foo` require an identifier name; integer-keyed nodes need `Symbol(n)`.)
-The library-created path (`read_lineages(src, MetaGraph)`) always produces a directed
-MetaGraph with `Nothing` vertex data and `Union{Nothing, Float64}` edge data,
-making source edge weights immediately accessible. The library-created path
-supports only single-parent (tree) sources; pass an empty MetaGraph instance
-to `read_lineages` for multi-parent (network) sources.
+Treat the library-created path (`read_lineages(src, MetaGraph)`) as the
+tree-only request token. It always produces a directed MetaGraph with
+`Nothing` vertex data and `Union{Nothing, Float64}` edge data, making source
+edge weights immediately accessible. Arbitrary concrete `Type{<:MetaGraph}`
+requests and hand-written partial `MetaGraph{...}` type literals are not a
+supported library-created customization path. The library-created path
+supports only single-parent (tree) sources; use the caller-supplied empty
+MetaGraph path for multi-parent (network) sources or alternate metadata
+parameterizations.
 
 ```julia
 using LineagesIO
@@ -211,8 +215,13 @@ asset.node_table
 asset.edge_table
 ```
 
-To load multi-parent sources or to customise `VertexData`/`EdgeData` types,
-pass an empty MetaGraph instance with `Symbol` labels:
+Supported caller-supplied custom data is constructor-based on user-owned
+types. Implement `VertexData(::LineagesIO.NodeRowRef)` to materialize vertex
+data from authoritative node rows, and implement
+`EdgeData(::LineagesIO.EdgeWeightType, ::LineagesIO.EdgeRowRef)` to
+materialize edge data from the source edge weight plus the authoritative edge
+row. To load multi-parent sources or to customise `VertexData`/`EdgeData`
+types, pass an empty MetaGraph instance with `Symbol` labels:
 
 ```julia
 using MetaGraphsNext: MetaGraph
@@ -222,7 +231,7 @@ my_graph = MetaGraph(
     SimpleDiGraph{Int}(),
     Symbol,
     Nothing,
-    Float64,       # EdgeData: stores edge weight as Float64
+    Float64,       # Supported built-in EdgeData shape for direct weight storage
     nothing,
     identity,      # weight_function: edge weight IS the stored Float64
     0.0,
