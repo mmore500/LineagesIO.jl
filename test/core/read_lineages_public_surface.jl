@@ -92,7 +92,7 @@ end
         Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
         false,
     )
-    bound_store = LineagesIO.read_lineages(network_path, bound_target)
+    bound_store = LineagesIO.read_lineages!(network_path, bound_target)
     bound_asset = only(collect(bound_store.graphs))
     @test bound_asset.basenode === bound_target
     @test canonical_owner_bound_summary(bound_target) == (
@@ -231,6 +231,61 @@ end
         )
     end
     @test basenode_error isa ArgumentError
-    @test occursin("construction_handle_type", sprint(showerror, basenode_error))
-    @test occursin("compatibility wrapper", sprint(showerror, basenode_error))
+    @test occursin("read_lineages!", sprint(showerror, basenode_error))
+end
+
+@testset "read_lineages! public surface — supplied-instance path and stream loads" begin
+    tree_path = abspath(joinpath(@__DIR__, "..", "fixtures", "single_rooted_tree.nwk"))
+    network_path = abspath(
+        joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
+    )
+
+    path_target = CanonicalOwnerBoundTarget(
+        nothing,
+        "",
+        Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+        false,
+    )
+    path_store = LineagesIO.read_lineages!(network_path, path_target)
+    path_asset = only(collect(path_store.graphs))
+    @test path_asset.basenode === path_target
+    @test canonical_owner_bound_summary(path_target) == (
+        nodekey = 1,
+        label = "Root",
+        edges = [(1, 2), (1, 6), (2, 3), (2, 4), (4, 5), (6, 4), (6, 7)],
+        finalized = true,
+    )
+
+    open(network_path, "r") do io
+        stream_target = CanonicalOwnerBoundTarget(
+            nothing,
+            "",
+            Tuple{LineagesIO.StructureKeyType, LineagesIO.StructureKeyType}[],
+            false,
+        )
+        stream_store = LineagesIO.read_lineages!(
+            io,
+            stream_target;
+            source_path = network_path,
+        )
+        stream_asset = only(collect(stream_store.graphs))
+        @test stream_asset.basenode === stream_target
+        @test canonical_owner_bound_summary(stream_target) == (
+            nodekey = 1,
+            label = "Root",
+            edges = [(1, 2), (1, 6), (2, 3), (2, 4), (4, 5), (6, 4), (6, 7)],
+            finalized = true,
+        )
+    end
+
+    untyped_error = capture_expected_load_error() do
+        LineagesIO.read_lineages!(
+            network_path,
+            PublicSurfaceUntypedTarget("no-handle-type"),
+        )
+    end
+    @test untyped_error isa ArgumentError
+    untyped_text = sprint(showerror, untyped_error)
+    @test occursin("construction_handle_type", untyped_text)
+    @test occursin("compatibility wrapper", untyped_text)
 end

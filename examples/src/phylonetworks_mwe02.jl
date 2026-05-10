@@ -32,7 +32,7 @@ network_path = normpath(
     ),
 )
 target = HybridNetwork()
-network_store = read_lineages(network_path, target)
+network_store = read_lineages!(network_path, target)
 network_asset = first(network_store.graphs)
 
 println("supplied-target rooted-network path: ", network_path)

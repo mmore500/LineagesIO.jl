@@ -251,7 +251,7 @@ repair plus the missing two-surface proof.
 
 ### Lock 3: the typed supplied-basenode boundary must stay honest
 
-- The work is not complete if `read_lineages(source, basenode)` regresses to
+- The work is not complete if `read_lineages!(source, basenode)` regresses to
   the legacy single-parent compatibility fallback, or if the final tranche-4
   repair blurs the distinction between the first-class typed boundary and the
   compatibility wrapper boundary.
@@ -329,7 +329,7 @@ repair plus the missing two-surface proof.
     network `Int` rejection to say `package-owned node-type load surface`
   - `test/extensions/metagraphsnext_network_rejection.jl` currently expects the
     shared `MetaGraph` rejection to say `read_lineages(source, MetaGraph)` and
-    `read_lineages(source, my_graph)`
+    `read_lineages!(source, my_graph)`
 - Owner and invariant under repair: first-class tests must assert rejection
   honesty for the first-class surface without forcing shared-layer messages to
   impersonate that surface.

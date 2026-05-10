@@ -102,7 +102,7 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
 ### Lock 3c: every affected public surface must be named and assigned to a downstream owner
 
 - The work is not complete if one supported surface could still drift while another is fixed because the artifact names only the extension file or only one user-facing surface.
-- Direct red-state repro: the same supplied-instance custom-data semantic currently appears through the first-class `read_lineages(source, supplied_metagraph)` surface, the retained `load(source, supplied_metagraph)` compatibility wrapper, `README.md`, and `docs/src/index.md`.
+- Direct red-state repro: the same supplied-instance custom-data semantic currently appears through the first-class `read_lineages!(source, supplied_metagraph)` surface, the retained `load(source, supplied_metagraph)` compatibility wrapper, `README.md`, and `docs/src/index.md`.
 - Closing tasks: 1, 2, and 3.
 - Verification artifact that must fail the old implementation or fake-fix shape: the final artifact must enumerate each affected surface and say whether it is handled in this tranche, deferred to Tranche 3, or deferred to Tranche 5. A link-only or owner-only handoff fails this lock.
 
@@ -175,7 +175,7 @@ Read-only git and shell commands may be used freely. Mutating git operations suc
   - runtime owner under later repair: `ext/MetaGraphsNextIO.jl`
   - invariant: the supplied-instance path must have one explicit custom-data contract whose runtime, wrapper, docs, and tests can later be synchronized honestly
 - Supported public surfaces affected by that owner or semantic:
-  - first-class `read_lineages(source, supplied_metagraph)`
+  - first-class `read_lineages!(source, supplied_metagraph)`
   - retained `load(source, supplied_metagraph)` compatibility wrapper
   - `README.md` MetaGraphsNext extension guidance
   - `docs/src/index.md` MetaGraphsNext extension guidance
@@ -279,7 +279,7 @@ Because this tranche is workflow-only, it may inherit the current repository gre
   - `EdgeData <: EdgeRowRef`
 - The final artifact must contain the direct unsupported-shape repros for a user-defined `MyVertex` and a user-defined `MyEdge` custom-data type, and it must say that the current failure is a raw internal `MethodError`.
 - The final artifact must enumerate each affected surface:
-  - `read_lineages(source, supplied_metagraph)`
+  - `read_lineages!(source, supplied_metagraph)`
   - `load(source, supplied_metagraph)`
   - `README.md`
   - `docs/src/index.md`

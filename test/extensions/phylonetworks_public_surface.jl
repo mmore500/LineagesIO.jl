@@ -47,7 +47,7 @@ end
         joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
     )
     direct_target = PhyloNetworks.HybridNetwork()
-    direct_store = LineagesIO.read_lineages(fixture_path, direct_target)
+    direct_store = LineagesIO.read_lineages!(fixture_path, direct_target)
     wrapper_target = PhyloNetworks.HybridNetwork()
     wrapper_store = load(fixture_path, wrapper_target)
 

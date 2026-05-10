@@ -105,7 +105,7 @@ When this remedial work is complete:
   `EdgeData` behavior that the supplied-instance runtime cannot honor, or if
   unsupported shapes still fail with a raw internal `MethodError` that does not
   reflect the ratified contract.
-- Direct red-state repro: `read_lineages(tree_path, MetaGraph(SimpleDiGraph{Int}(), Symbol, MyVertex, Float64, ...))`
+- Direct red-state repro: `read_lineages!(tree_path, MetaGraph(SimpleDiGraph{Int}(), Symbol, MyVertex, Float64, ...))`
   currently throws raw dispatch failure from the extension unless `VertexData`
   and `EdgeData` happen to match one of a narrow hard-coded set, while README
   and docs currently describe broader customization.
@@ -498,7 +498,7 @@ from installed package sources.
 - direct red-state repros:
   `read_lineages(tree_path, typeof(weighted_metagraph_target()))` returns a
   different MetaGraph type than the accepted concrete target request;
-  `read_lineages(tree_path, supplied_custom_metagraph)` fails with raw internal
+  `read_lineages!(tree_path, supplied_custom_metagraph)` fails with raw internal
   dispatch for many custom `VertexData` or `EdgeData` shapes while docs still
   suggest broader support; `read_lineages(network_path, BuilderDescriptor(builder, Any))`
   still permits erased parent collections in the first-class typed path

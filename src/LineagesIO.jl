@@ -26,6 +26,7 @@ export graph_from_finalized
 export load_alife_table
 export node_property
 export read_lineages
+export read_lineages!
 
 """
     MetaGraphsNextTreeView(asset)

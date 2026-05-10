@@ -67,11 +67,25 @@ end
 """
     read_lineages(path[, target]; format = nothing) -> LineageGraphStore
     read_lineages(io[, target]; source_path = nothing, format = nothing) -> LineageGraphStore
+    read_lineages!(path, basenode; format = nothing) -> LineageGraphStore
+    read_lineages!(io, basenode; source_path = nothing, format = nothing) -> LineageGraphStore
 
 Read rooted lineage data through the package-owned public file or stream
 surface. This surface accepts path-backed or stream-backed Newick and alife
 sources, normalizes once into the canonical owner, and keeps `FileIO.load(...)`
 as a compatibility wrapper only.
+
+`read_lineages` (non-mutating) produces a library-owned graph: pass no target
+for tables-only, a `NodeT` type token for a library-created concrete graph, or
+a `BuilderDescriptor` for a typed custom builder.
+
+`read_lineages!` (mutating) populates a caller-supplied empty graph instance in
+place and returns the store. **Contract (Branch Narrow):** if the first
+user-owned constructor fails before any node is written, the supplied graph
+remains empty and the same object is retryable. Later-edge constructor failure
+may leave partial state in the supplied graph. Callers who require retry safety
+after any failure must discard the partially-populated graph and supply a fresh
+empty instance.
 """
 function read_lineages(
         source_path::AbstractString,
@@ -128,26 +142,51 @@ function normalize_read_lineages_request(
 end
 
 function normalize_read_lineages_request(
-        args::Tuple{BasenodeT},
-    )::AbstractLoadRequest where {BasenodeT}
-    basenode = first(args)
-    handle_type = construction_handle_type(basenode)
-    handle_type === nothing && throw(
-        ArgumentError(
-            "The package-owned `read_lineages(source, basenode)` surface requires an explicit typed handle contract for `$(typeof(basenode))`. Implement `LineagesIO.construction_handle_type(basenode)` for this target, or keep using the retained compatibility wrapper `load(source, basenode)` if you need the legacy single-parent fallback surface.",
-        ),
-    )
-    return BasenodeLoadRequest(basenode, handle_type)
-end
-
-function normalize_read_lineages_request(
         args::Tuple,
     )::AbstractLoadRequest
     throw(
         ArgumentError(
-            "The package-owned `read_lineages` surface accepts `read_lineages(source)`, `read_lineages(source, NodeT)`, `read_lineages(source, basenode)`, and `read_lineages(source, BuilderDescriptor(...))`. Raw `builder = fn` remains compatibility-only via `load(...; builder = fn)`.",
+            "The package-owned `read_lineages` surface accepts `read_lineages(source)`, `read_lineages(source, NodeT)`, and `read_lineages(source, BuilderDescriptor(...))`. For the supplied-instance path use `read_lineages!(source, basenode)`. Raw `builder = fn` remains compatibility-only via `load(...; builder = fn)`.",
         ),
     )
+end
+
+function read_lineages!(
+        source_path::AbstractString,
+        basenode;
+        format = nothing,
+    )::LineageGraphStore
+    source_descriptor = build_read_source_descriptor(
+        source_path,
+        normalize_package_owned_format(format),
+    )
+    handle_type = construction_handle_type(basenode)
+    handle_type === nothing && throw(
+        ArgumentError(
+            "The package-owned `read_lineages!(source, basenode)` surface requires an explicit typed handle contract for `$(typeof(basenode))`. Implement `LineagesIO.construction_handle_type(basenode)` for this target, or keep using the retained compatibility wrapper `load(source, basenode)` if you need the legacy single-parent fallback surface.",
+        ),
+    )
+    return canonical_load(source_descriptor, BasenodeLoadRequest(basenode, handle_type))
+end
+
+function read_lineages!(
+        io::IO,
+        basenode;
+        source_path::Union{Nothing, AbstractString} = nothing,
+        format = nothing,
+    )::LineageGraphStore
+    source_descriptor = build_read_source_descriptor(
+        io,
+        normalize_source_path(source_path),
+        normalize_package_owned_format(format),
+    )
+    handle_type = construction_handle_type(basenode)
+    handle_type === nothing && throw(
+        ArgumentError(
+            "The package-owned `read_lineages!(source, basenode)` surface requires an explicit typed handle contract for `$(typeof(basenode))`. Implement `LineagesIO.construction_handle_type(basenode)` for this target, or keep using the retained compatibility wrapper `load(source, basenode)` if you need the legacy single-parent fallback surface.",
+        ),
+    )
+    return canonical_load(source_descriptor, BasenodeLoadRequest(basenode, handle_type))
 end
 
 function typed_builder_request(
@@ -200,7 +239,7 @@ function assert_supported_read_lineages_keywords(
     )::Nothing
     builder === nothing || throw(
         ArgumentError(
-            "The package-owned `read_lineages` $(surface_label) surface does not accept raw `builder = fn`. Use `read_lineages(source, BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`, or keep using the retained compatibility wrapper `load(...; builder = fn)`.",
+            "The package-owned `read_lineages` $(surface_label) surface does not accept raw `builder = fn`. Use `read_lineages(source, BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`, or use the retained compatibility wrapper `load(...; builder = fn)`.",
         ),
     )
     keyword_names = join(

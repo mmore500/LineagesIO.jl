@@ -172,7 +172,7 @@ end
         joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
     )
     direct_target = public_surface_branch_a_metagraph_target()
-    direct_store = LineagesIO.read_lineages(fixture_path, direct_target)
+    direct_store = LineagesIO.read_lineages!(fixture_path, direct_target)
     wrapper_target = public_surface_branch_a_metagraph_target()
     wrapper_store = load(fixture_path, wrapper_target)
 
@@ -209,7 +209,7 @@ end
         0.0,
     )
     direct_error = capture_expected_load_error() do
-        LineagesIO.read_lineages(fixture_path, direct_target)
+        LineagesIO.read_lineages!(fixture_path, direct_target)
     end
     wrapper_target = MetaGraphsNext.MetaGraph(
         MetaGraphsNext.Graphs.SimpleDiGraph{LineagesIO.StructureKeyType}(),
@@ -242,7 +242,7 @@ end
     )
     direct_target = missing_public_surface_branch_a_edge_graph()
     direct_error = capture_expected_load_error() do
-        LineagesIO.read_lineages(fixture_path, direct_target)
+        LineagesIO.read_lineages!(fixture_path, direct_target)
     end
     wrapper_target = missing_public_surface_branch_a_edge_graph()
     wrapper_error = capture_expected_load_error() do
@@ -265,7 +265,7 @@ end
     @test MetaGraphsNext.Graphs.ne(wrapper_target) == 0
 
     direct_retry_error = capture_expected_load_error() do
-        LineagesIO.read_lineages(fixture_path, direct_target)
+        LineagesIO.read_lineages!(fixture_path, direct_target)
     end
     wrapper_retry_error = capture_expected_load_error() do
         load(fixture_path, wrapper_target)
@@ -288,7 +288,7 @@ end
         joinpath(@__DIR__, "..", "fixtures", "rooted_network_with_annotations.nwk"),
     )
     direct_target = weighted_metagraph_target()
-    direct_store = LineagesIO.read_lineages(fixture_path, direct_target)
+    direct_store = LineagesIO.read_lineages!(fixture_path, direct_target)
     wrapper_target = weighted_metagraph_target()
     wrapper_store = load(fixture_path, wrapper_target)
 

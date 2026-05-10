@@ -17,7 +17,7 @@ The ratified soft-release contract includes:
   `read_lineages(path, HybridNetwork; format = :newick)`
 - tree-compatible rooted loads through the same `HybridNetwork` surface
 - secondary supplied-target binding through
-  `read_lineages(path, HybridNetwork())`
+  `read_lineages!(path, HybridNetwork())`
 - authoritative `node_table` and `edge_table` retention after load
 
 The current soft-release contract does not include:
@@ -103,14 +103,14 @@ tree-compatible rooted example.
 ## Supplied-target binding
 
 If the caller already owns an empty `HybridNetwork()`, the extension also
-supports supplied-target binding on one-graph sources:
+supports supplied-target binding on one-graph sources via `read_lineages!`:
 
 ```julia
 using LineagesIO
 using PhyloNetworks: HybridNetwork
 
 target = HybridNetwork()
-store = read_lineages("hybrid_example.nwk", target)
+store = read_lineages!("hybrid_example.nwk", target)
 asset = first(store.graphs)
 
 asset.graph === target
@@ -118,7 +118,8 @@ asset.graph === target
 
 The supplied target must be empty before loading. This path is secondary to
 `read_lineages(path, HybridNetwork)`, which remains the primary public happy
-path for the soft release.
+path for the soft release. See the Branch Narrow contract note in the
+[main index](index.md) for the retry-safety guarantee.
 
 ## Current boundaries
 

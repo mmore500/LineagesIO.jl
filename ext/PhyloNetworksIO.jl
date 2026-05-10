@@ -197,7 +197,7 @@ function LineagesIO.validate_extension_load_target(
     node_type === PhyloNetworks.HybridNetwork && return nothing
     throw(
         ArgumentError(
-            "The PhyloNetworks extension supports `load(src, HybridNetwork)` for library-created materialization. To materialize into a caller-supplied target, construct an empty `HybridNetwork()` instance and call `load(src, target)` instead.",
+            "The PhyloNetworks extension supports `read_lineages(src, HybridNetwork)` for library-created materialization. To materialize into a caller-supplied target, construct an empty `HybridNetwork()` instance and call `read_lineages!(src, target)` instead. The retained `load(src, target)` compatibility path also remains available.",
         ),
     )
 end

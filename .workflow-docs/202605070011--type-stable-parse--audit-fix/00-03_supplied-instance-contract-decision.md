@@ -99,7 +99,12 @@ inference or preference was used to close the branch decision.
 The following points are settled and are not reopened here:
 
 - `read_lineages` remains the ratified first-class package-owned public
-  surface.
+  surface for the library-created path (Type token or BuilderDescriptor target).
+- `read_lineages!` is the first-class package-owned public surface for the
+  supplied-instance path (populates a caller-owned empty graph in place).
+  **Branch Narrow (2026-05-09):** First-edge atomicity is guaranteed; later-edge
+  failure may leave partial state; callers requiring retry safety after any
+  failure must supply a fresh empty instance.
 - `BuilderDescriptor` remains the ratified first-class typed builder surface.
 - `FileIO.load(...)` remains a compatibility wrapper.
 - `load_alife_table(...)` remains the in-memory Tables.jl convenience wrapper.
@@ -213,11 +218,11 @@ The current supplied-instance runtime supports the following shapes:
 The following live repros confirmed current supported behavior on 2026-05-07:
 
 - `MetaGraph(SimpleDiGraph{Int}(), Symbol, Nothing, Nothing)` succeeds through
-  the supplied-instance `read_lineages(...)` path.
+  the supplied-instance `read_lineages!(...)` path.
 - `MetaGraph(SimpleDiGraph{Int}(), Symbol, Nothing, Float64, ...)` succeeds
-  through the supplied-instance `read_lineages(...)` path.
+  through the supplied-instance `read_lineages!(...)` path.
 - `MetaGraph(SimpleDiGraph{Int}(), Symbol, LineagesIO.NodeRowRef, LineagesIO.EdgeRowRef, ...)`
-  succeeds through the supplied-instance `read_lineages(...)` path.
+  succeeds through the supplied-instance `read_lineages!(...)` path.
 
 ## Direct unsupported-shape repros
 
@@ -256,7 +261,7 @@ supported public surface. Each affected surface must remain explicit:
 
 | Surface | Current tranche owner | Later tranche owner | Required later movement |
 |---|---|---|---|
-| `read_lineages(source, supplied_metagraph)` | Tranche 2 review gate | Tranche 3 | Runtime owner repair and direct supported or unsupported contract proofs |
+| `read_lineages!(source, supplied_metagraph)` | Tranche 2 review gate | Tranche 3 | Runtime owner repair and direct supported or unsupported contract proofs |
 | `load(source, supplied_metagraph)` | Tranche 2 review gate | Tranche 3 | Runtime parity proof through the retained compatibility wrapper |
 | `README.md` MetaGraphsNext guidance | Tranche 2 review gate | Tranche 5 | Public contract synchronization |
 | `docs/src/index.md` MetaGraphsNext guidance | Tranche 2 review gate | Tranche 5 | Public contract synchronization |
@@ -282,7 +287,7 @@ If branch A is ratified:
 - Tranche 3 must implement runtime support through user-owned
   `VertexData(::NodeRowRef)` and `EdgeData(::EdgeWeightType, ::EdgeRowRef)`
   constructor entry points while preserving the current built-in special cases
-- Tranche 3 must verify both `read_lineages(...)` and retained `load(...)`
+- Tranche 3 must verify both `read_lineages!(...)` and retained `load(...)`
   surfaces against that contract
 - Tranche 5 must synchronize README and package docs to that explicit
   constructor-based extension story
@@ -299,7 +304,7 @@ If branch B is ratified:
   built-in `VertexData` and `EdgeData` shapes
 - Tranche 3 must add explicit early validation with precise `ArgumentError`
   for unsupported shapes
-- Tranche 3 must verify both `read_lineages(...)` and retained `load(...)`
+- Tranche 3 must verify both `read_lineages!(...)` and retained `load(...)`
   surfaces against that narrowed contract
 - Tranche 5 must synchronize README and package docs to the narrowed supported-
   shape story
@@ -337,7 +342,7 @@ Because Branch A is ratified, later workflow is constrained as follows:
   `EdgeData = Union{Nothing, Float64}`, `EdgeData <: Real`, and
   `EdgeData <: EdgeRowRef`.
 - Tranche 3 must verify both supported package-owned public surfaces touched by
-  this semantic: `read_lineages(source, supplied_metagraph)` and
+  this semantic: `read_lineages!(source, supplied_metagraph)` and
   `load(source, supplied_metagraph)`.
 - Tranche 5 must synchronize `README.md` and `docs/src/index.md` to the
   constructor-based extension story and close the public contract drift.

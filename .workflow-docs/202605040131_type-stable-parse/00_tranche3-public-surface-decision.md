@@ -403,7 +403,7 @@ The following points are ratified:
   approved as the additive typed convenience-wrapper counterpart for in-memory
   Tables.jl input so the convenience wrapper stays aligned with the same
   canonical typed owner.
-- `read_lineages(source, basenode)` is a typed supplied-basenode path only. It
+- `read_lineages!(source, basenode)` is a typed supplied-basenode path only. It
   must translate directly to the internal typed supplied-basenode request.
 - If `construction_handle_type(basenode)` is `nothing`, the first-class
   package-owned surface must fail honestly with a precise error that points the

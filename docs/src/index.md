@@ -4,12 +4,13 @@ CurrentModule = LineagesIO
 
 # LineagesIO
 
-LineagesIO.jl provides a package-owned public read surface,
-`LineagesIO.read_lineages(...)`, for rooted lineage graph sources. That
-surface owns the authoritative-table-first load contract. Retained
-`FileIO.load(...)` entry points stay available as compatibility wrappers, and
-`load_alife_table(...)` stays available as the in-memory Tables.jl convenience
-wrapper.
+LineagesIO.jl provides two package-owned public read surfaces for rooted
+lineage graph sources. `LineagesIO.read_lineages(...)` is the library-created
+path: it returns a new graph. `LineagesIO.read_lineages!(...)` is the
+supplied-instance path: it populates a caller-owned empty graph in place.
+Retained `FileIO.load(...)` entry points stay available as compatibility
+wrappers, and `load_alife_table(...)` stays available as the in-memory
+Tables.jl convenience wrapper.
 
 ## Quick start
 
@@ -40,19 +41,27 @@ Phase 1 supports rooted-tree and rooted-network-capable Newick loads through:
 - `read_lineages(io; source_path = "tree.nwk")` or
   `read_lineages(io; format = :newick)` for already-open I/O
 - `read_lineages("tree.nwk", NodeT)` for library-created-basenode construction
-- `read_lineages("tree.nwk", basenode)` for supplied-basenode binding on
-  one-graph sources when `construction_handle_type(basenode)` is defined
 - `read_lineages("tree.nwk", BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`
   for the first-class typed builder surface
+- `read_lineages!("tree.nwk", basenode)` for supplied-basenode binding on
+  one-graph sources when `construction_handle_type(basenode)` is defined;
+  see contract note below
 - the optional `PhyloNetworks.jl` extension path for rooted-network and
   tree-compatible rooted `HybridNetwork` materialization
-- secondary supplied-target `HybridNetwork()` binding on one-graph sources
+- secondary `read_lineages!(path, HybridNetwork())` supplied-target binding on one-graph sources
 - the optional `MetaGraphsNext.jl` extension path for MetaGraph materialization
 - `read_lineages("phylogeny.csv")` for alife data standard CSV sources
   (see [Alife data standard](@ref))
 - `load_alife_table(table)` for in-memory Tables.jl-compatible alife inputs
 - retained `FileIO.load(...)` compatibility wrappers, including
   `File{format"..."}`
+
+**`read_lineages!` contract (Branch Narrow):** The supplied-instance path
+provides first-edge atomicity — if the first user-owned constructor fails
+before any node is written, the supplied graph remains empty and the same
+object is retryable. Later-edge constructor failure may leave partial state in
+the supplied graph. Callers who require retry safety after any failure must
+discard the partially-populated graph and supply a fresh empty instance.
 
 Every load returns a `LineageGraphStore` whose `graphs` field lazily
 iterates `LineageGraphAsset` values with authoritative `node_table` and
@@ -162,10 +171,11 @@ table = (
 store = load_alife_table(table; source_path = "in-memory")
 ```
 
-Both surfaces accept the same construction targets as Newick loads
-(`read_lineages(src, NodeT)`, `read_lineages(src, basenode)`,
-`read_lineages(src, BuilderDescriptor(...))`). The raw `builder = fn`
-compatibility wrapper remains on `load(...)` and `load_alife_table(...)`.
+Both surfaces accept the same construction targets as Newick loads:
+`read_lineages(src, NodeT)` and `read_lineages(src, BuilderDescriptor(...))`
+for library-created graphs; `read_lineages!(src, basenode)` for
+supplied-instance binding. The raw `builder = fn` compatibility wrapper
+remains on `load(...)` and `load_alife_table(...)`.
 
 ## PhyloNetworks extension
 
@@ -177,8 +187,8 @@ The current PhyloNetworks soft-release workflow is documented on the
   `read_lineages(path, HybridNetwork; format = :newick)`
 - tree-compatible rooted loads through the same public surface
 - authoritative `node_table` and `edge_table` retention after load
-- secondary supplied-target binding for an empty `HybridNetwork()` on one-graph
-  sources
+- secondary `read_lineages!(path, HybridNetwork())` supplied-target binding on
+  one-graph sources
 
 Retained `FileIO.load(...)` flows remain available as compatibility-only
 wrappers.
@@ -196,9 +206,9 @@ tree-only request token. It always produces a directed MetaGraph with
 edge weights immediately accessible. Arbitrary concrete `Type{<:MetaGraph}`
 requests and hand-written partial `MetaGraph{...}` type literals are not a
 supported library-created customization path. The library-created path
-supports only single-parent (tree) sources; use the caller-supplied empty
-MetaGraph path for multi-parent (network) sources or alternate metadata
-parameterizations.
+supports only single-parent (tree) sources; use `read_lineages!(src, my_graph)`
+with a caller-supplied empty MetaGraph instance for multi-parent (network)
+sources or alternate metadata parameterizations.
 
 ```julia
 using LineagesIO
@@ -236,7 +246,7 @@ my_graph = MetaGraph(
     identity,      # weight_function: edge weight IS the stored Float64
     0.0,
 )
-store = read_lineages("annotated_network.nwk", my_graph)
+store = read_lineages!("annotated_network.nwk", my_graph)
 graph = first(store.graphs).graph
 graph[Symbol(1), Symbol(2)]   # → Float64 edge weight
 ```

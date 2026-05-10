@@ -5,11 +5,13 @@
 [![Build Status](https://github.com/jeetsukumaran/LineagesIO.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/jeetsukumaran/LineagesIO.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-LineagesIO.jl provides a package-owned public read surface,
-`LineagesIO.read_lineages(...)`, for rooted lineage graphs. That surface owns
-the authoritative-table-first load contract. Retained `FileIO.load(...)`
-surfaces stay available as compatibility wrappers, and `load_alife_table(...)`
-stays available as the in-memory Tables.jl convenience wrapper.
+LineagesIO.jl provides two package-owned public read surfaces for rooted
+lineage graphs. `LineagesIO.read_lineages(...)` is the library-created path:
+it returns a new graph. `LineagesIO.read_lineages!(...)` is the
+supplied-instance path: it populates a caller-owned empty graph in place.
+Retained `FileIO.load(...)` surfaces stay available as compatibility wrappers,
+and `load_alife_table(...)` stays available as the in-memory Tables.jl
+convenience wrapper.
 
 Phase 1 currently supports rooted-tree and rooted-network-capable Newick
 sources through:
@@ -20,10 +22,10 @@ sources through:
 - `read_lineages(io; source_path = "tree.nwk")` or
   `read_lineages(io; format = :newick)` for already-open streams
 - `read_lineages("tree.nwk", NodeT)` for library-created-basenode construction
-- `read_lineages("tree.nwk", basenode)` for supplied-basenode binding when
-  `construction_handle_type(basenode)` is defined
 - `read_lineages("tree.nwk", BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`
   for the first-class typed builder surface
+- `read_lineages!("tree.nwk", basenode)` for supplied-basenode binding when
+  `construction_handle_type(basenode)` is defined
 - `read_lineages("phylogeny.csv")` for alife data standard CSV sources
 - `load_alife_table(table)` for in-memory Tables.jl-compatible alife inputs
 - optional `PhyloNetworks.jl` materialization through
@@ -64,7 +66,8 @@ store = read_lineages("primates.txt"; format = :newick)
 
 If you already rely on `FileIO`, the retained compatibility wrapper
 `load(File{format"Newick"}("primates.txt"))` continues to work. The
-package-owned first-class public story is `read_lineages(...)`.
+package-owned first-class public stories are `read_lineages(...)` for
+library-created graphs and `read_lineages!(...)` for supplied-instance binding.
 
 Construction loads reuse the same authoritative tables and deliver retained
 annotation access through `NodeRowRef` and `EdgeRowRef` values:
@@ -152,8 +155,8 @@ The current soft-release contract includes:
 - explicit package-owned override through
   `read_lineages(path, HybridNetwork; format = :newick)`
 - tree-compatible rooted loads through the same `HybridNetwork` surface
-- secondary supplied-target binding through
-  `read_lineages(path, HybridNetwork())` on one-graph sources
+- secondary `read_lineages!(path, HybridNetwork())` supplied-target binding on
+  one-graph sources
 - first-class authoritative `node_table` and `edge_table` retention after load
 
 The current soft-release contract does not include unrooted-network support,
@@ -182,10 +185,10 @@ literals as a customization path. Nodes carry `Symbol` labels
 `Union{Nothing, Float64}` edge data accessible via
 `graph[Symbol(i), Symbol(j)]`.
 
-For multi-parent sources or alternate metadata parameterizations, construct
-and pass an empty caller-supplied `MetaGraph` with `Symbol` labels. Supported
-user-owned custom data is constructor-based: implement
-`VertexData(::LineagesIO.NodeRowRef)` and
+For multi-parent sources or alternate metadata parameterizations, use
+`read_lineages!(src, my_graph)` with an empty caller-supplied `MetaGraph`
+with `Symbol` labels. Supported user-owned custom data is constructor-based:
+implement `VertexData(::LineagesIO.NodeRowRef)` and
 `EdgeData(::LineagesIO.EdgeWeightType, ::LineagesIO.EdgeRowRef)` on the types
 you want stored in the graph.
 

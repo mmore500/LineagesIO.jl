@@ -111,7 +111,7 @@ MyEdge(weight::EdgeWeightType, edgedata::EdgeRowRef) =
 
 **Required verification artifacts:**
 
-- `read_lineages(tree_path, MetaGraph(SimpleDiGraph{Int}(), Symbol, MyNode,
+- `read_lineages!(tree_path, MetaGraph(SimpleDiGraph{Int}(), Symbol, MyNode,
   Nothing, ...))` succeeds and every node in the result carries a `MyNode`
   value, given the constructor above. This proves the generic fallback fires
   and produces the correct type.

@@ -292,7 +292,7 @@ otherwise.
 - Supported public surfaces affected by that owner or semantic:
   - `read_lineages(source, MetaGraph)`
   - retained `load(source, MetaGraph)`
-  - `read_lineages(source, supplied_metagraph)`
+  - `read_lineages!(source, supplied_metagraph)`
   - retained `load(source, supplied_metagraph)`
   - direct owner verification through `LineagesIO.canonical_load(...)`
   - rejected library-created requests shaped like the hand-written partial

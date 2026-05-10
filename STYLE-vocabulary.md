@@ -1010,19 +1010,47 @@ required artifact set.
 **Part of speech:** function name; public API identifier
 
 **Definition:** The first-class package-owned LineagesIO verb for reading
-lineage data through the repo-owned typed load surface.
+lineage data through the repo-owned typed load surface on the
+library-created path. It returns a new graph. Use this form when passing a
+`NodeT` type token, a `BuilderDescriptor`, or no graph target at all.
 
 **Usage notes:** Use `LineagesIO.read_lineages` when referring to the canonical
-package-owned public load contract. `FileIO.load(...)` remains a
-compatibility-only wrapper, and `load_alife_table(...)` remains a repo-owned
-convenience wrapper over the same canonical owner.
+package-owned public load contract for library-created graphs. `FileIO.load(...)`
+remains a compatibility-only wrapper, and `load_alife_table(...)` remains a
+repo-owned convenience wrapper over the same canonical owner.
 
 **Approval note:** Approved by the project owner on 2026-05-06 during the
 tranche-3 public-surface review and synchronized here by
 `.workflow-docs/202605040131_type-stable-parse/00_tranche3-public-surface-decision.md`.
 
 **Proscribed alternates:** `LineagesIO.load` as the canonical package-owned
-surface, `readlineages`, `read_lineage`.
+surface, `readlineages`, `read_lineage`, and `read_lineages` for the
+supplied-instance path (use `read_lineages!` for that path).
+
+---
+
+### `read_lineages!`
+
+**Part of speech:** function name; public API identifier
+
+**Definition:** The first-class package-owned LineagesIO verb for the
+supplied-instance path: it populates a caller-owned empty graph in place and
+returns the `LineageGraphStore`. Use this form when passing an empty graph
+instance (a value, not a `Type`) as the construction target.
+
+**Contract (Branch Narrow):** The supplied-instance path provides first-edge
+atomicity — if the first user-owned constructor fails before any node is
+written, the supplied graph remains empty and the same object is retryable.
+Later-edge constructor failure may leave partial state in the supplied graph.
+Callers who require retry safety after any failure must discard the
+partially-populated graph and supply a fresh empty instance.
+
+**Approval note:** Approved by the project owner on 2026-05-09 alongside the
+Branch Narrow contract decision. Rationale: populating a caller-owned graph is
+a mutation; Julia names mutating functions with `!`. The `!` naming makes the
+partial-state contract self-evident at the call site.
+
+**Proscribed alternates:** `read_lineages` for the supplied-instance path.
 
 ---
 

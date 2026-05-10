@@ -178,7 +178,7 @@ otherwise.
 
 ### Lock 3h: both supported public surfaces touched by this semantic must move together
 
-- The work is not complete if `read_lineages(source, supplied_metagraph)` and
+- The work is not complete if `read_lineages!(source, supplied_metagraph)` and
   retained `load(source, supplied_metagraph)` do not agree on the Branch-A
   constructor-based custom-data contract.
 - Direct bad shape to guard against: landing the owner repair in a way that
@@ -295,7 +295,7 @@ otherwise.
     constructor-based custom-data contract whose owner-level behavior,
     compatibility-wrapper parity, and later docs synchronization can all agree
 - Supported public surfaces affected by that owner or semantic:
-  - `read_lineages(source, supplied_metagraph)`
+  - `read_lineages!(source, supplied_metagraph)`
   - `load(source, supplied_metagraph)`
   - `README.md` MetaGraphsNext guidance
   - `docs/src/index.md` MetaGraphsNext guidance
@@ -507,7 +507,7 @@ synchronization work explicit and unavoidable.
 **Type**: TEST  
 **Output**: `test/extensions/metagraphsnext_public_surface.jl` proves that both supported public surfaces touched by this semantic move together for constructor-backed success and missing-constructor failure.  
 **Depends on**: 1, 2  
-**Positive contract**: Extend `test/extensions/metagraphsnext_public_surface.jl` with direct parity coverage for the supplied-instance Branch-A custom-data story. Use the same supplied-instance custom metadata contract through both `LineagesIO.read_lineages(...)` and retained `load(...)`. Add at least one positive parity test on a rooted-network fixture that compares authoritative-table snapshots, basenode identity, and graph-contract snapshots between the two surfaces for constructor-backed custom metadata. Add at least one negative parity regression that intentionally omits the approved constructor and asserts that both surfaces fail at the same user-owned constructor entrypoint rather than at `add_node_to_metagraph!` or `add_edge_to_metagraph!`. Keep the docs-sync boundary explicit by leaving README and package docs untouched.  
+**Positive contract**: Extend `test/extensions/metagraphsnext_public_surface.jl` with direct parity coverage for the supplied-instance Branch-A custom-data story. Use the same supplied-instance custom metadata contract through both `LineagesIO.read_lineages!(...)` and retained `load(...)`. Add at least one positive parity test on a rooted-network fixture that compares authoritative-table snapshots, basenode identity, and graph-contract snapshots between the two surfaces for constructor-backed custom metadata. Add at least one negative parity regression that intentionally omits the approved constructor and asserts that both surfaces fail at the same user-owned constructor entrypoint rather than at `add_node_to_metagraph!` or `add_edge_to_metagraph!`. Keep the docs-sync boundary explicit by leaving README and package docs untouched.  
 **Negative contract**: Do not substitute owner-level `canonical_load(...)` coverage for public-surface parity. Do not prove only one of the two public surfaces. Do not use a one-way subtype check, a graph-type-only assertion, or a helper-only success proxy that would still pass if custom metadata drifted between `read_lineages(...)` and `load(...)`. Do not edit README or package docs in this task.  
 **Files**: `test/extensions/metagraphsnext_public_surface.jl`  
 **Out of scope**: `ext/MetaGraphsNextIO.jl`, `README.md`, `docs/src/index.md`, `test/extensions/metagraphsnext_supplied_basenode.jl`, `test/extensions/metagraphsnext_canonical_owner.jl`, library-created `MetaGraph` tests, and Tranche 5 docs work  
