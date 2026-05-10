@@ -70,22 +70,28 @@ end
     read_lineages!(path, basenode; format = nothing) -> LineageGraphStore
     read_lineages!(io, basenode; source_path = nothing, format = nothing) -> LineageGraphStore
 
-Read rooted lineage data through the package-owned public file or stream
-surface. This surface accepts path-backed or stream-backed Newick and alife
-sources, normalizes once into the canonical owner, and keeps `FileIO.load(...)`
-as a compatibility wrapper only.
+Read rooted lineage data through the package-owned public file or stream surface.
 
-`read_lineages` (non-mutating) produces a library-owned graph: pass no target
-for tables-only, a `NodeT` type token for a library-created concrete graph, or
-a `BuilderDescriptor` for a typed custom builder.
+**`read_lineages` — library-created path.** Every form accepts either no
+construction target (tables-only), a type token (a `Type` value such as
+`MetaGraph` or `HybridNetwork`), or a `BuilderDescriptor`. A type token is a
+specification, not an object: passing `MetaGraph` says "construct a graph of this
+kind and return it." No caller-owned object exists before the call, so `read_lineages`
+carries no `!`.
 
-`read_lineages!` (mutating) populates a caller-supplied empty graph instance in
-place and returns the store. **Contract (Branch Narrow):** if the first
-user-owned constructor fails before any node is written, the supplied graph
-remains empty and the same object is retryable. Later-edge constructor failure
-may leave partial state in the supplied graph. Callers who require retry safety
-after any failure must discard the partially-populated graph and supply a fresh
-empty instance.
+**`read_lineages!` — supplied-instance path.** Accepts an existing caller-owned
+graph instance as the construction destination and writes nodes and edges into it
+in place. The argument is the destination, not a description of one. Because a
+caller-owned object is modified, `read_lineages!` carries `!`.
+
+**Contract (Branch Narrow):** `read_lineages!` provides first-edge atomicity — if
+the first user-owned constructor fails before any node is written, the supplied
+graph remains empty and the same instance is retryable. Later-edge failure may
+leave partial state. Callers who need retry safety after any failure must discard
+the instance and supply a fresh empty graph.
+
+See `design/brief--read-lineages-public-surface.md` for the authoritative
+surface-split rationale and `!`-boundary decision table.
 """
 function read_lineages(
         source_path::AbstractString,
@@ -122,7 +128,7 @@ function read_lineages(
 end
 
 function normalize_read_lineages_request(
-        args::Tuple{},
+        ::Tuple{},
     )::AbstractLoadRequest
     return TablesOnlyLoadRequest()
 end
@@ -142,7 +148,7 @@ function normalize_read_lineages_request(
 end
 
 function normalize_read_lineages_request(
-        args::Tuple,
+        ::Tuple,
     )::AbstractLoadRequest
     throw(
         ArgumentError(

@@ -1010,9 +1010,17 @@ required artifact set.
 **Part of speech:** function name; public API identifier
 
 **Definition:** The first-class package-owned LineagesIO verb for reading
-lineage data through the repo-owned typed load surface on the
-library-created path. It returns a new graph. Use this form when passing a
-`NodeT` type token, a `BuilderDescriptor`, or no graph target at all.
+lineage data on the library-created path. It does not accept a caller-owned
+graph to populate. Every form accepts either no construction target (tables-only),
+a **type token**, or a `BuilderDescriptor`. In all three cases no caller-owned
+object exists before the call; LineagesIO creates one and returns it.
+
+**Type token rationale:** A type token is a `Type` value passed as an argument —
+`MetaGraph`, `HybridNetwork`, `DemoNode`. It is a specification, not an object.
+Passing `MetaGraph` says "construct a graph of this kind and return it." Nothing
+the caller owns is touched. Because no caller-owned object is modified,
+`read_lineages` does not carry `!`. See `design/brief--read-lineages-public-surface.md`
+for the full `!`-boundary decision table and rationale.
 
 **Usage notes:** Use `LineagesIO.read_lineages` when referring to the canonical
 package-owned public load contract for library-created graphs. `FileIO.load(...)`
@@ -1048,7 +1056,9 @@ partially-populated graph and supply a fresh empty instance.
 **Approval note:** Approved by the project owner on 2026-05-09 alongside the
 Branch Narrow contract decision. Rationale: populating a caller-owned graph is
 a mutation; Julia names mutating functions with `!`. The `!` naming makes the
-partial-state contract self-evident at the call site.
+partial-state contract self-evident at the call site. See
+`design/brief--read-lineages-public-surface.md` for the full surface-split
+rationale and `!`-boundary decision table.
 
 **Proscribed alternates:** `read_lineages` for the supplied-instance path.
 
