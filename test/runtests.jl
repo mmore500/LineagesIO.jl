@@ -3,7 +3,7 @@ using FileIO: File, Stream, load
 using JET: JET
 using LineagesIO
 using Tables
-using Test: @test, @test_throws, @testset
+using Test: @test, @test_logs, @test_throws, @testset
 
 function unwrap_captured_error(err)
     return err isa Base.CapturedException ? err.ex : err

@@ -29,49 +29,50 @@ function register_newick_format!()::Nothing
     return nothing
 end
 
-function fileio_load(file::FileIO.File{NewickFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
-    assert_supported_load_keywords(kwargs)
+function fileio_load(
+        file::FileIO.File{NewickFormat}, args...;
+        builder = nothing, kwargs...,
+    )::LineageGraphStore
     return compat_load(
-        NewickFilePathSourceDescriptor(FileIO.filename(file)),
-        args...;
-        builder = builder,
+        NewickFilePathSourceDescriptor(FileIO.filename(file); kwargs...),
+        args...; builder = builder,
     )
 end
 
-function fileio_load(stream::FileIO.Stream{NewickFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
-    assert_supported_load_keywords(kwargs)
+function fileio_load(
+        stream::FileIO.Stream{NewickFormat}, args...;
+        builder = nothing, kwargs...,
+    )::LineageGraphStore
     return compat_load(
         NewickStreamSourceDescriptor(
             FileIO.stream(stream),
-            normalize_source_path(FileIO.filename(stream)),
+            normalize_source_path(FileIO.filename(stream));
+            kwargs...,
         ),
-        args...;
-        builder = builder,
+        args...; builder = builder,
     )
 end
 
-function fileio_load(file::FileIO.File{AlifeStandardFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
-    assert_supported_load_keywords(kwargs)
+function fileio_load(
+        file::FileIO.File{AlifeStandardFormat}, args...;
+        builder = nothing, kwargs...,
+    )::LineageGraphStore
     return compat_load(
-        AlifeFilePathSourceDescriptor(FileIO.filename(file)),
-        args...;
-        builder = builder,
+        AlifeFilePathSourceDescriptor(FileIO.filename(file); kwargs...),
+        args...; builder = builder,
     )
 end
 
-function fileio_load(stream::FileIO.Stream{AlifeStandardFormat}, args...; builder = nothing, kwargs...)::LineageGraphStore
-    assert_supported_load_keywords(kwargs)
+function fileio_load(
+        stream::FileIO.Stream{AlifeStandardFormat}, args...;
+        builder = nothing, kwargs...,
+    )::LineageGraphStore
     return compat_load(
         AlifeStreamSourceDescriptor(
             FileIO.stream(stream),
-            normalize_source_path(FileIO.filename(stream)),
+            normalize_source_path(FileIO.filename(stream));
+            kwargs...,
         ),
-        args...;
-        builder = builder,
+        args...; builder = builder,
     )
-end
-
-function assert_supported_load_keywords(kwargs)::Nothing
-    isempty(kwargs) || throw(ArgumentError("Unsupported keyword options. Supported surfaces are `load(src)`, `load(src, NodeT)`, `load(src, basenode)`, and `load(src; builder = fn)`."))
-    return nothing
 end

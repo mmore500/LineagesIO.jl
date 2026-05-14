@@ -135,15 +135,34 @@ compatibility wrapper only.
 LineagesIO.jl loads phylogenies that follow the
 [ALife phylogeny data standard](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html);
 see that specification for the full schema. LineagesIO requires `id` and
-either `ancestor_list` or `ancestor_id`, and retains every other column
-as a node annotation. Both `[NONE]`/`[none]`/`[None]`/`[]` (in
-`ancestor_list`) and a self-referencing `ancestor_id == id` are
-accepted basenode markers; multi-parent rows (`ancestor_list = [a,b]`)
-materialize as multi-parent edges. Sources that yield disconnected
-components produce one `LineageGraphAsset` per component, with each
-component's alife `id` values remapped onto sequential `nodekey`s with
-the basenode pinned at `nodekey == 1` (the original `id` is retained
-as the node `label`).
+at least one of `ancestor_list` or `ancestor_id`; if both are present,
+`ancestor_list` is used. Every other column is retained as a node
+annotation. Both `[NONE]`/`[none]`/`[None]`/`[]` (in `ancestor_list`)
+and a self-referencing `ancestor_id == id` are accepted basenode
+markers; multi-parent rows (`ancestor_list = [a,b]`) materialize as
+multi-parent edges. By default LineagesIO requires a
+single basenode and raises for multi-basenode sources; pass
+`allow_forest = true` to materialize one `LineageGraphAsset` per
+connected component. Within each component the alife `id` values are
+remapped onto sequential `nodekey`s with the basenode pinned at
+`nodekey == 1` (the original `id` is retained as the node `label`).
+
+For inputs whose rows are already in topological order (every ancestor
+entry precedes its descendants), pass
+`assume_topological_ordering = true` to skip the validating BFS
+partition in favor of a single forward sweep. The assumption is
+verified once via `@assert`, so misuse raises immediately under normal
+builds.
+
+By default annotation cell values are preserved as-is: `missing` /
+`nothing` cells become `nothing`, string cells pass through verbatim
+(whitespace and empty strings retained), and any other cell type is
+stringified via `string(value)`. Pass
+`normalize_annotation_values = true` to additionally strip whitespace
+and coerce empty strings to `nothing`. Sources that declare an
+`origin_time` annotation column trigger a warning noting that
+LineagesIO does not yet derive `edgeweight` from it — the column is
+retained as a node annotation only.
 
 The package-owned first-class surface treats `.csv` as alife input directly:
 
@@ -156,7 +175,8 @@ asset = first(store.graphs)
 
 If you already rely on `FileIO`, the retained compatibility wrapper
 `load(File{LineagesIO.AlifeStandardFormat}("phylogeny.csv"))` continues to
-work.
+work. Both surfaces accept the `allow_forest` and
+`assume_topological_ordering` kwargs.
 
 For data already in memory, `load_alife_table` accepts any
 Tables.jl-compatible object (`DataFrame`, `NamedTuple` of vectors, Arrow
