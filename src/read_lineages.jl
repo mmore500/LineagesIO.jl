@@ -100,13 +100,15 @@ function read_lineages(
         builder = nothing,
         kwargs...,
     )::LineageGraphStore
-    assert_supported_read_lineages_keywords(builder, kwargs, "path")
-    source_descriptor = build_read_source_descriptor(
-        source_path,
-        normalize_package_owned_format(format),
+    builder === nothing || throw(
+        ArgumentError(
+            "The package-owned `read_lineages` path surface does not accept raw `builder = fn`. Use `read_lineages(source, BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`, or use the retained compatibility wrapper `load(...; builder = fn)`.",
+        ),
     )
-    request = normalize_read_lineages_request(args)
-    return canonical_load(source_descriptor, request)
+    source_descriptor = build_read_source_descriptor(
+        source_path, normalize_package_owned_format(format); kwargs...,
+    )
+    return canonical_load(source_descriptor, normalize_read_lineages_request(args))
 end
 
 function read_lineages(
@@ -117,14 +119,16 @@ function read_lineages(
         builder = nothing,
         kwargs...,
     )::LineageGraphStore
-    assert_supported_read_lineages_keywords(builder, kwargs, "stream")
-    source_descriptor = build_read_source_descriptor(
-        io,
-        normalize_source_path(source_path),
-        normalize_package_owned_format(format),
+    builder === nothing || throw(
+        ArgumentError(
+            "The package-owned `read_lineages` stream surface does not accept raw `builder = fn`. Use `read_lineages(source, BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`, or use the retained compatibility wrapper `load(...; builder = fn)`.",
+        ),
     )
-    request = normalize_read_lineages_request(args)
-    return canonical_load(source_descriptor, request)
+    source_descriptor = build_read_source_descriptor(
+        io, normalize_source_path(source_path), normalize_package_owned_format(format);
+        kwargs...,
+    )
+    return canonical_load(source_descriptor, normalize_read_lineages_request(args))
 end
 
 function normalize_read_lineages_request(
@@ -161,10 +165,10 @@ function read_lineages!(
         source_path::AbstractString,
         basenode;
         format = nothing,
+        kwargs...,
     )::LineageGraphStore
     source_descriptor = build_read_source_descriptor(
-        source_path,
-        normalize_package_owned_format(format),
+        source_path, normalize_package_owned_format(format); kwargs...,
     )
     handle_type = construction_handle_type(basenode)
     handle_type === nothing && throw(
@@ -180,11 +184,11 @@ function read_lineages!(
         basenode;
         source_path::Union{Nothing, AbstractString} = nothing,
         format = nothing,
+        kwargs...,
     )::LineageGraphStore
     source_descriptor = build_read_source_descriptor(
-        io,
-        normalize_source_path(source_path),
-        normalize_package_owned_format(format),
+        io, normalize_source_path(source_path), normalize_package_owned_format(format);
+        kwargs...,
     )
     handle_type = construction_handle_type(basenode)
     handle_type === nothing && throw(
@@ -238,45 +242,24 @@ function normalize_package_owned_format(format)
     )
 end
 
-function assert_supported_read_lineages_keywords(
-        builder,
-        kwargs,
-        surface_label::AbstractString,
-    )::Nothing
-    builder === nothing || throw(
-        ArgumentError(
-            "The package-owned `read_lineages` $(surface_label) surface does not accept raw `builder = fn`. Use `read_lineages(source, BuilderDescriptor(builder, HandleT[, ParentCollectionT]))`, or use the retained compatibility wrapper `load(...; builder = fn)`.",
-        ),
-    )
-    keyword_names = join(
-        sort!(String[string(key) for key in keys(kwargs)]),
-        ", ",
-    )
-    isempty(kwargs) || throw(
-        ArgumentError(
-            "Unsupported keyword options for the package-owned `read_lineages` $(surface_label) surface: $(keyword_names).",
-        ),
-    )
-    return nothing
-end
-
 function build_read_source_descriptor(
         source_path::AbstractString,
-        format::Union{Nothing, Symbol},
+        format::Union{Nothing, Symbol};
+        kwargs...,
     )::AbstractLoadSourceDescriptor
     resolved_format = format === nothing ?
         infer_package_owned_format_from_path(source_path, "path") :
         format
     return build_read_source_descriptor_for_format(
-        String(source_path),
-        resolved_format,
+        String(source_path), resolved_format; kwargs...,
     )
 end
 
 function build_read_source_descriptor(
         io::IO,
         source_path::OptionalString,
-        format::Union{Nothing, Symbol},
+        format::Union{Nothing, Symbol};
+        kwargs...,
     )::AbstractLoadSourceDescriptor
     resolved_format = if format !== nothing
         format
@@ -290,28 +273,28 @@ function build_read_source_descriptor(
         )
     end
     return build_read_stream_source_descriptor_for_format(
-        io,
-        source_path,
-        resolved_format,
+        io, source_path, resolved_format; kwargs...,
     )
 end
 
 function build_read_source_descriptor_for_format(
         source_path::String,
-        format::Symbol,
+        format::Symbol;
+        kwargs...,
     )::AbstractLoadSourceDescriptor
-    format === :newick && return NewickFilePathSourceDescriptor(source_path)
-    format === :alife && return AlifeFilePathSourceDescriptor(source_path)
+    format === :newick && return NewickFilePathSourceDescriptor(source_path; kwargs...)
+    format === :alife && return AlifeFilePathSourceDescriptor(source_path; kwargs...)
     throw_impossible_package_owned_format(format)
 end
 
 function build_read_stream_source_descriptor_for_format(
         io::IO,
         source_path::OptionalString,
-        format::Symbol,
+        format::Symbol;
+        kwargs...,
     )::AbstractLoadSourceDescriptor
-    format === :newick && return NewickStreamSourceDescriptor(io, source_path)
-    format === :alife && return AlifeStreamSourceDescriptor(io, source_path)
+    format === :newick && return NewickStreamSourceDescriptor(io, source_path; kwargs...)
+    format === :alife && return AlifeStreamSourceDescriptor(io, source_path; kwargs...)
     throw_impossible_package_owned_format(format)
 end
 

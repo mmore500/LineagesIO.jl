@@ -11,8 +11,10 @@ struct NewickFilePathSourceDescriptor <: AbstractLoadSourceDescriptor
 end
 
 function NewickFilePathSourceDescriptor(
-        source_path::AbstractString,
+        source_path::AbstractString;
+        kwargs...,
     )::NewickFilePathSourceDescriptor
+    assert_no_extra_descriptor_kwargs(:NewickFilePathSourceDescriptor, kwargs)
     return NewickFilePathSourceDescriptor(String(source_path))
 end
 
@@ -28,8 +30,10 @@ end
 
 function NewickStreamSourceDescriptor(
         io::StreamT,
-        source_path::Union{Nothing, AbstractString} = nothing,
+        source_path::Union{Nothing, AbstractString} = nothing;
+        kwargs...,
     )::NewickStreamSourceDescriptor{StreamT} where {StreamT <: IO}
+    assert_no_extra_descriptor_kwargs(:NewickStreamSourceDescriptor, kwargs)
     return NewickStreamSourceDescriptor{StreamT}(io, normalize_source_path(source_path))
 end
 
@@ -45,63 +49,95 @@ end
 
 function NewickTextSourceDescriptor(
         text::AbstractString,
-        source_path::OptionalString = nothing,
+        source_path::OptionalString = nothing;
+        kwargs...,
     )::NewickTextSourceDescriptor
+    assert_no_extra_descriptor_kwargs(:NewickTextSourceDescriptor, kwargs)
     return NewickTextSourceDescriptor(String(text), source_path)
 end
 
+function assert_no_extra_descriptor_kwargs(descriptor_name::Symbol, kwargs)::Nothing
+    isempty(kwargs) && return nothing
+    keyword_list = join(sort!(String[string(k) for k in keys(kwargs)]), ", ")
+    throw(ArgumentError(string(descriptor_name) * " does not accept extra keyword options; received: " * keyword_list * "."))
+end
+
 """
-    AlifeFilePathSourceDescriptor(source_path)
+    AlifeFilePathSourceDescriptor(source_path; allow_forest = false, assume_topological_ordering = false)
 
 Package-owned alife file or path source descriptor for the canonical load
 owner.
 """
 struct AlifeFilePathSourceDescriptor <: AbstractLoadSourceDescriptor
     source_path::String
+    allow_forest::Bool
+    assume_topological_ordering::Bool
+    normalize_annotation_values::Bool
 end
 
 function AlifeFilePathSourceDescriptor(
-        source_path::AbstractString,
+        source_path::AbstractString;
+        allow_forest::Bool = false,
+        assume_topological_ordering::Bool = false,
+        normalize_annotation_values::Bool = false,
     )::AlifeFilePathSourceDescriptor
-    return AlifeFilePathSourceDescriptor(String(source_path))
+    return AlifeFilePathSourceDescriptor(
+        String(source_path), allow_forest, assume_topological_ordering, normalize_annotation_values,
+    )
 end
 
 """
-    AlifeStreamSourceDescriptor(io[, source_path])
+    AlifeStreamSourceDescriptor(io[, source_path]; allow_forest = false, assume_topological_ordering = false)
 
 Package-owned alife stream source descriptor for the canonical load owner.
 """
 struct AlifeStreamSourceDescriptor{StreamT <: IO} <: AbstractLoadSourceDescriptor
     io::StreamT
     source_path::OptionalString
+    allow_forest::Bool
+    assume_topological_ordering::Bool
+    normalize_annotation_values::Bool
 end
 
 function AlifeStreamSourceDescriptor(
         io::StreamT,
-        source_path::Union{Nothing, AbstractString} = nothing,
+        source_path::Union{Nothing, AbstractString} = nothing;
+        allow_forest::Bool = false,
+        assume_topological_ordering::Bool = false,
+        normalize_annotation_values::Bool = false,
     )::AlifeStreamSourceDescriptor{StreamT} where {StreamT <: IO}
-    return AlifeStreamSourceDescriptor{StreamT}(io, normalize_source_path(source_path))
+    return AlifeStreamSourceDescriptor{StreamT}(
+        io, normalize_source_path(source_path), allow_forest, assume_topological_ordering, normalize_annotation_values,
+    )
 end
 
 """
-    AlifeTextSourceDescriptor(text[, source_path])
+    AlifeTextSourceDescriptor(text[, source_path]; allow_forest = false, assume_topological_ordering = false)
 
 Package-owned alife text source descriptor for the canonical load owner.
 """
 struct AlifeTextSourceDescriptor <: AbstractLoadSourceDescriptor
     text::String
     source_path::OptionalString
+    allow_forest::Bool
+    assume_topological_ordering::Bool
+    normalize_annotation_values::Bool
 end
 
 function AlifeTextSourceDescriptor(
         text::AbstractString,
-        source_path::OptionalString = nothing,
+        source_path::OptionalString = nothing;
+        allow_forest::Bool = false,
+        assume_topological_ordering::Bool = false,
+        normalize_annotation_values::Bool = false,
     )::AlifeTextSourceDescriptor
-    return AlifeTextSourceDescriptor(String(text), source_path)
+    return AlifeTextSourceDescriptor(
+        String(text), source_path, allow_forest, assume_topological_ordering, normalize_annotation_values,
+    )
 end
 
 """
-    AlifeTableSourceDescriptor(table[, source_path])
+    AlifeTableSourceDescriptor(table[, source_path]; allow_forest = false, assume_topological_ordering = false)
 
 Package-owned in-memory alife Tables.jl source descriptor for the canonical
 load owner.
@@ -109,13 +145,21 @@ load owner.
 struct AlifeTableSourceDescriptor{TableT} <: AbstractLoadSourceDescriptor
     table::TableT
     source_path::OptionalString
+    allow_forest::Bool
+    assume_topological_ordering::Bool
+    normalize_annotation_values::Bool
 end
 
 function AlifeTableSourceDescriptor(
         table::TableT,
-        source_path::Union{Nothing, AbstractString} = nothing,
+        source_path::Union{Nothing, AbstractString} = nothing;
+        allow_forest::Bool = false,
+        assume_topological_ordering::Bool = false,
+        normalize_annotation_values::Bool = false,
     )::AlifeTableSourceDescriptor{TableT} where {TableT}
-    return AlifeTableSourceDescriptor{TableT}(table, normalize_source_path(source_path))
+    return AlifeTableSourceDescriptor{TableT}(
+        table, normalize_source_path(source_path), allow_forest, assume_topological_ordering, normalize_annotation_values,
+    )
 end
 
 abstract type AbstractLoadRequest end
@@ -268,7 +312,10 @@ function canonical_load(
     return canonical_load(
         AlifeTextSourceDescriptor(
             text,
-            getfield(source_descriptor, :source_path),
+            getfield(source_descriptor, :source_path);
+            allow_forest = getfield(source_descriptor, :allow_forest),
+            assume_topological_ordering = getfield(source_descriptor, :assume_topological_ordering),
+        normalize_annotation_values = getfield(source_descriptor, :normalize_annotation_values),
         ),
         request,
     )
@@ -282,7 +329,10 @@ function canonical_load(
     return canonical_load(
         AlifeTextSourceDescriptor(
             text,
-            getfield(source_descriptor, :source_path),
+            getfield(source_descriptor, :source_path);
+            allow_forest = getfield(source_descriptor, :allow_forest),
+            assume_topological_ordering = getfield(source_descriptor, :assume_topological_ordering),
+        normalize_annotation_values = getfield(source_descriptor, :normalize_annotation_values),
         ),
         request,
     )
@@ -295,7 +345,10 @@ function canonical_load(
     return build_alife_store(
         getfield(source_descriptor, :text),
         getfield(source_descriptor, :source_path),
-        request,
+        request;
+        allow_forest = getfield(source_descriptor, :allow_forest),
+        assume_topological_ordering = getfield(source_descriptor, :assume_topological_ordering),
+        normalize_annotation_values = getfield(source_descriptor, :normalize_annotation_values),
     )
 end
 
@@ -312,7 +365,10 @@ function canonical_load(
     return build_alife_store_from_table(
         table,
         getfield(source_descriptor, :source_path),
-        request,
+        request;
+        allow_forest = getfield(source_descriptor, :allow_forest),
+        assume_topological_ordering = getfield(source_descriptor, :assume_topological_ordering),
+        normalize_annotation_values = getfield(source_descriptor, :normalize_annotation_values),
     )
 end
 
